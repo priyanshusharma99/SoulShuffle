@@ -1,0 +1,125 @@
+import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native'
+import React, { useState } from 'react'
+import { Ionicons } from '@expo/vector-icons'
+import { signIn } from '../services/authService'
+import { useRouter } from 'expo-router'
+
+const SigninForm = () => {
+        const [email, setEmail] = useState('')
+        const [password, setPassword] = useState('')
+        const [showPassword, setShowPassword] = useState(false)
+        const [isLoading, setIsLoading] = useState(false)
+        const router = useRouter()
+
+        const handleSignIn = async () => {
+            if (!email || !password) {
+                Alert.alert("Error", "Please enter email and password");
+                return;
+            }
+            try {
+                setIsLoading(true);
+                const data = await signIn(email, password);
+                console.log('Sign in successful:', data);
+                // @ts-ignore
+                router.replace('/questionnaire');
+            } catch (error: any) {
+                console.log('Sign in error:', JSON.stringify(error?.response?.data || error?.message));
+                const message = error?.response?.data?.message 
+                  || error?.message 
+                  || 'An unexpected error occurred';
+                Alert.alert("Login Failed", message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        const [mode, setMode] = useState('signin')
+        return (
+            <View className="flex-1 relative overflow-hidden">
+                <View className='absolute w-[500px] h-[500px] bg-pink-200/40 rounded-full -top-40 -left-20' />
+                <View className='absolute w-[400px] h-[400px] bg-purple-200/40 rounded-full top-60 -right-40' />
+
+                <SafeAreaView className="flex-1">
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        className="flex-1 justify-center px-6"
+                    >
+                        <View className="items-center mb-10 mt-10">
+                            {/* <View className="bg-white/80 p-5 rounded-[32px] shadow-sm mb-6 border border-white/50">
+              <Ionicons name="heart" size={60} color="#f43f5e" />
+            </View> */}
+                            <Text className="text-4xl mt-[70px] font-extrabold text-slate-800 tracking-tight">Love Challenge</Text>
+                            <Text className="text-slate-500 mt-3 text-base font-medium">Ignite the spark, play together.</Text>
+                        </View>
+
+                        <View className="bg-white/90 rounded-[32px] p-6 shadow-xl shadow-rose-100 border border-white/60">
+
+                            <View className="mb-5">
+                                <Text className="text-slate-700 font-semibold mb-2 ml-1 text-sm">Email or Phone</Text>
+                                <View className="flex-row items-center border border-slate-100 bg-slate-50/50 rounded-2xl h-14 px-4 overflow-hidden">
+                                    <Ionicons name="mail-outline" size={20} color="#94a3b8" />
+                                    <TextInput
+                                        placeholder="Enter your email"
+                                        placeholderTextColor="#94a3b8"
+                                        className="flex-1 ml-3 text-slate-800 font-medium"
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        autoCapitalize="none"
+                                    />
+                                </View>
+                            </View>
+
+                            <View className="mb-6">
+                                <Text className="text-slate-700 font-semibold mb-2 ml-1 text-sm">Password</Text>
+                                <View className="flex-row items-center border border-slate-100 bg-slate-50/50 rounded-2xl h-14 px-4 overflow-hidden">
+                                    <Ionicons name="lock-closed-outline" size={20} color="#94a3b8" />
+                                    <TextInput
+                                        placeholder="Enter your password"
+                                        placeholderTextColor="#94a3b8"
+                                        className="flex-1 ml-3 text-slate-800 font-medium"
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        secureTextEntry={!showPassword}
+                                    />
+                                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-1">
+                                        <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#94a3b8" />
+                                    </TouchableOpacity>
+                                </View>
+                                <TouchableOpacity className="mt-4 self-end">
+                                    <Text className="text-rose-500 font-semibold text-sm">Forgot Password?</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity
+                                className={`bg-rose-500 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 ${isLoading ? 'opacity-70' : ''}`}
+                                activeOpacity={0.8}
+                                onPress={handleSignIn}
+                                disabled={isLoading}
+                            >
+                                <Text className="text-white font-bold text-lg">{isLoading ? 'Signing In...' : 'Sign In'}</Text>
+                                {!isLoading && <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />}
+                            </TouchableOpacity>
+                        </View>
+
+                        <View className="mt-8 items-center">
+                            <Text className="text-slate-500 font-medium text-sm mb-5">Or continue with</Text>
+                            <View className="flex-row gap-4 w-full">
+                                <TouchableOpacity className="flex-1 bg-white/90 border border-slate-100 rounded-2xl h-14 flex-row items-center justify-center shadow-sm" activeOpacity={0.7}>
+                                    <Ionicons name="logo-google" size={20} color="#ea4335" />
+                                    <Text className="text-slate-700 font-bold ml-2">Google</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity className="flex-1 bg-[#1A1A1A] rounded-2xl h-14 flex-row items-center justify-center shadow-sm" activeOpacity={0.7}>
+                                    <Ionicons name="logo-apple" size={20} color="#ffffff" />
+                                    <Text className="text-white font-bold ml-2">Apple</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        
+
+                    </KeyboardAvoidingView>
+                </SafeAreaView>
+            </View>
+        )
+}
+
+export default SigninForm
