@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Get Supabase Data</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Supabase Data Dump</h1>
+  <pre id="output">Loading...</pre>
+
+  <script>
+    async function dump() {
+      const output = document.getElementById('output');
+      const supabaseUrl = 'https://lewusozxqokwxthpxrjo.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxld3Vzb3p4cW9rd3h0aHB4cmpvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDM5MjM4NCwiZXhwIjoyMDg5OTY4Mzg0fQ.Qph_XlDlA7Iq1vS8RdbVSJSb8Wqh9HaF_KnqWPWDY9k';
+      
+      const client = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+      try {
+        const { data: cards, error: cardsError } = await client.from('cards').select('*');
+        const { data: categories, error: catsError } = await client.from('card_categories').select('*');
+
+        if (cardsError || catsError) {
+          output.innerText = `Error:\nCards Error: ${cardsError?.message}\nCategories Error: ${catsError?.message}`;
+          return;
+        }
+
+        const dataDump = {
+          cards,
+          categories
+        };
+
+        output.innerText = JSON.stringify(dataDump, null, 2);
+      } catch (err) {
+        output.innerText = `Exception: ${err.message}`;
+      }
+    }
+
+    window.onload = dump;
+  </script>
+</body>
+</html>

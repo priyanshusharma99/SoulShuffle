@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
   fetchQuestionnaire,
+  getMyAnswers,
   submitAnswers as submitAnswersApi,
   Question,
   AnswerPayload,
@@ -71,6 +72,18 @@ export default function Questionnaire() {
     try {
       setIsLoadingQuestions(true);
       setLoadError(null);
+
+      try {
+        const existingAnswers = await getMyAnswers();
+        if (existingAnswers?.length > 0) {
+          // @ts-ignore
+          router.replace('/(tabs)');
+          return;
+        }
+      } catch (answerError: any) {
+        console.warn('Could not check existing questionnaire answers:', answerError?.response?.data || answerError?.message);
+      }
+
       const data = await fetchQuestionnaire();
 
       if (!data || data.length === 0) {
@@ -405,7 +418,7 @@ export default function Questionnaire() {
           <Ionicons name="alert-circle-outline" size={40} color="#f43f5e" />
         </View>
         <Text className="text-slate-800 font-bold text-lg text-center mb-2">
-          Couldn't load questions
+          Could not load questions
         </Text>
         <Text className="text-slate-500 font-medium text-sm text-center mb-8">
           {loadError}

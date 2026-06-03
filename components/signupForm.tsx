@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { signUp } from '../services/authService'
 import { useRouter } from 'expo-router'
+import { useColorScheme } from '@/hooks/use-color-scheme'
 
 const SignupForm = () => {
     const [name, setName] = useState('')
@@ -11,6 +12,8 @@ const SignupForm = () => {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+    const colorScheme = useColorScheme()
+    const isDark = colorScheme === 'dark'
 
     const handleSignUp = async () => {
         if (!name || !email || !password) {
@@ -36,8 +39,8 @@ const SignupForm = () => {
 
     return (
         <View className="flex-1 relative overflow-hidden">
-            <View className='absolute w-[500px] h-[500px] bg-pink-200/40 rounded-full -top-40 -left-20' />
-            <View className='absolute w-[400px] h-[400px] bg-purple-200/40 rounded-full top-60 -right-40' />
+            <View className='absolute w-[500px] h-[500px] bg-pink-200/40 dark:bg-[#1E1215]/40 rounded-full -top-40 -left-20' />
+            <View className='absolute w-[400px] h-[400px] bg-purple-200/40 dark:bg-rose-950/10 rounded-full top-60 -right-40' />
 
             <SafeAreaView className="flex-1">
                 <KeyboardAvoidingView
@@ -45,20 +48,20 @@ const SignupForm = () => {
                     className="flex-1 justify-center px-6"
                 >
                     <View className="items-center mb-6 mt-10">
-                        <Text className="text-4xl mt-[30px] font-extrabold text-slate-800 tracking-tight">Create Account</Text>
-                        <Text className="text-slate-500 mt-3 text-base font-medium">Join us and start the journey.</Text>
+                        <Text className="text-4xl mt-[30px] font-extrabold text-slate-800 dark:text-white tracking-tight">Create Account</Text>
+                        <Text className="text-slate-500 dark:text-slate-400 mt-3 text-base font-medium">Join us and start the journey.</Text>
                     </View>
 
-                    <View className="bg-white/90 rounded-[32px] p-6 shadow-xl shadow-rose-100 border border-white/60">
+                    <View className="bg-white/90 dark:bg-[#1E1215]/90 rounded-[32px] p-6 shadow-xl shadow-rose-100 dark:shadow-none border border-white/60 dark:border-rose-950/20">
 
                         <View className="mb-5">
-                            <Text className="text-slate-700 font-semibold mb-2 ml-1 text-sm">Full Name</Text>
-                            <View className="flex-row items-center border border-slate-100 bg-slate-50/50 rounded-2xl h-14 px-4 overflow-hidden">
-                                <Ionicons name="person-outline" size={20} color="#94a3b8" />
+                            <Text className="text-slate-700 dark:text-slate-300 font-semibold mb-2 ml-1 text-sm">Full Name</Text>
+                            <View className="flex-row items-center border border-slate-100 dark:border-rose-950/40 bg-slate-50/50 dark:bg-[#13090B] rounded-2xl h-14 px-4 overflow-hidden">
+                                <Ionicons name="person-outline" size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
                                 <TextInput
                                     placeholder="Enter your full name"
-                                    placeholderTextColor="#94a3b8"
-                                    className="flex-1 ml-3 text-slate-800 font-medium"
+                                    placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
+                                    className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
                                     value={name}
                                     onChangeText={setName}
                                     autoCapitalize="words"
@@ -67,13 +70,13 @@ const SignupForm = () => {
                         </View>
 
                         <View className="mb-5">
-                            <Text className="text-slate-700 font-semibold mb-2 ml-1 text-sm">Email or Phone</Text>
-                            <View className="flex-row items-center border border-slate-100 bg-slate-50/50 rounded-2xl h-14 px-4 overflow-hidden">
-                                <Ionicons name="mail-outline" size={20} color="#94a3b8" />
+                            <Text className="text-slate-700 dark:text-slate-300 font-semibold mb-2 ml-1 text-sm">Email or Phone</Text>
+                            <View className="flex-row items-center border border-slate-100 dark:border-rose-950/40 bg-slate-50/50 dark:bg-[#13090B] rounded-2xl h-14 px-4 overflow-hidden">
+                                <Ionicons name="mail-outline" size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
                                 <TextInput
                                     placeholder="Enter your email"
-                                    placeholderTextColor="#94a3b8"
-                                    className="flex-1 ml-3 text-slate-800 font-medium"
+                                    placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
+                                    className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
                                     value={email}
                                     onChangeText={setEmail}
                                     autoCapitalize="none"
@@ -82,25 +85,25 @@ const SignupForm = () => {
                         </View>
 
                         <View className="mb-6">
-                            <Text className="text-slate-700 font-semibold mb-2 ml-1 text-sm">Password</Text>
-                            <View className="flex-row items-center border border-slate-100 bg-slate-50/50 rounded-2xl h-14 px-4 overflow-hidden">
-                                <Ionicons name="lock-closed-outline" size={20} color="#94a3b8" />
+                            <Text className="text-slate-700 dark:text-slate-300 font-semibold mb-2 ml-1 text-sm">Password</Text>
+                            <View className="flex-row items-center border border-slate-100 dark:border-rose-950/40 bg-slate-50/50 dark:bg-[#13090B] rounded-2xl h-14 px-4 overflow-hidden">
+                                <Ionicons name="lock-closed-outline" size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
                                 <TextInput
                                     placeholder="Create a password"
-                                    placeholderTextColor="#94a3b8"
-                                    className="flex-1 ml-3 text-slate-800 font-medium"
+                                    placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
+                                    className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
                                     value={password}
                                     onChangeText={setPassword}
                                     secureTextEntry={!showPassword}
                                 />
                                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-1">
-                                    <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#94a3b8" />
+                                    <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
                                 </TouchableOpacity>
                             </View>
                         </View>
 
                         <TouchableOpacity
-                            className={`bg-rose-500 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 ${isLoading ? 'opacity-70' : ''}`}
+                            className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isLoading ? 'opacity-70' : ''}`}
                             activeOpacity={0.8}
                             onPress={handleSignUp}
                             disabled={isLoading}
@@ -111,19 +114,18 @@ const SignupForm = () => {
                     </View>
 
                     <View className="mt-8 items-center">
-                        <Text className="text-slate-500 font-medium text-sm mb-5">Or sign up with</Text>
+                        <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mb-5">Or sign up with</Text>
                         <View className="flex-row gap-4 w-full">
-                            <TouchableOpacity className="flex-1 bg-white/90 border border-slate-100 rounded-2xl h-14 flex-row items-center justify-center shadow-sm" activeOpacity={0.7}>
+                            <TouchableOpacity className="flex-1 bg-white/90 dark:bg-[#1E1215] border border-slate-100 dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center shadow-sm dark:shadow-none" activeOpacity={0.7}>
                                 <Ionicons name="logo-google" size={20} color="#ea4335" />
-                                <Text className="text-slate-700 font-bold ml-2">Google</Text>
+                                <Text className="text-slate-700 dark:text-white font-bold ml-2">Google</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity className="flex-1 bg-[#1A1A1A] rounded-2xl h-14 flex-row items-center justify-center shadow-sm" activeOpacity={0.7}>
+                            <TouchableOpacity className="flex-1 bg-[#1A1A1A] dark:bg-[#180D10] border border-transparent dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center shadow-sm dark:shadow-none" activeOpacity={0.7}>
                                 <Ionicons name="logo-apple" size={20} color="#ffffff" />
                                 <Text className="text-white font-bold ml-2">Apple</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
-
 
                 </KeyboardAvoidingView>
             </SafeAreaView>

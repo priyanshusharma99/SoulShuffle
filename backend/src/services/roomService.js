@@ -120,8 +120,74 @@ const getActiveRoom = async (userId) => {
     return room;
 };
 
+const sendChallenge = async (userId, challenge) => {
+    const room = await getActiveRoom(userId);
+
+    if (!room) {
+        const err = new Error('No active room found. Create or join a room first.');
+        err.status = 404;
+        throw err;
+    }
+
+    if (room.status !== 'ACTIVE' || !room.partner_id) {
+        const err = new Error('Your partner has not joined the room yet.');
+        err.status = 400;
+        throw err;
+    }
+
+    const sentChallenge = {
+        id: challenge.id,
+        title: challenge.title,
+        category: challenge.category,
+        difficulty: challenge.difficulty,
+        time: challenge.time,
+        image: challenge.image,
+        description: challenge.description || null,
+        sender_id: userId,
+        status: 'SENT',
+        sent_at: new Date().toISOString()
+    };
+
+    const currentGameState = room.game_state || {};
+    const challengeHistory = Array.isArray(currentGameState.challenge_history)
+        ? currentGameState.challenge_history
+        : [];
+
+    const nextGameState = {
+        ...currentGameState,
+        active_challenge: sentChallenge,
+        challenge_history: [sentChallenge, ...challengeHistory].slice(0, 50)
+    };
+
+    const { data, error } = await supabase
+        .from('rooms')
+        .update({ game_state: nextGameState })
+        .eq('id', room.id)
+        .select()
+        .single();
+
+    if (error) {
+        const err = new Error(error.message);
+        err.status = 400;
+        throw err;
+    }
+
+    try {
+        const { getIo } = require('./socketService');
+        getIo().to(room.code).emit('challenge_sent', {
+            roomCode: room.code,
+            challenge: sentChallenge
+        });
+    } catch (socketError) {
+        console.log('Challenge saved, socket emit skipped:', socketError.message);
+    }
+
+    return { room: data, challenge: sentChallenge };
+};
+
 module.exports = {
     createRoom,
     joinRoom,
-    getActiveRoom
+    getActiveRoom,
+    sendChallenge
 };

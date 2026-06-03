@@ -4,13 +4,14 @@ import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import Sidebar from '@/components/Sidebar';
 
-const TabIcon = ({ name, title, focused, color, activeIcon }: any) => {
+const TabIcon = ({ name, title, focused, color, activeIcon, isDark }: any) => {
   if (focused) {
     return (
-      <View className="bg-[#e24e5d] w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-red-300">
+      <View className={`w-14 h-14 rounded-full items-center justify-center shadow-lg ${isDark ? 'bg-rose-600 shadow-rose-950/40' : 'bg-[#e24e5d] shadow-red-300'}`}>
         <Ionicons size={18} name={activeIcon || name} color="#fff" />
-        <Text className="text-white text-[8px] font-bold tracking-widest mt-1 uppercase">{title}</Text>
+        <Text className="text-[8px] font-bold tracking-widest mt-1 uppercase text-white">{title}</Text>
       </View>
     );
   }
@@ -23,22 +24,24 @@ const TabIcon = ({ name, title, focused, color, activeIcon }: any) => {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   return (
-    <Tabs
+    <View style={{ flex: 1 }}>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#e11d48',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: isDark ? '#fff' : '#e11d48',
+        tabBarInactiveTintColor: isDark ? 'rgba(255, 255, 255, 0.4)' : '#9ca3af',
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: isDark ? '#150A0C' : '#fff',
           borderTopWidth: 0,
           elevation: 10,
-          shadowColor: '#000',
+          shadowColor: isDark ? '#000' : '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
+          shadowOpacity: isDark ? 0.3 : 0.1,
           shadowRadius: 10,
           height: 80,
           paddingBottom: 25,
@@ -55,7 +58,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'HOME',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="home-outline" activeIcon="home" title="HOME" focused={focused} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="heart-outline" activeIcon="heart" title="HOME" focused={focused} color={color} isDark={isDark} />,
           tabBarLabel: ({ focused, color }) => focused ? null : <Text style={{ fontSize: 10, fontWeight: '700', color, marginTop: 4, letterSpacing: 0.5 }}>HOME</Text>
         }}
       />
@@ -63,7 +66,7 @@ export default function TabLayout() {
         name="dares"
         options={{
           title: 'DARES',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="book-outline" activeIcon="book" title="DARES" focused={focused} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="copy-outline" activeIcon="copy" title="DARES" focused={focused} color={color} isDark={isDark} />,
           tabBarLabel: ({ focused, color }) => focused ? null : <Text style={{ fontSize: 10, fontWeight: '700', color, marginTop: 4, letterSpacing: 0.5 }}>DARES</Text>
         }}
       />
@@ -71,7 +74,7 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'HISTORY',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="time-outline" activeIcon="time" title="HISTORY" focused={focused} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="hourglass-outline" activeIcon="hourglass" title="HISTORY" focused={focused} color={color} isDark={isDark} />,
           tabBarLabel: ({ focused, color }) => focused ? null : <Text style={{ fontSize: 10, fontWeight: '700', color, marginTop: 4, letterSpacing: 0.5 }}>HISTORY</Text>
         }}
       />
@@ -79,7 +82,7 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'CHAT',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="chatbubble-outline" activeIcon="chatbubble" title="CHAT" focused={focused} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="chatbubbles-outline" activeIcon="chatbubbles" title="CHAT" focused={focused} color={color} isDark={isDark} />,
           tabBarLabel: ({ focused, color }) => focused ? null : <Text style={{ fontSize: 10, fontWeight: '700', color, marginTop: 4, letterSpacing: 0.5 }}>CHAT</Text>
         }}
       />
@@ -87,7 +90,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'PROFILE',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="person-outline" activeIcon="person" title="PROFILE" focused={focused} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="rose-outline" activeIcon="rose" title="PROFILE" focused={focused} color={color} isDark={isDark} />,
           tabBarLabel: ({ focused, color }) => focused ? null : <Text style={{ fontSize: 10, fontWeight: '700', color, marginTop: 4, letterSpacing: 0.5 }}>PROFILE</Text>
         }}
       />
@@ -99,5 +102,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <Sidebar />
+    </View>
   );
 }

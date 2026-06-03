@@ -1,137 +1,344 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, ActivityIndicator, Alert, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { createRoom, joinRoom, getActiveRoom, Room, ExpiryType } from '@/services/roomService';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSidebar } from '@/context/SidebarContext';
+
+const coupleCover = require('@/assets/images/couple_cover.png');
 
 export default function Dashboard() {
-  const router = useRouter();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { openSidebar } = useSidebar();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // ── Room State ─────────────────────────────────────────
+  const [activeRoom, setActiveRoom] = useState<Room | null>(null);
+  const [roomLoading, setRoomLoading] = useState(true);
+  const [roomModalVisible, setRoomModalVisible] = useState(false);
+  const [roomModalTab, setRoomModalTab] = useState<'create' | 'join'>('create');
+  const [selectedExpiry, setSelectedExpiry] = useState<ExpiryType>('7_DAYS');
+  const [joinCode, setJoinCode] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
+  const activeChallenge = activeRoom?.game_state?.active_challenge;
+
+  // ── Fetch Active Room on Mount ─────────────────────────
+  const fetchActiveRoom = useCallback(async (silent = false) => {
+    try {
+      if (!silent) {
+        setRoomLoading(true);
+      }
+      const room = await getActiveRoom();
+      setActiveRoom(room);
+    } catch (err) {
+      console.log('Failed to fetch active room:', err);
+    } finally {
+      if (!silent) {
+        setRoomLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveRoom();
+  }, [fetchActiveRoom]);
+
+  useEffect(() => {
+    if (activeRoom?.status !== 'WAITING' && activeRoom?.status !== 'ACTIVE') return;
+
+    const intervalId = setInterval(() => {
+      fetchActiveRoom(true);
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [activeRoom?.status, fetchActiveRoom]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        fetchActiveRoom(true);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [fetchActiveRoom]);
+
+  // ── Create Room Handler ────────────────────────────────
+  const handleCreateRoom = async () => {
+    try {
+      setActionLoading(true);
+      setActionError('');
+      const room = await createRoom(selectedExpiry);
+      setActiveRoom(room);
+      setRoomModalVisible(false);
+    } catch (err: any) {
+      setActionError(err.response?.data?.message || err.message || 'Failed to create room');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Join Room Handler ──────────────────────────────────
+  const handleJoinRoom = async () => {
+    if (!joinCode.trim()) {
+      setActionError('Please enter a room code');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setActionError('');
+      const room = await joinRoom(joinCode.trim());
+      setActiveRoom(room);
+      setRoomModalVisible(false);
+      setJoinCode('');
+    } catch (err: any) {
+      setActionError(err.response?.data?.message || err.message || 'Invalid room code');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Copy Code to Clipboard ─────────────────────────────
+  const handleCopyCode = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      Alert.alert('Copied!', `Room code: ${code}`);
+    }
+  };
+
+  // ── Reset Room (Create New) ────────────────────────────
+  const handleNewRoom = () => {
+    setActiveRoom(null);
+    setRoomModalTab('create');
+    setRoomModalVisible(true);
+    setActionError('');
+  };
+
+  // ── Open Modal ─────────────────────────────────────────
+  const openRoomModal = (tab: 'create' | 'join') => {
+    setRoomModalTab(tab);
+    setActionError('');
+    setJoinCode('');
+    setRoomModalVisible(true);
+  };
+
+  const switchRoomModalTab = (tab: 'create' | 'join') => {
+    setRoomModalTab(tab);
+    setActionError('');
+    setActionLoading(false);
+    if (tab === 'create') {
+      setJoinCode('');
+    }
+  };
+
+  const navigateTo = async (path: string) => {
+    const { router } = await import('expo-router');
+    router.push(path as any);
+  };
+
+  // ── Format Join Code Input ─────────────────────────────
+  const formatJoinCode = (text: string) => {
+    const cleaned = text.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+    setJoinCode(cleaned);
+  };
+
+  // ── Expiry Label Helper ────────────────────────────────
+  const expiryLabel = (type: ExpiryType) => {
+    switch (type) {
+      case '7_DAYS': return '7 Days';
+      case '30_DAYS': return '30 Days';
+      case '1_YEAR': return '1 Year';
+    }
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-rose-50" style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
+    <SafeAreaView className="flex-1 bg-rose-50 dark:bg-[#13090B]" style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
       {/* Status bar configuration if needed */}
-      <StatusBar barStyle="dark-content" backgroundColor="#fff1f2" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#13090B" : "#fff1f2"} />
       
-      {/* Side Menu Modal */}
-      <Modal
-        visible={isMenuOpen}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsMenuOpen(false)}
-      >
-        <View className="flex-1 flex-row">
-          {/* Backdrop Overlay */}
-          <TouchableOpacity 
-            className="absolute inset-0 bg-black/30 z-10 w-full h-full" 
-            activeOpacity={1} 
-            onPress={() => setIsMenuOpen(false)} 
+
+
+      {/* ═══════════════════════════════════════════════════════
+          ROOM CREATE / JOIN OVERLAY
+          ═══════════════════════════════════════════════════════ */}
+      {roomModalVisible && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, justifyContent: 'flex-end' }}>
+          {/* Backdrop */}
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            className="bg-black/40 dark:bg-black/60"
+            activeOpacity={1}
+            onPress={() => setRoomModalVisible(false)}
           />
-          
-          {/* Menu Panel */}
-          <View className="bg-[#fff8f7] w-[80%] h-full pt-16 rounded-tr-[40px] rounded-br-[40px] shadow-2xl shadow-slate-900 border-r border-[#ffeceb] z-20 flex-col">
-            <View className="px-8 pb-8 flex-1">
-              
-              {/* Avatar Section */}
-              <View className="relative w-20 h-20 mb-4">
-                <Image 
-                  source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop' }} 
-                  className="w-full h-full rounded-full border-[3px] border-[#e24e5d]"
-                />
-                <View className="absolute -bottom-1 -right-2 bg-[#0d6e67] w-8 h-8 rounded-full items-center justify-center border-2 border-white">
-                  <Text className="text-white font-bold text-[11px]">14</Text>
+
+          {/* Bottom Sheet */}
+          <View className="bg-[#fff8f7] dark:bg-[#180D10] rounded-t-[36px] pt-4 pb-10 px-6 border-t border-[#ffeceb] dark:border-rose-950/20" style={{ zIndex: 201 }}>
+            {/* Handle Bar */}
+            <View className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full self-center mb-6" />
+
+            {/* Tab Switcher */}
+            <View className="flex-row bg-[#f5eeed] dark:bg-rose-950/40 rounded-2xl p-1.5 mb-7">
+              <TouchableOpacity
+                className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === 'create' ? 'bg-white dark:bg-[#1E1215] shadow-sm shadow-slate-200/50 dark:shadow-none' : ''}`}
+                onPress={() => switchRoomModalTab('create')}
+              >
+                <Text className={`font-bold text-[14px] ${roomModalTab === 'create' ? 'text-[#af2c3b] dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>Create Room</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === 'join' ? 'bg-white dark:bg-[#1E1215] shadow-sm shadow-slate-200/50 dark:shadow-none' : ''}`}
+                onPress={() => switchRoomModalTab('join')}
+              >
+                <Text className={`font-bold text-[14px] ${roomModalTab === 'join' ? 'text-[#af2c3b] dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>Join Room</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── CREATE TAB ─────────────────────────────── */}
+            {roomModalTab === 'create' && (
+              <View>
+                <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Create a Love Room</Text>
+                <Text className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 leading-5">
+                  Start a private room and share the code with your partner to connect.
+                </Text>
+
+                {/* Expiry Selection */}
+                <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase mb-3">Room Duration</Text>
+                <View className="flex-row gap-3 mb-8">
+                  {(['7_DAYS', '30_DAYS', '1_YEAR'] as ExpiryType[]).map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      className={`flex-1 py-4 rounded-2xl items-center border-2 ${
+                        selectedExpiry === type
+                          ? 'bg-[#af2c3b] border-[#af2c3b] dark:bg-rose-500 dark:border-rose-500'
+                          : 'bg-white border-slate-100 dark:bg-[#1E1215] dark:border-rose-950/40'
+                      }`}
+                      onPress={() => setSelectedExpiry(type)}
+                    >
+                      <Text className={`font-bold text-[13px] ${selectedExpiry === type ? (isDark ? 'text-white' : 'text-white') : 'text-slate-700 dark:text-slate-100'}`}>
+                        {expiryLabel(type)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              </View>
 
-              <Text className="text-[28px] font-black text-[#af2c3b] tracking-tight">Alex & Sam</Text>
-              <Text className="text-[10px] font-bold text-[#e18e8e] tracking-[0.15em] uppercase mt-2">Level 14 Romantic</Text>
-              <Text className="text-[14px] font-medium text-slate-600 mt-1 mb-10">Connected since 2022</Text>
+                {/* Error */}
+                {actionError ? (
+                  <View className="bg-red-50 dark:bg-red-950/20 rounded-2xl p-4 mb-4 flex-row items-center">
+                    <Ionicons name="alert-circle" size={18} color="#dc2626" />
+                    <Text className="text-red-600 dark:text-red-400 font-semibold text-[13px] ml-2 flex-1">{actionError}</Text>
+                  </View>
+                ) : null}
 
-              {/* Menu Links */}
-              <TouchableOpacity 
-                className="flex-row items-center py-4 px-6 mb-2 rounded-full"
-                onPress={() => setIsMenuOpen(false)}
-              >
-                <Ionicons name="home" size={20} color="#857169" />
-                <Text className="text-[#857169] font-bold text-[15px] ml-5">Home</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                className="flex-row items-center bg-[#e4525f] py-4 px-6 rounded-full mb-2 shadow-sm shadow-red-200"
-                onPress={() => {
-                  setIsMenuOpen(false);
-                  router.push('/dares');
-                }}
-              >
-                <Ionicons name="trophy" size={20} color="#fff" />
-                <Text className="text-white font-bold text-[15px] ml-5">Challenges</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                className="flex-row items-center py-4 px-6 mb-2 rounded-full"
-                onPress={() => {
-                  setIsMenuOpen(false);
-                  router.push('/history');
-                }}
-              >
-                <Ionicons name="time" size={20} color="#857169" />
-                <Text className="text-[#857169] font-bold text-[15px] ml-5">History</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                className="flex-row items-center py-4 px-6 mb-2 rounded-full"
-              >
-                <Ionicons name="book" size={20} color="#857169" />
-                <Text className="text-[#857169] font-bold text-[15px] ml-5">Memory Book</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                className="flex-row items-center py-4 px-6 mb-8 rounded-full"
-              >
-                <Ionicons name="pricetag" size={20} color="#857169" />
-                <Text className="text-[#857169] font-bold text-[15px] ml-5">Coin Toss</Text>
-              </TouchableOpacity>
-
-              {/* Bottom Menu Items */}
-              <View className="mt-auto">
-                <TouchableOpacity 
-                  className="flex-row items-center py-4 px-6 rounded-full border-t border-slate-100"
+                {/* Create Button */}
+                <TouchableOpacity
+                  className="bg-[#af2c3b] dark:bg-rose-600 rounded-full py-[18px] items-center shadow-lg shadow-red-300/50 dark:shadow-none flex-row justify-center"
+                  activeOpacity={0.8}
+                  onPress={handleCreateRoom}
+                  disabled={actionLoading}
                 >
-                  <Ionicons name="settings" size={20} color="#857169" />
-                  <Text className="text-[#857169] font-bold text-[15px] ml-5">Settings</Text>
+                  {actionLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle" size={20} color="white" />
+                      <Text className="text-white font-bold text-[15px] ml-2">Create Room</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
 
-            {/* Footer */}
-            <View className="px-8 pb-12 pt-6 border-t border-slate-100 bg-[#fffdfc] rounded-br-[40px]">
-              <Text className="text-3xl font-black italic text-[#af2c3b] tracking-tight mb-2">Love Dare</Text>
-              <Text className="text-[8px] font-bold text-slate-500 tracking-widest uppercase">Version 2.4.0 • Made with love</Text>
-            </View>
+            {/* ── JOIN TAB ───────────────────────────────── */}
+            {roomModalTab === 'join' && (
+              <View>
+                <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Join Your Partner</Text>
+                <Text className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 leading-5">
+                  Enter the room code your partner shared with you.
+                </Text>
+
+                {/* Code Input */}
+                <View className="bg-white dark:bg-[#1E1215] rounded-2xl border-2 border-slate-100 dark:border-rose-950/40 px-5 py-1 mb-4">
+                  <TextInput
+                    placeholder="ELV-A9B3C1"
+                    placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.2)" : "#cbd5e1"}
+                    value={joinCode}
+                    onChangeText={formatJoinCode}
+                    className="text-center text-2xl font-black text-slate-900 dark:text-white py-4"
+                    style={{ letterSpacing: 8 }}
+                    maxLength={10}
+                    autoCapitalize="characters"
+                  />
+                </View>
+
+                {/* Error */}
+                {actionError ? (
+                  <View className="bg-red-50 dark:bg-red-950/20 rounded-2xl p-4 mb-4 flex-row items-center">
+                    <Ionicons name="alert-circle" size={18} color="#dc2626" />
+                    <Text className="text-red-600 dark:text-red-400 font-semibold text-[13px] ml-2 flex-1">{actionError}</Text>
+                  </View>
+                ) : null}
+
+                {/* Join Button */}
+                <TouchableOpacity
+                  className={`rounded-full py-[18px] items-center shadow-lg flex-row justify-center mt-2 ${
+                    joinCode.trim().length >= 5 ? 'bg-[#0d5f5a] dark:bg-teal-600 shadow-teal-300/50 dark:shadow-none' : 'bg-slate-300 dark:bg-slate-800 shadow-slate-200/50 dark:shadow-none'
+                  }`}
+                  activeOpacity={0.8}
+                  onPress={handleJoinRoom}
+                  disabled={actionLoading || joinCode.trim().length < 5}
+                >
+                  {actionLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="enter" size={20} color="white" />
+                      <Text className="text-white font-bold text-[15px] ml-2">Join Room</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Cancel */}
+            <TouchableOpacity
+              className="mt-4 py-3 items-center"
+              onPress={() => setRoomModalVisible(false)}
+            >
+              <Text className="text-slate-400 dark:text-slate-500 font-bold text-[14px]">Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View className="flex-row items-center justify-between px-6 py-4">
-          <TouchableOpacity onPress={() => setIsMenuOpen(true)}>
-            <Ionicons name="menu-outline" size={30} color="#9f1239" />
+          <TouchableOpacity onPress={openSidebar}>
+            <Ionicons name="menu-outline" size={30} color={isDark ? "#fff" : "#9f1239"} />
           </TouchableOpacity>
-          <Text className="text-red-700 font-extrabold text-lg tracking-tight">Love Dare Challenge</Text>
-          <TouchableOpacity onPress={() => router.push('/profile')}>
+          <View className="flex-row items-center gap-1.5">
+            <Ionicons name="infinite" size={28} color={isDark ? "#fda4af" : "#be123c"} style={{ transform: [{ rotate: '-15deg' }] }} />
+            <Text className="text-red-700 dark:text-rose-400 font-black text-xl tracking-tight">SoulShuffle</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigateTo('/profile')}>
             <Image 
               source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop' }} 
-              className="w-10 h-10 rounded-full border border-rose-200"
+              className="w-10 h-10 rounded-full border border-rose-200 dark:border-slate-800"
             />
           </TouchableOpacity>
         </View>
 
         {/* Welcome Section */}
         <View className="px-6 mt-4">
-          <Text className="text-[32px] leading-10 font-black text-slate-900 tracking-tight">
+          <Text className="text-[32px] leading-10 font-black text-slate-900 dark:text-white tracking-tight">
             Welcome back, Alex{'\n'}& Sam 💕
           </Text>
-          <Text className="text-slate-500 font-semibold text-sm mt-3">
+          <Text className="text-slate-500 dark:text-slate-400 font-semibold text-sm mt-3">
             Together for 2.5 years • Level 14 Romantic
           </Text>
         </View>
@@ -139,60 +346,293 @@ export default function Dashboard() {
         {/* Couple Image */}
         <View className="px-6 mt-6">
           <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&h=400&fit=crop' }} 
+            source={coupleCover} 
             className="w-full h-52 rounded-[36px]"
           />
         </View>
 
         {/* Stats Section */}
-        <View className="flex-row justify-between px-6 mt-6">
-          <View className="bg-white rounded-[32px] p-6 w-[47%] shadow-sm shadow-rose-100/50">
-            <View className="bg-rose-50/80 w-10 h-10 rounded-full items-center justify-center mb-5">
-              <Ionicons name="medal" size={20} color="#e11d48" />
+        <View className="flex-row justify-between px-6 mt-5">
+          <View className="bg-white dark:bg-[#1E1215] dark:border dark:border-rose-950/40 rounded-[24px] px-5 py-4 w-[47%] shadow-sm shadow-rose-100/50 dark:shadow-none">
+            <View className="bg-rose-50/80 dark:bg-rose-500/10 w-8 h-8 rounded-full items-center justify-center mb-3">
+              <Ionicons name="medal" size={17} color={isDark ? "#f43f5e" : "#e11d48"} />
             </View>
-            <Text className="text-3xl font-black text-slate-900">24</Text>
-            <Text className="text-[10px] font-bold text-slate-400 mt-2 tracking-widest uppercase">Dares Finished</Text>
+            <Text className="text-[26px] leading-8 font-black text-slate-900 dark:text-rose-400">24</Text>
+            <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-400 mt-1 tracking-widest uppercase">Dares Finished</Text>
           </View>
-          <View className="bg-white rounded-[32px] p-6 w-[47%] shadow-sm shadow-rose-100/50">
-            <View className="bg-teal-50/80 w-10 h-10 rounded-full items-center justify-center mb-5">
-              <Ionicons name="flame" size={20} color="#0d9488" />
+          <View className="bg-white dark:bg-[#122220] dark:border dark:border-teal-950/30 rounded-[24px] px-5 py-4 w-[47%] shadow-sm shadow-rose-100/50 dark:shadow-none">
+            <View className="bg-teal-50/80 dark:bg-teal-500/10 w-8 h-8 rounded-full items-center justify-center mb-3">
+              <Ionicons name="flame" size={17} color={isDark ? "#2dd4bf" : "#0d9488"} />
             </View>
-            <Text className="text-3xl font-black text-slate-900">5</Text>
-            <Text className="text-[10px] font-bold text-slate-400 mt-2 tracking-widest uppercase">Day Streak</Text>
+            <Text className="text-[26px] leading-8 font-black text-slate-900 dark:text-teal-400">5</Text>
+            <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-400 mt-1 tracking-widest uppercase">Day Streak</Text>
           </View>
         </View>
 
+        {/* ═══════════════════════════════════════════════════
+            COUPLE ROOM SECTION
+            ═══════════════════════════════════════════════════ */}
+        <View className="mx-6 mt-6">
+          {roomLoading ? (
+            /* Loading State */
+            <View className="bg-white dark:bg-[#1E1215] rounded-[36px] p-8 items-center shadow-sm shadow-rose-100/50 dark:shadow-none">
+              <ActivityIndicator size="large" color="#af2c3b" />
+              <Text className="text-slate-400 dark:text-slate-400 font-semibold text-sm mt-3">Checking room status...</Text>
+            </View>
+          ) : activeRoom ? (
+            /* ── ACTIVE ROOM CARD ────────────────────────── */
+            <View className={`bg-white dark:bg-[#1E1215] dark:border dark:border-rose-950/20 rounded-[36px] overflow-hidden shadow-xl shadow-rose-200/40 dark:shadow-none ${
+              activeRoom.status === 'ACTIVE' ? 'border-l-[6px] border-l-teal-500 dark:border-l-teal-600' : ''
+            }`}>
+              {/* Room Header Strip Redesigned */}
+              <View className="px-7 py-4 flex-row items-center justify-between border-b border-slate-100/50 dark:border-rose-950/20 bg-rose-50/30 dark:bg-[#180D10]/30">
+                <View className="flex-row items-center">
+                  <View className={`w-2 h-2 rounded-full mr-3 ${activeRoom.status === 'ACTIVE' ? 'bg-teal-500 shadow-sm shadow-teal-500/50' : 'bg-amber-500'}`} />
+                  <Text className={`font-bold text-[11px] tracking-widest uppercase ${activeRoom.status === 'ACTIVE' ? 'text-teal-600 dark:text-teal-400' : 'text-amber-600 dark:text-amber-500'}`}>
+                    {activeRoom.status === 'ACTIVE' ? 'Room Active' : 'Waiting for Partner'}
+                  </Text>
+                </View>
+                <View className="bg-rose-100/50 dark:bg-rose-950/40 px-3 py-1 rounded-full">
+                  <Text className="text-rose-600 dark:text-rose-400 font-bold text-[10px] tracking-wider uppercase">
+                    {expiryLabel(activeRoom.expiry_type)}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="p-7">
+                {/* Room Code Display */}
+                <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-400 tracking-widest uppercase mb-2">Room Code</Text>
+                <View className="flex-row items-center justify-between bg-[#f5eeed]/60 dark:bg-[#180D10] dark:border dark:border-rose-950/40 rounded-2xl px-5 py-4 mb-5">
+                  <Text className="text-2xl font-black text-[#af2c3b] dark:text-rose-400 tracking-[0.25em]">{activeRoom.code}</Text>
+                  <TouchableOpacity 
+                    className={`px-4 py-2.5 rounded-xl flex-row items-center ${copiedCode ? 'bg-[#0d5f5a]' : 'bg-[#af2c3b] dark:bg-rose-600'}`}
+                    onPress={() => handleCopyCode(activeRoom.code)}
+                  >
+                    <Ionicons name={copiedCode ? "checkmark" : "copy"} size={14} color="white" />
+                    <Text className="text-white font-bold text-[11px] ml-1.5">
+                      {copiedCode ? 'Copied!' : 'Copy'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Status Info Redesigned */}
+                <View className="bg-[#fcf8f7] dark:bg-[#180D10] dark:border dark:border-rose-950/30 rounded-[28px] p-5 mb-5 items-center justify-center">
+                  <View className="flex-row items-center justify-center mb-4">
+                    {/* User Avatar */}
+                    <View className={`w-12 h-12 rounded-full border-2 overflow-hidden shadow-sm ${
+                      activeRoom.status === 'ACTIVE' ? 'border-teal-500' : 'border-rose-500'
+                    }`}>
+                      <Image 
+                        source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop' }} 
+                        className="w-full h-full"
+                      />
+                    </View>
+                    
+                    {/* Connection Line & Heart Indicator */}
+                    <View className="flex-row items-center mx-4">
+                      <View className={`w-6 h-[2px] ${activeRoom.status === 'ACTIVE' ? 'bg-teal-500/50' : 'bg-rose-200 dark:bg-rose-950/40'}`} />
+                      <View className={`w-9 h-9 rounded-full items-center justify-center shadow-md ${
+                        activeRoom.status === 'ACTIVE' ? 'bg-teal-500 shadow-teal-500/30' : 'bg-amber-500 shadow-amber-300'
+                      }`}>
+                        <Ionicons 
+                          name={activeRoom.status === 'ACTIVE' ? "heart" : "hourglass-outline"} 
+                          size={16} 
+                          color="white" 
+                        />
+                      </View>
+                      <View className={`w-6 h-[2px] ${activeRoom.status === 'ACTIVE' ? 'bg-teal-500/50' : 'bg-rose-200 dark:bg-rose-950/40'}`} />
+                    </View>
+
+                    {/* Partner Avatar / Placeholder */}
+                    {activeRoom.status === 'ACTIVE' ? (
+                      <View className="w-12 h-12 rounded-full border-2 border-teal-500 overflow-hidden shadow-sm">
+                        <Image 
+                          source={{ uri: 'https://plus.unsplash.com/premium_photo-1678120616858-54b35e2380f9?w=100&h=100&fit=crop' }} 
+                          className="w-full h-full"
+                        />
+                      </View>
+                    ) : (
+                      <View className="w-12 h-12 rounded-full border-2 border-dashed border-slate-300 dark:border-rose-950/40 bg-slate-50 dark:bg-[#13090B] items-center justify-center shadow-sm">
+                        <Ionicons name="person-add" size={16} color={isDark ? "#fda4af" : "#94a3b8"} />
+                      </View>
+                    )}
+                  </View>
+
+                  <View className="items-center">
+                    {activeRoom.status === 'ACTIVE' ? (
+                      <>
+                        <Text className="text-slate-800 dark:text-rose-100 font-extrabold text-[15px] text-center mb-1">
+                          Connected with <Text className="text-teal-600 dark:text-teal-400 font-black">Sam</Text> 💕
+                        </Text>
+                        <Text className="text-slate-400 dark:text-rose-300/40 font-semibold text-[11px] text-center px-4 leading-4">
+                          Sam is online and connected! Ready to swap spicy and sweet dares together.
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text className="text-slate-800 dark:text-rose-100 font-extrabold text-[15px] text-center mb-1">
+                          Waiting for Partner...
+                        </Text>
+                        <Text className="text-slate-400 dark:text-rose-300/40 font-semibold text-[11px] text-center px-4 leading-4">
+                          Share the room code above with your partner so they can join your Love Room.
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                {activeRoom.status === 'ACTIVE' && (
+                  <TouchableOpacity
+                    className="bg-[#af2c3b] dark:bg-rose-600 rounded-full py-[16px] items-center shadow-lg shadow-red-200/50 dark:shadow-none flex-row justify-center mb-3"
+                    activeOpacity={0.8}
+                    onPress={() => navigateTo('/dares')}
+                  >
+                    <Ionicons name="flash" size={18} color="white" />
+                    <Text className="text-white font-bold text-[15px] ml-2">Send Challenge</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  className="py-3 items-center"
+                  onPress={handleNewRoom}
+                >
+                  <Text className="text-slate-400 dark:text-slate-400 font-bold text-[12px] tracking-wide">Create New Room</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            /* ── NO ROOM CARD ────────────────────────────── */
+            <View className="bg-white dark:bg-[#1E1215] dark:border dark:border-rose-950/20 rounded-[36px] p-7 shadow-xl shadow-rose-200/40 dark:shadow-none relative overflow-hidden">
+              {/* Background decorative elements */}
+              <View className="absolute top-[-30] right-[-20] w-28 h-28 bg-rose-100/40 dark:bg-rose-500/10 rounded-full" />
+              <View className="absolute bottom-[-20] left-[-15] w-20 h-20 bg-teal-100/30 dark:bg-teal-500/10 rounded-full" />
+
+              <View className="flex-row items-center mb-2">
+                <View className="bg-rose-50/80 dark:bg-rose-500/10 w-9 h-9 rounded-full items-center justify-center mr-3">
+                  <Ionicons name="people" size={18} color={isDark ? "#f43f5e" : "#af2c3b"} />
+                </View>
+                <Text className="text-[11px] font-bold text-rose-400 dark:text-rose-400 tracking-widest uppercase">Couple Room</Text>
+              </View>
+
+              <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-2 mb-2 leading-8">
+                Connect with{'\n'}Your Partner
+              </Text>
+              <Text className="text-slate-500 dark:text-slate-400 font-medium text-[14px] leading-6 mb-7 pr-8">
+                Create or join a private room to start playing together.
+              </Text>
+
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  className="flex-1 bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg shadow-red-200/50 dark:shadow-none flex-row justify-center"
+                  activeOpacity={0.8}
+                  onPress={() => openRoomModal('create')}
+                >
+                  <Ionicons name="add-circle" size={18} color="white" />
+                  <Text className="text-white font-bold text-[13px] ml-2">Create</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="flex-1 bg-[#0d5f5a] dark:bg-teal-600 rounded-2xl py-4 items-center shadow-lg shadow-teal-200/50 dark:shadow-none flex-row justify-center"
+                  activeOpacity={0.8}
+                  onPress={() => openRoomModal('join')}
+                >
+                  <Ionicons name="enter" size={18} color="white" />
+                  <Text className="text-white font-bold text-[13px] ml-2">Join</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Active Challenge Section */}
+        {activeChallenge && (
+          <View className="mx-6 mt-6 bg-white dark:bg-[#1E1215] rounded-[32px] overflow-hidden shadow-xl shadow-rose-200/40 dark:shadow-none border border-white dark:border-rose-950/20">
+            <View className="h-40 relative">
+              <Image source={typeof activeChallenge.image === 'string' ? { uri: activeChallenge.image } : activeChallenge.image} className="w-full h-full" />
+              <View className="absolute inset-0 bg-black/25" />
+              <View className="absolute top-4 left-4 bg-[#fde047] px-3 py-1.5 rounded-full flex-row items-center">
+                <Ionicons name="flash" size={12} color="#854d0e" />
+                <Text className="text-[#854d0e] font-bold text-[10px] tracking-widest uppercase ml-1.5">Active Challenge</Text>
+              </View>
+            </View>
+            <View className="p-6">
+              <Text className="text-[10px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase mb-2">{activeChallenge.category}</Text>
+              <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">{activeChallenge.title}</Text>
+              <Text className="text-slate-500 dark:text-slate-300 text-[14px] leading-6 font-medium mb-5">{activeChallenge.description}</Text>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <Ionicons name="time" size={14} color="#64748b" />
+                  <Text className="text-slate-500 dark:text-slate-400 font-bold text-[12px] ml-2">{activeChallenge.time}</Text>
+                </View>
+                <TouchableOpacity className="bg-rose-50 dark:bg-slate-800/60 px-5 py-3 rounded-full border border-rose-100 dark:border-slate-700/40" onPress={() => navigateTo('/history')}>
+                  <Text className="text-[#b91c1c] dark:text-rose-400 font-bold text-[12px]">View History</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Today's Dare Section */}
-        <View className="mx-6 mt-6 bg-white rounded-[36px] p-7 shadow-xl shadow-rose-200/40 relative">
-          <View className="absolute top-7 right-7 bg-[#dfb15b] w-8 h-8 rounded-full items-center justify-center shadow-sm">
+        <View className="mx-6 mt-6 bg-white dark:bg-[#1E1215] dark:border dark:border-rose-950/40 rounded-[36px] p-7 shadow-xl shadow-rose-200/40 dark:shadow-none relative">
+          <View className="absolute top-7 right-7 bg-[#dfb15b] dark:bg-amber-500 w-8 h-8 rounded-full items-center justify-center shadow-sm">
             <Ionicons name="star" size={14} color="white" />
           </View>
-          <Text className="text-[11px] font-bold text-rose-500 tracking-widest uppercase">Today&apos;s Intimacy Dare</Text>
-          <Text className="text-2xl font-black text-slate-900 mt-4 pr-12 leading-8">
+          <Text className="text-[11px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase">Today&apos;s Intimacy Dare</Text>
+          <Text className="text-2xl font-black text-slate-900 dark:text-white mt-4 pr-12 leading-8">
             Write a 3-sentence love note and hide it.
           </Text>
-          <Text className="text-slate-500 mt-4 leading-6 text-[15px] font-medium">
+          <Text className="text-slate-500 dark:text-slate-300 mt-4 leading-6 text-[15px] font-medium">
             Find a place they&apos;ll discover later today—a coffee mug, a laptop, or a coat pocket.
           </Text>
-          <TouchableOpacity className="bg-rose-500 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-lg shadow-rose-300" activeOpacity={0.8}>
+          <TouchableOpacity className="bg-rose-500 dark:bg-rose-600 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-lg shadow-rose-300 dark:shadow-none" activeOpacity={0.8}>
             <Text className="text-white font-bold text-[15px] mr-2">Start Challenge</Text>
             <Ionicons name="play" size={16} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Coin Toss Decision Maker Section */}
+        <View className="mx-6 mt-6 bg-white dark:bg-[#1E1215] dark:border dark:border-rose-950/40 rounded-[36px] p-7 shadow-xl shadow-rose-200/40 dark:shadow-none relative overflow-hidden">
+          {/* Background gold decoration */}
+          <View className="absolute top-[-20] right-[-25] w-24 h-24 bg-amber-100/40 dark:bg-amber-500/10 rounded-full" />
+          
+          <View className="flex-row items-center mb-2">
+            <View className="bg-amber-50/80 dark:bg-amber-500/10 w-9 h-9 rounded-full items-center justify-center mr-3">
+              <Ionicons name="pricetag" size={16} color={isDark ? "#fbbf24" : "#d97706"} />
+            </View>
+            <Text className="text-[11px] font-bold text-amber-600 dark:text-amber-500 tracking-widest uppercase">Decision Maker</Text>
+          </View>
+          
+          <Text className="text-2xl font-black text-slate-900 dark:text-white mt-4 pr-12 leading-8">
+            Can&apos;t agree on something?
+          </Text>
+          <Text className="text-slate-500 dark:text-slate-300 mt-4 leading-6 text-[15px] font-medium">
+            Toss a virtual coin to decide who washes the dishes, picks the movie, or gets their way today!
+          </Text>
+          
+          <TouchableOpacity 
+            className="bg-amber-500 dark:bg-amber-600 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-lg shadow-amber-300 dark:shadow-none" 
+            activeOpacity={0.8}
+            onPress={() => navigateTo('/coin-toss')}
+          >
+            <Text className="text-white font-bold text-[15px] mr-2">Toss a Coin</Text>
+            <Ionicons name="reload" size={16} color="white" />
           </TouchableOpacity>
         </View>
 
         {/* Recent Memories Section */}
         <View className="mt-10 mb-6">
           <View className="flex-row items-center justify-between px-6">
-            <Text className="text-xl font-black text-slate-900 tracking-tight">Recent Memories</Text>
+            <Text className="text-xl font-black text-slate-900 dark:text-rose-100 tracking-tight">Recent Memories</Text>
             <TouchableOpacity>
-              <Text className="text-[11px] font-bold text-red-700 uppercase tracking-widest">View Book</Text>
+              <Text className="text-[11px] font-bold text-red-700 dark:text-rose-300 uppercase tracking-widest">View Book</Text>
             </TouchableOpacity>
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-5 px-6 pb-2" contentContainerStyle={{ paddingRight: 48 }}>
             <View className="w-[260px] h-44 mr-4 rounded-[32px] overflow-hidden relative shadow-sm">
               <Image 
-                source={{ uri: 'https://images.unsplash.com/photo-1522204523234-8729aa6e3d5f?w=600&h=400&fit=crop' }} 
+                source={{ uri: 'https://images.unsplash.com/photo-1517263904808-5dc91e3e7044?w=600&h=400&fit=crop' }} 
                 className="w-full h-full"
               />
               <View className="absolute inset-0 bg-black/20" />
@@ -202,7 +642,7 @@ export default function Dashboard() {
             </View>
             <View className="w-[260px] h-44 mr-4 rounded-[32px] overflow-hidden relative shadow-sm">
               <Image 
-                source={{ uri: 'https://images.unsplash.com/photo-1501901609772-df0848060b33?w=600&h=400&fit=crop' }} 
+                source={{ uri: 'https://images.unsplash.com/photo-1531747118685-ca8fa6e08806?w=600&h=400&fit=crop' }} 
                 className="w-full h-full"
               />
               <View className="absolute inset-0 bg-black/20" />
@@ -216,7 +656,7 @@ export default function Dashboard() {
 
       {/* Floating Action Button */}
       <TouchableOpacity 
-        className="absolute bottom-6 right-6 bg-[#af2c3b] w-14 h-14 rounded-full items-center justify-center shadow-xl shadow-red-900/40"
+        className="absolute bottom-6 right-6 bg-[#af2c3b] dark:bg-rose-600 w-14 h-14 rounded-full items-center justify-center shadow-xl shadow-red-900/40 dark:shadow-none"
         activeOpacity={0.9}
         style={{ zIndex: 50 }}
       >

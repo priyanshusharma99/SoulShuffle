@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AWS API Probe 4</title>
+</head>
+<body>
+  <h1>AWS API Probe 4 Results</h1>
+  <pre id="output">Loading...</pre>
+
+  <script>
+    async function probe() {
+      const output = document.getElementById('output');
+      output.innerText = 'Signing up on AWS backend...\n';
+
+      const baseUrl = 'http://54.91.119.137:3000/api/v1';
+      const email = `probe_${Date.now()}@test.com`;
+
+      let token = '';
+
+      try {
+        const signupRes = await fetch(`${baseUrl}/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Probe User',
+            email: email,
+            password: 'password123'
+          })
+        });
+
+        const signupData = await signupRes.json();
+        if (signupRes.status === 201 || signupRes.status === 200) {
+          token = signupData.data.accessToken;
+          output.innerText += `🟢 Signup successful! Token: ${token.substring(0, 15)}...\n\n`;
+        } else {
+          output.innerText += `🔴 Signup failed with status ${signupRes.status}: ${JSON.stringify(signupData)}\n\n`;
+          return;
+        }
+      } catch (err) {
+        output.innerText += `🔴 Signup exception: ${err.message}\n\n`;
+        return;
+      }
+
+      const endpoints = [
+        '/cards',
+        '/cards/all',
+        '/cards/list',
+        '/dares/all',
+        '/dares/list',
+        '/rooms/cards/all',
+        '/rooms/cards/list',
+        '/challenges/all',
+        '/challenges/list',
+        '/deck/all',
+        '/deck/list'
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(`${baseUrl}${endpoint}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await res.json();
+            output.innerText += `🟢 GET ${endpoint} -> Status ${res.status} (JSON)\n`;
+            output.innerText += `Response: ${JSON.stringify(data, null, 2).substring(0, 500)}\n\n`;
+          } else {
+            const text = await res.text();
+            output.innerText += `🔴 GET ${endpoint} -> Status ${res.status} (HTML/Text)\n`;
+            output.innerText += `Snippet: ${text.substring(0, 100)}\n\n`;
+          }
+        } catch (err) {
+          output.innerText += `🌐 GET ${endpoint} -> Exception: ${err.message}\n\n`;
+        }
+      }
+    }
+
+    window.onload = probe;
+  </script>
+</body>
+</html>

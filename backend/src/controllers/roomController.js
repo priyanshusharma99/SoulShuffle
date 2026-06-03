@@ -41,4 +41,24 @@ const getActiveRoom = async (req, res, next) => {
     }
 };
 
-module.exports = { createRoom, joinRoom, getActiveRoom };
+const sendChallenge = async (req, res, next) => {
+    try {
+        const { challenge } = req.body;
+        if (!challenge || !challenge.id || !challenge.title) {
+            const err = new Error('Challenge details are required.');
+            err.status = 400;
+            throw err;
+        }
+
+        const result = await roomService.sendChallenge(req.user.id, challenge);
+        res.status(200).json({
+            status: 'success',
+            message: 'Challenge sent successfully.',
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = { createRoom, joinRoom, getActiveRoom, sendChallenge };

@@ -1,21 +1,29 @@
-import { useEffect, useState } from 'react';
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
 
-/**
- * To support static rendering, this value needs to be re-calculated on the client side for web
- */
 export function useColorScheme() {
-  const [hasHydrated, setHasHydrated] = useState(false);
+  const { colorScheme, setColorScheme } = useNativeWindColorScheme();
 
   useEffect(() => {
-    setHasHydrated(true);
-  }, []);
+    AsyncStorage.getItem('theme').then((savedTheme) => {
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        setColorScheme(savedTheme);
+      }
+    });
+  }, [setColorScheme]);
 
-  const colorScheme = useRNColorScheme();
+  return colorScheme;
+}
 
-  if (hasHydrated) {
-    return colorScheme;
-  }
+export function useThemeToggle() {
+  const { colorScheme, setColorScheme } = useNativeWindColorScheme();
 
-  return 'light';
+  const toggleTheme = async () => {
+    const nextTheme = colorScheme === 'dark' ? 'light' : 'dark';
+    await AsyncStorage.setItem('theme', nextTheme);
+    setColorScheme(nextTheme);
+  };
+
+  return { colorScheme, toggleTheme, setColorScheme };
 }
