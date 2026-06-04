@@ -66,8 +66,15 @@ api.interceptors.request.use(async (config) => {
   }
 
   if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
+    if (config.headers && typeof config.headers.set === 'function') {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${requestUrl} - Token: ${token.substring(0, 15)}...`);
+  } else {
+    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${requestUrl} - NO TOKEN`);
   }
 
   return config;
@@ -86,6 +93,7 @@ api.interceptors.response.use(
     const isAuthEndpoint = isAuthRequest(requestUrl);
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      console.log(`[API RESPONSE] 401 Unauthorized for ${requestUrl}`);
       originalRequest._retry = true; // prevent infinite loop
 
       try {

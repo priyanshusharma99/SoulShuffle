@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSidebar } from '@/context/SidebarContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { logout } from '@/services/authService';
 
 export default function Sidebar() {
   const { isOpen, closeSidebar } = useSidebar();
@@ -24,6 +25,25 @@ export default function Sidebar() {
       'Coming Soon!',
       `${feature} is currently under construction. Stay tuned for updates!`,
       [{ text: 'Great!' }]
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            closeSidebar();
+            router.replace('/' as any);
+          },
+        },
+      ]
     );
   };
 
@@ -135,11 +155,20 @@ export default function Sidebar() {
                 <Ionicons name="settings" size={20} color={getIconColor('/profile')} />
                 <Text className={`${getTextColor('/profile')} font-bold text-[15px] ml-5`}>Settings</Text>
               </TouchableOpacity>
+
+              {/* Logout Button */}
+              <TouchableOpacity
+                onPress={handleLogout}
+                className="flex-row items-center py-4 px-6 mb-2 rounded-full bg-rose-50 dark:bg-rose-950/30"
+              >
+                <Ionicons name="log-out-outline" size={20} color="#e11d48" />
+                <Text className="text-rose-600 dark:text-rose-400 font-bold text-[15px] ml-5">Log Out</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
           {/* Footer */}
-          <View className="px-8 pb-12 pt-6 border-t border-slate-100 dark:border-slate-800/20 bg-[#fffdfc] dark:bg-[#180D10]/40 rounded-br-[40px]">
+          <View className="px-8 pb-12 pt-4 border-t border-slate-100 dark:border-slate-800/20 bg-[#fffdfc] dark:bg-[#180D10]/40 rounded-br-[40px]">
             <Text className="text-3xl font-black italic text-[#af2c3b] dark:text-slate-100 tracking-tight mb-2">Love Dare</Text>
             <Text className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-widest uppercase">Version 2.4.0 • Made with love</Text>
           </View>

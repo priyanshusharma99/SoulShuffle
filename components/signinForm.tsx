@@ -47,10 +47,12 @@ const SigninForm = () => {
                         className="flex-1 justify-center px-6"
                     >
                         <View className="items-center mb-10 mt-10">
-                            {/* <View className="bg-white/80 p-5 rounded-[32px] shadow-sm mb-6 border border-white/50">
-              <Ionicons name="heart" size={60} color="#f43f5e" />
-            </View> */}
-                            <Text className="text-4xl mt-[70px] font-extrabold text-slate-800 dark:text-white tracking-tight">Love Challenge</Text>
+                            {/* Brand Logo */}
+                            <View className="flex-row items-center gap-1.5 mb-3">
+                                <Ionicons name="infinite" size={38} color={isDark ? '#fda4af' : '#be123c'} style={{ transform: [{ rotate: '-15deg' }] }} />
+                                <Text className="text-red-700 dark:text-rose-400 font-black text-3xl tracking-tight">SoulShuffle</Text>
+                            </View>
+                            <Text className="text-4xl mt-3 font-extrabold text-slate-800 dark:text-white tracking-tight">Love Challenge</Text>
                             <Text className="text-slate-500 dark:text-slate-400 mt-3 text-base font-medium">Ignite the spark, play together.</Text>
                         </View>
 

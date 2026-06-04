@@ -270,15 +270,10 @@ export default function Dares() {
         </ScrollView>
 
         {/* Actions Row */}
-        <View className="flex-row items-center justify-between px-6 mb-8">
+        <View className="flex-row items-center px-6 mb-8">
           <TouchableOpacity className="bg-white dark:bg-[#1E1215] px-5 py-3 rounded-2xl flex-row items-center shadow-sm shadow-slate-100 dark:shadow-none border border-slate-50 dark:border-rose-950/20">
             <Ionicons name="dice-outline" size={18} color={isDark ? "#fff" : "#000"} />
             <Text className="text-slate-800 dark:text-white font-bold text-xs ml-2">Shuffle Cards</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity className="flex-row items-center">
-            <Ionicons name="add-circle" size={16} color={isDark ? "#fff" : "#000"} />
-            <Text className="text-slate-800 dark:text-rose-400 font-bold text-xs ml-1.5">Create Custom Challenge</Text>
           </TouchableOpacity>
         </View>
 
@@ -366,23 +361,12 @@ export default function Dares() {
                 <View className="px-4 pt-4">
                   <Text className="text-[9px] font-bold text-slate-500 dark:text-rose-400 tracking-wider uppercase mb-1">{dare.category}</Text>
                   <Text className="text-[17px] font-bold text-slate-800 dark:text-white tracking-tight leading-5 mb-3">{dare.title}</Text>
-                  <View className="flex-row items-center mt-auto">
-                    <Ionicons name="time" size={12} color={isDark ? "#f43f5e" : "#64748b"} />
-                    <Text className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 ml-1.5">{dare.time}</Text>
-                  </View>
+
                 </View>
               </TouchableOpacity>
             ))
           )}
 
-          {/* Create Your Own Challenge Card */}
-          <TouchableOpacity className="w-[48%] bg-transparent border-2 border-dashed border-slate-200 dark:border-rose-950/40 rounded-[24px] overflow-hidden items-center justify-center p-6 h-[256px]">
-            <View className="w-12 h-12 rounded-full border border-slate-300 dark:border-rose-950/30 items-center justify-center bg-white dark:bg-[#1E1215] mb-4 shadow-sm shadow-slate-100 dark:shadow-none">
-              <Ionicons name="add" size={24} color={isDark ? "#f43f5e" : "#334155"} />
-            </View>
-            <Text className="text-sm font-bold text-slate-800 dark:text-white tracking-tight leading-5 text-center mb-2">Create Your Own Challenge</Text>
-            <Text className="text-[10px] font-medium text-slate-500 dark:text-slate-400 text-center leading-4">Personalize your journey together</Text>
-          </TouchableOpacity>
         </View>
 
       </ScrollView>

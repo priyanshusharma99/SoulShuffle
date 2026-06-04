@@ -1,20 +1,35 @@
-import React from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, Switch } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeToggle } from '@/hooks/use-color-scheme';
 import { useSidebar } from '@/context/SidebarContext';
+import { useThemeToggle } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Image, Platform, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function Profile() {
   const { openSidebar } = useSidebar();
   const { colorScheme, toggleTheme } = useThemeToggle();
   const isDark = colorScheme === 'dark';
 
+  // ── Suggestion form state ───────────────────────────────
+  const CATEGORIES = ['Romantic 💕', 'Adventure 🏕️', 'Cozy 🕯️', 'Spicy 🔥', 'Creative 🎨'];
+  const [suggestionText, setSuggestionText] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+
+  const handleSubmitSuggestion = () => {
+    if (!suggestionText.trim()) return;
+    setSubmitted(true);
+    setSuggestionText('');
+    setSelectedCategory('');
+    setTimeout(() => setSubmitted(false), 3500);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-[#fdfaf9] dark:bg-[#13090B]" style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#13090B" : "#fdfaf9"} />
-      
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* Header */}
         <View className="flex-row items-center justify-between px-6 py-4">
           <TouchableOpacity onPress={openSidebar}>
@@ -25,8 +40,8 @@ export default function Profile() {
             <Text className="text-red-700 dark:text-rose-400 font-black text-xl tracking-tight">SoulShuffle</Text>
           </View>
           <TouchableOpacity>
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop' }} 
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop' }}
               className="w-10 h-10 rounded-full border border-rose-200 dark:border-rose-950/30"
             />
           </TouchableOpacity>
@@ -37,16 +52,16 @@ export default function Profile() {
           <View className="flex-row justify-center relative w-full h-40">
             {/* Left Image (Alex) */}
             <View className="absolute right-1/2 mr-[-10px] bg-slate-800 rounded-t-[40px] rounded-br-[40px] rounded-bl-[10px] overflow-hidden w-40 h-40 shadow-lg z-10">
-              <Image 
-                source={{ uri: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop' }} 
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop' }}
                 className="w-full h-full"
               />
             </View>
-            
+
             {/* Right Image (Sam) */}
             <View className="absolute left-1/2 ml-[-20px] bg-[#669894] rounded-t-[40px] rounded-bl-[40px] rounded-br-[10px] overflow-hidden w-40 h-40 shadow-lg">
-              <Image 
-                source={{ uri: 'https://plus.unsplash.com/premium_photo-1678120616858-54b35e2380f9?w=200&h=200&fit=crop' }} 
+              <Image
+                source={{ uri: 'https://plus.unsplash.com/premium_photo-1678120616858-54b35e2380f9?w=200&h=200&fit=crop' }}
                 className="w-full h-full"
               />
             </View>
@@ -57,7 +72,7 @@ export default function Profile() {
               <Text className="text-white font-bold text-[10px] ml-1 tracking-widest uppercase">Happy Together</Text>
             </View>
           </View>
-          
+
           <Text className="text-3xl font-black text-[#af2c3b] dark:text-white mt-8 tracking-tight">Alex & Sam</Text>
           <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">Together for 2.5 years</Text>
         </View>
@@ -149,7 +164,7 @@ export default function Profile() {
         {/* Dare Preferences Section */}
         <View className="mt-8 px-6">
           <Text className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Dare Preferences</Text>
-          
+
           <View className="bg-white dark:bg-[#1E1215] rounded-[32px] p-6 shadow-sm border border-slate-50/50 dark:border-rose-950/20">
             <View className="flex-row items-center justify-between mb-6">
               <View className="flex-row items-center">
@@ -177,28 +192,155 @@ export default function Profile() {
           </View>
         </View>
 
-        {/* Capture Your Love CTA */}
+
+        {/* ── Suggest a Card ───────────────────────────── */}
         <View className="px-6 mt-8">
-          <View className="bg-[#de5b58] dark:bg-[#ae2f34] rounded-[36px] p-8 items-center shadow-lg shadow-red-200/50 relative overflow-hidden">
-            {/* Background design elements */}
-            <View className="absolute top-[-50] left-[-20] w-40 h-40 bg-white/10 rounded-full" />
-            <View className="absolute bottom-[-30] right-[-30] w-32 h-32 bg-black/10 rounded-full" />
-            
-            <Text className="text-2xl font-black text-white text-center leading-8 mb-3">Capture Your{'\n'}Love</Text>
-            <Text className="text-white/90 font-medium text-center text-[13px] leading-5 px-4 mb-6">
-              Share your latest date photos to your private Memory Book.
-            </Text>
-            <TouchableOpacity className="bg-white rounded-full py-4 px-8 flex-row items-center shadow-md active:opacity-80">
-              <Ionicons name="camera" size={18} color="#af2c3b" />
-              <Text className="text-[#af2c3b] font-bold text-sm ml-2">Add Photos</Text>
-            </TouchableOpacity>
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center">
+              <View className="bg-violet-100 dark:bg-violet-950/60 w-8 h-8 rounded-full items-center justify-center mr-3">
+                <Ionicons name="sparkles" size={14} color={isDark ? '#a78bfa' : '#7c3aed'} />
+              </View>
+              <Text className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Suggest a Card</Text>
+            </View>
+            <View className="bg-violet-100 dark:bg-violet-900/40 px-2.5 py-1 rounded-full">
+              <Text className="text-[10px] font-bold text-violet-600 dark:text-violet-300 tracking-widest uppercase">For Admins</Text>
+            </View>
+          </View>
+
+          <View style={{
+            backgroundColor: isDark ? '#7c2d12' : '#ff6b35',
+            borderRadius: 28,
+            padding: 20,
+            transform: [{ translateY: -6 }],
+            shadowColor: '#ea580c',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: isDark ? 0.5 : 0.45,
+            shadowRadius: 18,
+            elevation: 10,
+            borderWidth: 1,
+            borderColor: isDark ? '#c2410c' : '#fb923c',
+          }}>
+
+            {submitted ? (
+              /* ── Success State ── */
+              <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <Ionicons name="checkmark-circle" size={34} color="#fff" />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.5 }}>Thanks for the idea! ✨</Text>
+                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 6, textAlign: 'center', paddingHorizontal: 16, lineHeight: 18 }}>
+                  Our team will review your suggestion and may add it to the deck.
+                </Text>
+              </View>
+            ) : (
+              /* ── Input State ── */
+              <View>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>Pick a category</Text>
+
+                {/* Category pills */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+                  {CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => setSelectedCategory(selectedCategory === cat ? '' : cat)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 50,
+                        borderWidth: 1.5,
+                        borderColor: selectedCategory === cat ? '#fff' : 'rgba(255,255,255,0.45)',
+                        backgroundColor: selectedCategory === cat ? '#fff' : 'rgba(255,255,255,0.15)',
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: selectedCategory === cat ? '#ea580c' : '#fff',
+                      }}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Your card idea</Text>
+
+                {/* Text input */}
+                <View style={{
+                  borderWidth: inputFocused ? 2 : 1.5,
+                  borderColor: inputFocused ? '#fff' : 'rgba(255,255,255,0.5)',
+                  borderRadius: 16,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  padding: 14,
+                  marginBottom: 14,
+                }}>
+                  <TextInput
+                    value={suggestionText}
+                    onChangeText={setSuggestionText}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
+                    placeholder="e.g. Write a love letter to each other and read them aloud..."
+                    placeholderTextColor="rgba(255,255,255,0.55)"
+                    multiline
+                    numberOfLines={3}
+                    maxLength={300}
+                    style={{
+                      color: '#fff',
+                      fontSize: 13,
+                      fontWeight: '500',
+                      lineHeight: 20,
+                      minHeight: 72,
+                      textAlignVertical: 'top',
+                    }}
+                  />
+                </View>
+
+                {/* Char counter + Submit */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' }}>
+                    {suggestionText.length}/300
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleSubmitSuggestion}
+                    disabled={!suggestionText.trim()}
+                    style={{
+                      backgroundColor: suggestionText.trim() ? '#fff' : 'rgba(255,255,255,0.25)',
+                      paddingHorizontal: 20,
+                      paddingVertical: 10,
+                      borderRadius: 50,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 3 },
+                      shadowOpacity: suggestionText.trim() ? 0.15 : 0,
+                      shadowRadius: 6,
+                      elevation: suggestionText.trim() ? 4 : 0,
+                    }}
+                  >
+                    <Ionicons
+                      name="send"
+                      size={14}
+                      color={suggestionText.trim() ? '#ea580c' : 'rgba(255,255,255,0.5)'}
+                    />
+                    <Text style={{
+                      color: suggestionText.trim() ? '#ea580c' : 'rgba(255,255,255,0.5)',
+                      fontSize: 13,
+                      fontWeight: '800',
+                    }}>
+                      Submit Idea
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         </View>
 
         {/* Settings */}
         <View className="mt-8 px-6 mb-4">
           <Text className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Settings</Text>
-          
+
           <View className="bg-white dark:bg-[#1E1215] rounded-[32px] p-6 py-2 shadow-sm border border-slate-50/50 dark:border-rose-950/20">
             {/* Dark Mode Switch Toggle */}
             <View className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20">

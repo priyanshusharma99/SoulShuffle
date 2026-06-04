@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, ActivityIndicator, Alert, AppState } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, ActivityIndicator, Alert, AppState, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { createRoom, joinRoom, getActiveRoom, Room, ExpiryType } from '@/services/roomService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSidebar } from '@/context/SidebarContext';
+
+import CountdownTimer from '@/components/CountdownTimer';
 
 const coupleCover = require('@/assets/images/couple_cover.png');
 
@@ -12,6 +14,7 @@ export default function Dashboard() {
   const { openSidebar } = useSidebar();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { width } = useWindowDimensions();
 
   // ── Room State ─────────────────────────────────────────
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
@@ -24,6 +27,24 @@ export default function Dashboard() {
   const [actionError, setActionError] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
   const activeChallenge = activeRoom?.game_state?.active_challenge;
+  
+  // Find pending challenges
+  const pendingChallenges = activeRoom?.game_state?.challenge_history?.filter(c => c.status === 'PENDING') || [];
+  
+  // Dummy pending challenge for UI visualization if empty
+  const displayPendingChallenges = pendingChallenges.length > 0 ? pendingChallenges : [
+    {
+      id: 'dummy-1',
+      title: 'Cook a Romantic Dinner',
+      category: 'Acts of Service',
+      difficulty: 'Medium',
+      time: '1 hour',
+      description: 'Prepare a nice meal with candles and soft music.',
+      image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&h=300&fit=crop',
+      status: 'PENDING',
+      sent_at: new Date().toISOString()
+    }
+  ];
 
   // ── Fetch Active Room on Mount ─────────────────────────
   const fetchActiveRoom = useCallback(async (silent = false) => {
@@ -563,13 +584,68 @@ export default function Dashboard() {
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
                   <Ionicons name="time" size={14} color="#64748b" />
-                  <Text className="text-slate-500 dark:text-slate-400 font-bold text-[12px] ml-2">{activeChallenge.time}</Text>
+                  <Text className="text-slate-500 dark:text-slate-400 font-bold text-[12px] ml-2 mr-4">{activeChallenge.time}</Text>
+                  {activeChallenge.sent_at && (
+                    <CountdownTimer targetDate={new Date(new Date(activeChallenge.sent_at).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                  )}
                 </View>
                 <TouchableOpacity className="bg-rose-50 dark:bg-slate-800/60 px-5 py-3 rounded-full border border-rose-100 dark:border-slate-700/40" onPress={() => navigateTo('/history')}>
                   <Text className="text-[#b91c1c] dark:text-rose-400 font-bold text-[12px]">View History</Text>
                 </TouchableOpacity>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Pending Challenges Section */}
+        {displayPendingChallenges.length > 0 && (
+          <View className="mt-8 mb-2">
+            <View className="flex-row items-center justify-between px-6 mb-4">
+              <Text className="text-xl font-black text-slate-900 dark:text-rose-100 tracking-tight">Pending Dares</Text>
+              <View className="bg-amber-100 dark:bg-amber-500/20 px-2 py-0.5 rounded-full">
+                <Text className="text-amber-600 dark:text-amber-400 font-bold text-[10px] uppercase tracking-wider">{displayPendingChallenges.length} waiting</Text>
+              </View>
+            </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 16 }}>
+              {displayPendingChallenges.map((challenge) => (
+                <View key={challenge.id} style={{ width: width - 48 }} className="bg-white dark:bg-[#1E1215] rounded-[28px] overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-rose-950/20">
+                  <View className="h-32 relative">
+                    <Image source={typeof challenge.image === 'string' ? { uri: challenge.image } : challenge.image} className="w-full h-full" />
+                    <View className="absolute inset-0 bg-black/40" />
+                    <View className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 px-2.5 py-1 rounded-full flex-row items-center">
+                      <Ionicons name="mail-unread" size={12} color={isDark ? "#fda4af" : "#e11d48"} />
+                      <Text className="text-rose-600 dark:text-rose-400 font-bold text-[9px] tracking-widest uppercase ml-1.5">Received</Text>
+                    </View>
+                  </View>
+                  <View className="p-5">
+                    <Text className="text-[9px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase mb-1">{challenge.category}</Text>
+                    <Text className="text-lg font-black text-slate-900 dark:text-white tracking-tight mb-2" numberOfLines={1}>{challenge.title}</Text>
+                    
+                    <View className="flex-row items-center mb-5 mt-1">
+                      {challenge.sent_at && (
+                        <CountdownTimer targetDate={new Date(new Date(challenge.sent_at).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                      )}
+                    </View>
+
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity 
+                        className="flex-1 bg-red-500 dark:bg-red-600 py-3 rounded-xl items-center shadow-sm shadow-red-200/50 dark:shadow-none"
+                        onPress={() => Alert.alert('Reject Dare', 'Are you sure you want to reject this dare?')}
+                      >
+                        <Text className="text-white font-bold text-[13px]">Reject</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        className="flex-1 bg-emerald-500 dark:bg-emerald-600 py-3 rounded-xl items-center shadow-md shadow-emerald-200/50 dark:shadow-none"
+                        onPress={() => Alert.alert('Accept Dare', 'Get ready to complete this challenge!')}
+                      >
+                        <Text className="text-white font-bold text-[13px]">Accept</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         )}
 
@@ -654,14 +730,7 @@ export default function Dashboard() {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity 
-        className="absolute bottom-6 right-6 bg-[#af2c3b] dark:bg-rose-600 w-14 h-14 rounded-full items-center justify-center shadow-xl shadow-red-900/40 dark:shadow-none"
-        activeOpacity={0.9}
-        style={{ zIndex: 50 }}
-      >
-        <Ionicons name="add" size={30} color="white" />
-      </TouchableOpacity>
+
     </SafeAreaView>
   );
 }
