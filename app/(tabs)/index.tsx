@@ -72,7 +72,7 @@ export default function Dashboard() {
 
     const intervalId = setInterval(() => {
       fetchActiveRoom(true);
-    }, 3000);
+    }, 15000);
 
     return () => clearInterval(intervalId);
   }, [activeRoom?.status, fetchActiveRoom]);

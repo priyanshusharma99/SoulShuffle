@@ -28,7 +28,7 @@ export default function History() {
     };
 
     loadChallengeHistory();
-    const intervalId = setInterval(loadChallengeHistory, 5000);
+    const intervalId = setInterval(loadChallengeHistory, 30000);
 
     return () => {
       isMounted = false;

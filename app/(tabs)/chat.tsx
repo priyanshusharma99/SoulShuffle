@@ -29,7 +29,7 @@ export default function Chat() {
     };
 
     loadActiveChallenge();
-    const intervalId = setInterval(loadActiveChallenge, 3000);
+    const intervalId = setInterval(loadActiveChallenge, 20000);
 
     return () => {
       isMounted = false;

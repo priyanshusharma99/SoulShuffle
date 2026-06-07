@@ -95,20 +95,6 @@ function TabButton({
     };
   });
 
-  const colorStyle = useAnimatedStyle(() => {
-    const focused = interpolate(
-      activeIndex.value,
-      [index - 0.5, index, index + 0.5],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    const iconColor = interpolateColor(
-      focused,
-      [0, 1],
-      [isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af', '#fff']
-    );
-    return { color: iconColor };
-  });
 
   return (
     <TouchableOpacity
