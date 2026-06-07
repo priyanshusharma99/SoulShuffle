@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,9 +70,9 @@ function TabItem({
     transform: [{ translateX: withSpring(focused ? 0 : -6) }],
   }));
 
-  const activeBg = '#e11d48';
-  const activeColor = '#ffffff';
-  const inactiveColor = 'rgba(255, 255, 255, 0.48)';
+  const activeBg = isDark ? '#e11d48' : '#ffe4e6';
+  const activeColor = isDark ? '#ffffff' : '#f43f5e';
+  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : '#64748b';
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
@@ -107,74 +106,64 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
 
   return (
-    <View style={styles.barContainer}>
-      <View
-        style={[
-          styles.tabBar,
-          {
-            backgroundColor: '#14080B', // Premium dark rose-black container on both light/dark
-            shadowColor: '#000',
-          },
-        ]}
-      >
-        {TABS.map((tab, index) => {
-          const route = state.routes.find((r) => r.name === tab.name);
-          if (!route) return null;
-          const focused = state.index === index;
+    <View
+      style={[
+        styles.tabBar,
+        {
+          backgroundColor: isDark ? '#251216' : '#ffffff', // Stands out against #0F0608 (dark) or bg-rose-50 (light)
+          borderTopColor: isDark ? '#3d1e24' : '#f1f5f9',
+          shadowColor: isDark ? '#000' : '#e11d48',
+        },
+      ]}
+    >
+      {TABS.map((tab, index) => {
+        const route = state.routes.find((r) => r.name === tab.name);
+        if (!route) return null;
+        const focused = state.index === index;
 
-          return (
-            <TabItem
-              key={tab.name}
-              tab={tab}
-              focused={focused}
-              isDark={isDark}
-              onPress={() => {
-                const event = navigation.emit({
-                  type: 'tabPress',
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-                if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(tab.name);
-                }
-              }}
-            />
-          );
-        })}
-      </View>
+        return (
+          <TabItem
+            key={tab.name}
+            tab={tab}
+            focused={focused}
+            isDark={isDark}
+            onPress={() => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (!focused && !event.defaultPrevented) {
+                navigation.navigate(tab.name);
+              }
+            }}
+          />
+        );
+      })}
     </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  barContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 24 : 16,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-  },
   tabBar: {
     flexDirection: 'row',
-    height: 64,
-    borderRadius: 32,
+    height: Platform.OS === 'ios' ? 84 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    paddingTop: 8,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
     width: '100%',
-    maxWidth: 380,
-    elevation: 12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
+    elevation: 16,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    borderTopWidth: 1,
   },
   tabItem: {
-    height: 46,
-    borderRadius: 23,
+    height: 44,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
