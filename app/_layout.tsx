@@ -13,8 +13,8 @@ const CustomDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: '#221517',
-    card: '#251719',
+    background: '#0F0608',
+    card: '#271318',
     text: '#e2e8f0',
   },
 };
