@@ -175,6 +175,19 @@ export default function Dashboard() {
       case '7_DAYS': return '7 Days';
       case '30_DAYS': return '30 Days';
       case '1_YEAR': return '1 Year';
+  };
+
+  // ── Safe Target Date Parser for older JSC engines ───────
+  const getTargetDateStr = (sentAt: string | undefined) => {
+    if (!sentAt) return '';
+    try {
+      const formattedDate = sentAt.replace(' ', 'T');
+      const d = new Date(formattedDate);
+      const time = d.getTime();
+      if (isNaN(time)) return '';
+      return new Date(time + 24 * 60 * 60 * 1000).toISOString();
+    } catch (e) {
+      return '';
     }
   };
 
@@ -586,7 +599,7 @@ export default function Dashboard() {
                   <Ionicons name="time" size={14} color="#64748b" />
                   <Text className="text-slate-500 dark:text-slate-400 font-bold text-[12px] ml-2 mr-4">{activeChallenge.time}</Text>
                   {activeChallenge.sent_at && (
-                    <CountdownTimer targetDate={new Date(new Date(activeChallenge.sent_at).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                    <CountdownTimer targetDate={getTargetDateStr(activeChallenge.sent_at)} />
                   )}
                 </View>
                 <TouchableOpacity className="bg-rose-50 dark:bg-slate-800/60 px-5 py-3 rounded-full border border-rose-100 dark:border-slate-700/40" onPress={() => navigateTo('/history')}>
@@ -624,7 +637,7 @@ export default function Dashboard() {
                     
                     <View className="flex-row items-center mb-5 mt-1">
                       {challenge.sent_at && (
-                        <CountdownTimer targetDate={new Date(new Date(challenge.sent_at).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                        <CountdownTimer targetDate={getTargetDateStr(challenge.sent_at)} />
                       )}
                     </View>
 
