@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, KeyboardAvoidingView, Alert, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getActiveRoom, SentChallenge } from '@/services/roomService';
@@ -13,6 +13,23 @@ export default function Chat() {
   const [activeChallenge, setActiveChallenge] = useState<SentChallenge | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -185,7 +202,10 @@ export default function Chat() {
         </ScrollView>
         
         {/* Chat Input Bar */}
-        <View className="bg-white dark:bg-[#0F0608] px-4 py-3 flex-row items-center border-t border-slate-100 dark:border-rose-950/20 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] dark:shadow-none pb-safe mb-10">
+        <View 
+          className="bg-white dark:bg-[#0F0608] px-4 py-3 flex-row items-center border-t border-slate-100 dark:border-rose-950/20 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] dark:shadow-none pb-safe"
+          style={{ marginBottom: isKeyboardVisible ? 0 : (Platform.OS === 'ios' ? 88 : 80) }}
+        >
           <TouchableOpacity className="bg-slate-100 dark:bg-[#271318] w-10 h-10 rounded-full items-center justify-center mr-3">
             <Ionicons name="add" size={24} color={isDark ? "#fff" : "#64748b"} />
           </TouchableOpacity>
