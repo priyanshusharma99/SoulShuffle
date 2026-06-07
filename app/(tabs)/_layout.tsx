@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs } from 'expo-router';
 import React from 'react';
 import {
   View,
@@ -18,7 +18,6 @@ import Animated, {
   withSpring,
   withTiming,
   interpolate,
-  interpolateColor,
   Extrapolation,
 } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -197,16 +196,13 @@ function SlidingPill({
   isDark: boolean;
 }) {
   const pillStyle = useAnimatedStyle(() => {
-    const x = interpolate(
-      activeIndex.value,
-      TABS.map((_, i) => i),
-      TABS.map((_, i) => i * TAB_W + TAB_W / 2 - PILL_W / 2),
-      Extrapolation.CLAMP
-    );
+    // Simple linear arithmetic — no .map() inside worklets!
+    const x = activeIndex.value * TAB_W + (TAB_W - PILL_W) / 2;
     return {
       transform: [{ translateX: x }],
     };
   });
+
 
   return (
     <Animated.View
