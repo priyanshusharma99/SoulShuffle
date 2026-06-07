@@ -175,6 +175,7 @@ export default function Dashboard() {
       case '7_DAYS': return '7 Days';
       case '30_DAYS': return '30 Days';
       case '1_YEAR': return '1 Year';
+    }
   };
 
   // ── Safe Target Date Parser for older JSC engines ───────

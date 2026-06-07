@@ -6,9 +6,15 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
+    if (!targetDate) return;
+
     const updateTimer = () => {
       const now = new Date().getTime();
       const target = new Date(targetDate).getTime();
+      if (isNaN(target)) {
+        setTimeLeft('--');
+        return;
+      }
       const difference = target - now;
 
       if (difference <= 0) {
@@ -27,6 +33,8 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [targetDate]);
+
+  if (!timeLeft) return null;
 
   return (
     <View className="flex-row items-center bg-rose-100/80 dark:bg-rose-950/40 px-2 py-1 rounded-md">
