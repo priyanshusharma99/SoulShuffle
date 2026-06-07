@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,106 +17,107 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolate,
-  Extrapolation,
 } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCREEN_W = Dimensions.get('window').width;
 
 const TABS = [
-  { name: 'index',   label: 'Home',    icon: 'heart-outline',       activeIcon: 'heart'        },
-  { name: 'dares',   label: 'Dares',   icon: 'copy-outline',        activeIcon: 'copy'         },
-  { name: 'history', label: 'History', icon: 'hourglass-outline',   activeIcon: 'hourglass'    },
-  { name: 'chat',    label: 'Chat',    icon: 'chatbubbles-outline',  activeIcon: 'chatbubbles'  },
-  { name: 'profile', label: 'Profile', icon: 'rose-outline',        activeIcon: 'rose'         },
+  { name: 'index',   label: 'Home',    icon: 'heart-outline',      activeIcon: 'heart'       },
+  { name: 'dares',   label: 'Dares',   icon: 'copy-outline',       activeIcon: 'copy'        },
+  { name: 'history', label: 'History', icon: 'hourglass-outline',  activeIcon: 'hourglass'   },
+  { name: 'chat',    label: 'Chat',    icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
+  { name: 'profile', label: 'Profile', icon: 'rose-outline',       activeIcon: 'rose'        },
 ];
 
-const TAB_COUNT = TABS.length;
-const TAB_BAR_H = 70;
-const TAB_BAR_PADDING_BOTTOM = Platform.OS === 'ios' ? 16 : 8;
-const PILL_W = 56;
-const PILL_H = 40;
-const TAB_W = SCREEN_WIDTH / TAB_COUNT;
-
-// ─── Single Tab Button ────────────────────────────────────────────────────────
-function TabButton({
+// ─── Single Animated Tab Item ─────────────────────────────────────────────────
+function TabItem({
   tab,
-  index,
-  activeIndex,
+  focused,
   isDark,
   onPress,
 }: {
   tab: (typeof TABS)[0];
-  index: number;
-  activeIndex: Animated.SharedValue<number>;
+  focused: boolean;
   isDark: boolean;
   onPress: () => void;
 }) {
-  const scale = useSharedValue(1);
+  // Pill background scale
+  const pillScale = useSharedValue(focused ? 1 : 0);
+  // Icon bounce on press
+  const pressScale = useSharedValue(1);
+  // Icon float when focused
+  const translateY = useSharedValue(focused ? -2 : 2);
+  // Label opacity
+  const labelOpacity = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    pillScale.value = withSpring(focused ? 1 : 0, {
+      damping: 18,
+      stiffness: 220,
+      mass: 0.6,
+    });
+    translateY.value = withSpring(focused ? -2 : 2, {
+      damping: 16,
+      stiffness: 200,
+    });
+    labelOpacity.value = withTiming(focused ? 1 : 0, { duration: 200 });
+  }, [focused]);
 
   const handlePress = () => {
-    scale.value = withSpring(0.78, { damping: 8, stiffness: 300 }, () => {
-      scale.value = withSpring(1, { damping: 12, stiffness: 260 });
+    pressScale.value = withSpring(0.8, { damping: 6, stiffness: 400 }, () => {
+      pressScale.value = withSpring(1, { damping: 10, stiffness: 280 });
     });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
   };
 
-  const iconStyle = useAnimatedStyle(() => {
-    const focused = interpolate(
-      activeIndex.value,
-      [index - 0.4, index, index + 0.4],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: pillScale.value,
+    transform: [{ scale: pillScale.value }],
+  }));
 
-    return {
-      transform: [
-        { scale: scale.value * interpolate(focused, [0, 1], [0.88, 1.08], Extrapolation.CLAMP) },
-        { translateY: interpolate(focused, [0, 1], [0, -2], Extrapolation.CLAMP) },
-      ],
-      opacity: interpolate(focused, [0, 1], [0.45, 1], Extrapolation.CLAMP),
-    };
-  });
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: pressScale.value },
+      { translateY: translateY.value },
+    ],
+  }));
 
-  const labelStyle = useAnimatedStyle(() => {
-    const focused = interpolate(
-      activeIndex.value,
-      [index - 0.4, index, index + 0.4],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    return {
-      opacity: interpolate(focused, [0, 1], [0.4, 1], Extrapolation.CLAMP),
-      transform: [
-        { translateY: interpolate(focused, [0, 1], [4, 0], Extrapolation.CLAMP) },
-      ],
-    };
-  });
+  const labelStyle = useAnimatedStyle(() => ({
+    opacity: labelOpacity.value,
+  }));
 
+  const activeColor = '#f43f5e';
+  const inactiveColor = isDark ? 'rgba(255,255,255,0.38)' : '#94a3b8';
 
   return (
     <TouchableOpacity
-      style={styles.tabButton}
+      style={styles.tabItem}
       onPress={handlePress}
       activeOpacity={1}
     >
-      <Animated.View style={[styles.iconWrap, iconStyle]}>
-        {/* icon rendered via animated color workaround */}
-        <AnimatedIcon
-          activeIndex={activeIndex}
-          index={index}
-          tab={tab}
-          isDark={isDark}
+      {/* Pill background */}
+      <Animated.View
+        style={[
+          styles.pill,
+          { backgroundColor: isDark ? '#7f1d32' : '#ffe4e6' },
+          pillStyle,
+        ]}
+      />
+
+      {/* Icon */}
+      <Animated.View style={iconStyle}>
+        <Ionicons
+          name={(focused ? tab.activeIcon : tab.icon) as any}
+          size={22}
+          color={focused ? activeColor : inactiveColor}
         />
       </Animated.View>
+
+      {/* Label — only visible when focused */}
       <Animated.Text
-        style={[
-          styles.label,
-          { color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' },
-          labelStyle,
-        ]}
+        style={[styles.label, { color: activeColor }, labelStyle]}
         numberOfLines={1}
       >
         {tab.label}
@@ -125,139 +126,38 @@ function TabButton({
   );
 }
 
-// ─── Animated Icon (handles color separately) ─────────────────────────────────
-function AnimatedIcon({
-  activeIndex,
-  index,
-  tab,
-  isDark,
-}: {
-  activeIndex: Animated.SharedValue<number>;
-  index: number;
-  tab: (typeof TABS)[0];
-  isDark: boolean;
-}) {
-  // We can't pass animated color directly to Ionicons, so we render two icons
-  // and cross-fade them — active (white) fades in, inactive fades out.
-  const activeOpacity = useAnimatedStyle(() => {
-    const focused = interpolate(
-      activeIndex.value,
-      [index - 0.4, index, index + 0.4],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    return { opacity: focused };
-  });
-
-  const inactiveOpacity = useAnimatedStyle(() => {
-    const focused = interpolate(
-      activeIndex.value,
-      [index - 0.4, index, index + 0.4],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    return { opacity: 1 - focused };
-  });
-
-  return (
-    <View style={{ width: 24, height: 24 }}>
-      {/* inactive icon */}
-      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, inactiveOpacity]}>
-        <Ionicons size={22} name={tab.icon as any} color={isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af'} />
-      </Animated.View>
-      {/* active icon */}
-      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, activeOpacity]}>
-        <Ionicons size={22} name={tab.activeIcon as any} color="#fff" />
-      </Animated.View>
-    </View>
-  );
-}
-
-// ─── Sliding Pill ─────────────────────────────────────────────────────────────
-function SlidingPill({
-  activeIndex,
-  isDark,
-}: {
-  activeIndex: Animated.SharedValue<number>;
-  isDark: boolean;
-}) {
-  const pillStyle = useAnimatedStyle(() => {
-    // Simple linear arithmetic — no .map() inside worklets!
-    const x = activeIndex.value * TAB_W + (TAB_W - PILL_W) / 2;
-    return {
-      transform: [{ translateX: x }],
-    };
-  });
-
-
-  return (
-    <Animated.View
-      style={[
-        styles.pill,
-        {
-          backgroundColor: isDark ? '#c2324a' : '#e11d48',
-          shadowColor: isDark ? '#f43f5e' : '#e11d48',
-        },
-        pillStyle,
-      ]}
-    />
-  );
-}
-
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
-
-  // Shared value drives ALL animations — single source of truth
-  const activeIndex = useSharedValue(state.index);
-
-  // Keep in sync with route changes (back button, deep links, etc.)
-  React.useEffect(() => {
-    activeIndex.value = withSpring(state.index, {
-      damping: 22,
-      stiffness: 200,
-      mass: 0.7,
-    });
-  }, [state.index]);
 
   return (
     <View
       style={[
         styles.tabBar,
         {
-          backgroundColor: isDark ? '#160A0D' : '#ffffff',
+          backgroundColor: isDark ? '#130810' : '#ffffff',
           shadowColor: isDark ? '#000' : '#be123c',
         },
       ]}
     >
-      {/* Sliding pill (sits behind icons) */}
-      <SlidingPill activeIndex={activeIndex} isDark={isDark} />
-
-      {/* Tab buttons */}
       {TABS.map((tab, index) => {
         const route = state.routes.find((r) => r.name === tab.name);
         if (!route) return null;
+        const focused = state.index === index;
 
         return (
-          <TabButton
+          <TabItem
             key={tab.name}
             tab={tab}
-            index={index}
-            activeIndex={activeIndex}
+            focused={focused}
             isDark={isDark}
             onPress={() => {
-              activeIndex.value = withSpring(index, {
-                damping: 22,
-                stiffness: 200,
-                mass: 0.7,
-              });
-              const isFocused = state.index === index;
               const event = navigation.emit({
                 type: 'tabPress',
                 target: route.key,
                 canPreventDefault: true,
               });
-              if (!isFocused && !event.defaultPrevented) {
+              if (!focused && !event.defaultPrevented) {
                 navigation.navigate(tab.name);
               }
             }}
@@ -269,45 +169,42 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+const TAB_H = Platform.OS === 'ios' ? 82 : 68;
+
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    height: TAB_BAR_H + TAB_BAR_PADDING_BOTTOM,
-    paddingBottom: TAB_BAR_PADDING_BOTTOM,
-    alignItems: 'center',
+    height: TAB_H,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    paddingTop: 8,
+    paddingHorizontal: 4,
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 20,
+    elevation: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
     position: 'relative',
   },
   pill: {
     position: 'absolute',
-    top: (TAB_BAR_H - PILL_H) / 2 - TAB_BAR_PADDING_BOTTOM / 2,
-    width: PILL_W,
-    height: PILL_H,
-    borderRadius: PILL_H / 2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  tabButton: {
-    width: TAB_W,
-    height: TAB_BAR_H,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 52,
+    height: 38,
+    borderRadius: 19,
+    top: 0,
   },
   label: {
     fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.4,
+    fontWeight: '700',
+    letterSpacing: 0.3,
     textTransform: 'capitalize',
+    marginTop: 1,
   },
 });
 
