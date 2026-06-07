@@ -9,6 +9,10 @@ export function useColorScheme() {
     AsyncStorage.getItem('theme').then((savedTheme) => {
       if (savedTheme === 'light' || savedTheme === 'dark') {
         setColorScheme(savedTheme);
+      } else {
+        // No saved preference — default to dark on first launch
+        setColorScheme('dark');
+        AsyncStorage.setItem('theme', 'dark');
       }
     });
   }, [setColorScheme]);
