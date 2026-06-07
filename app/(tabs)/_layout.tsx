@@ -71,9 +71,9 @@ function TabItem({
     transform: [{ translateX: withSpring(focused ? 0 : -6) }],
   }));
 
-  const activeBg = isDark ? '#2D1418' : '#ffe4e6';
-  const activeColor = '#f43f5e';
-  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : '#64748b';
+  const activeBg = '#e11d48';
+  const activeColor = '#ffffff';
+  const inactiveColor = 'rgba(255, 255, 255, 0.48)';
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
@@ -112,7 +112,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         style={[
           styles.tabBar,
           {
-            backgroundColor: isDark ? '#110709' : '#1e293b', // Dark container on both light/dark
+            backgroundColor: '#14080B', // Premium dark rose-black container on both light/dark
             shadowColor: '#000',
           },
         ]}
