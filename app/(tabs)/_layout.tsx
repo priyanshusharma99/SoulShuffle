@@ -70,9 +70,12 @@ function TabItem({
     transform: [{ translateX: withSpring(focused ? 0 : -6) }],
   }));
 
+  // Define tab item colors dynamically
+  // Light mode (on a black bar): active has light pink bg, rose text.
+  // Dark mode (on a rose-charcoal bar): active has bright rose bg, white text.
   const activeBg = isDark ? '#e11d48' : '#ffe4e6';
   const activeColor = isDark ? '#ffffff' : '#f43f5e';
-  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : '#64748b';
+  const inactiveColor = 'rgba(255, 255, 255, 0.45)'; // Always light white on dark bar containers
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
@@ -111,9 +114,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         style={[
           styles.tabBar,
           {
-            backgroundColor: isDark ? '#251216' : '#ffffff', // Distinct from the dark page background #0F0608
-            borderColor: isDark ? '#3d1e24' : '#f1f5f9',
-            shadowColor: isDark ? '#000' : '#e11d48',
+            // Light mode: solid black bar. Dark mode: slightly lighter rose-charcoal to avoid blending.
+            backgroundColor: isDark ? '#261216' : '#14080B',
+            borderColor: isDark ? '#4A232A' : '#221115',
+            shadowColor: '#000',
           },
         ]}
       >
@@ -162,7 +166,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 64,
     borderRadius: 32,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 10,
@@ -170,7 +174,7 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     elevation: 12,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
   },
   tabItem: {
