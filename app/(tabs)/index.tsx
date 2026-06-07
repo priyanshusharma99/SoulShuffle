@@ -8,7 +8,7 @@ import { useSidebar } from '@/context/SidebarContext';
 
 import CountdownTimer from '@/components/CountdownTimer';
 
-const coupleCover = require('@/assets/images/couple_cover.png');
+const coupleCover = require('@/assets/images/couple_cover.jpeg');
 
 export default function Dashboard() {
   const { openSidebar } = useSidebar();

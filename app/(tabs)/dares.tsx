@@ -7,7 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { fetchCards } from '@/services/cardService';
 import { useSidebar } from '@/context/SidebarContext';
 
-const sunsetPicnic = require('@/assets/images/sunset_picnic.png');
+const sunsetPicnic = require('@/assets/images/sunset_picnic.jpeg');
 
 type Dare = ChallengePayload & {
   id: string | number;
@@ -30,7 +30,7 @@ const mapCardToDare = (card: any): Dare => {
     image = { uri: card.image_url };
   } else {
     if (cleanCategory.includes('ROMANCE') || cleanCategory.includes('ROMANTIC')) {
-      image = require('@/assets/images/couple_cover.png');
+      image = require('@/assets/images/couple_cover.jpeg');
     } else if (cleanCategory.includes('ADVENTURE') || cleanCategory.includes('ADVENTUROUS')) {
       image = { uri: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=400&fit=crop' };
     } else {

@@ -110,7 +110,7 @@ export default function Chat() {
           <View className="w-[90%] self-center bg-white dark:bg-[#1E1215] rounded-[32px] overflow-hidden shadow-xl shadow-rose-200/40 dark:shadow-none border border-white dark:border-rose-950/20 mb-6">
             <View className="relative h-40 bg-rose-300">
               <Image 
-                source={activeChallenge?.image ? (typeof activeChallenge.image === 'string' ? { uri: activeChallenge.image } : activeChallenge.image) : require('@/assets/images/couple_cover.png')} 
+                source={activeChallenge?.image ? (typeof activeChallenge.image === 'string' ? { uri: activeChallenge.image } : activeChallenge.image) : require('@/assets/images/couple_cover.jpeg')} 
                 className="w-full h-full opacity-60"
               />
               <View className="absolute inset-0 bg-[#8a2f3d]/30 dark:bg-[#13090B]/50 items-center justify-center">
@@ -147,7 +147,7 @@ export default function Chat() {
 
           {/* Voice Message & Floating Reactions */}
           <View className="flex-row items-end mb-10 relative">
-            <View className="w-8 h-8 rounded-full mr-3 mb-1 overflow-hidden" /> {/* Spacer for avatar alignment */}
+            <View className="w-8 h-8 rounded-full mr-3 mb-1 overflow-hidden" />
             
             <View className="flex-1">
               {/* Voice Message Bubble */}
