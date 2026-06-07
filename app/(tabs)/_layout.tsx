@@ -1,224 +1,346 @@
-import { Tabs } from 'expo-router';
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import Sidebar from '@/components/Sidebar';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
   interpolate,
+  interpolateColor,
   Extrapolation,
 } from 'react-native-reanimated';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-const SPRING_CONFIG = {
-  damping: 14,
-  stiffness: 200,
-  mass: 0.8,
-};
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const AnimatedTabIcon = ({
-  name,
-  title,
-  focused,
-  color,
-  activeIcon,
+const TABS = [
+  { name: 'index',   label: 'Home',    icon: 'heart-outline',       activeIcon: 'heart'        },
+  { name: 'dares',   label: 'Dares',   icon: 'copy-outline',        activeIcon: 'copy'         },
+  { name: 'history', label: 'History', icon: 'hourglass-outline',   activeIcon: 'hourglass'    },
+  { name: 'chat',    label: 'Chat',    icon: 'chatbubbles-outline',  activeIcon: 'chatbubbles'  },
+  { name: 'profile', label: 'Profile', icon: 'rose-outline',        activeIcon: 'rose'         },
+];
+
+const TAB_COUNT = TABS.length;
+const TAB_BAR_H = 70;
+const TAB_BAR_PADDING_BOTTOM = Platform.OS === 'ios' ? 16 : 8;
+const PILL_W = 56;
+const PILL_H = 40;
+const TAB_W = SCREEN_WIDTH / TAB_COUNT;
+
+// ─── Single Tab Button ────────────────────────────────────────────────────────
+function TabButton({
+  tab,
+  index,
+  activeIndex,
   isDark,
-}: any) => {
-  const scale = useSharedValue(focused ? 1 : 0.85);
-  const translateY = useSharedValue(focused ? -4 : 0);
-  const opacity = useSharedValue(focused ? 1 : 0.5);
-  const pillOpacity = useSharedValue(focused ? 1 : 0);
-  const pillScale = useSharedValue(focused ? 1 : 0.4);
-  const glowOpacity = useSharedValue(focused ? 0.6 : 0);
+  onPress,
+}: {
+  tab: (typeof TABS)[0];
+  index: number;
+  activeIndex: Animated.SharedValue<number>;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
 
-  useEffect(() => {
-    if (focused) {
-      scale.value = withSpring(1.15, SPRING_CONFIG);
-      translateY.value = withSpring(-6, SPRING_CONFIG);
-      opacity.value = withTiming(1, { duration: 200 });
-      pillOpacity.value = withTiming(1, { duration: 250 });
-      pillScale.value = withSpring(1, SPRING_CONFIG);
-      glowOpacity.value = withTiming(0.55, { duration: 300 });
-    } else {
-      scale.value = withSpring(0.88, SPRING_CONFIG);
-      translateY.value = withSpring(0, SPRING_CONFIG);
-      opacity.value = withTiming(0.45, { duration: 200 });
-      pillOpacity.value = withTiming(0, { duration: 150 });
-      pillScale.value = withSpring(0.3, SPRING_CONFIG);
-      glowOpacity.value = withTiming(0, { duration: 200 });
-    }
-  }, [focused]);
+  const handlePress = () => {
+    scale.value = withSpring(0.78, { damping: 8, stiffness: 300 }, () => {
+      scale.value = withSpring(1, { damping: 12, stiffness: 260 });
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
 
-  const iconContainerStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value },
-    ],
-    opacity: opacity.value,
-  }));
+  const iconStyle = useAnimatedStyle(() => {
+    const focused = interpolate(
+      activeIndex.value,
+      [index - 0.4, index, index + 0.4],
+      [0, 1, 0],
+      Extrapolation.CLAMP
+    );
 
-  const pillStyle = useAnimatedStyle(() => ({
-    opacity: pillOpacity.value,
-    transform: [{ scaleX: pillScale.value }],
-  }));
+    return {
+      transform: [
+        { scale: scale.value * interpolate(focused, [0, 1], [0.88, 1.08], Extrapolation.CLAMP) },
+        { translateY: interpolate(focused, [0, 1], [0, -2], Extrapolation.CLAMP) },
+      ],
+      opacity: interpolate(focused, [0, 1], [0.45, 1], Extrapolation.CLAMP),
+    };
+  });
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
+  const labelStyle = useAnimatedStyle(() => {
+    const focused = interpolate(
+      activeIndex.value,
+      [index - 0.4, index, index + 0.4],
+      [0, 1, 0],
+      Extrapolation.CLAMP
+    );
+    return {
+      opacity: interpolate(focused, [0, 1], [0.4, 1], Extrapolation.CLAMP),
+      transform: [
+        { translateY: interpolate(focused, [0, 1], [4, 0], Extrapolation.CLAMP) },
+      ],
+    };
+  });
 
-  const activeColor = isDark ? '#f43f5e' : '#e11d48';
+  const colorStyle = useAnimatedStyle(() => {
+    const focused = interpolate(
+      activeIndex.value,
+      [index - 0.5, index, index + 0.5],
+      [0, 1, 0],
+      Extrapolation.CLAMP
+    );
+    const iconColor = interpolateColor(
+      focused,
+      [0, 1],
+      [isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af', '#fff']
+    );
+    return { color: iconColor };
+  });
 
   return (
-    <View style={styles.tabItem}>
-      {/* Glow blob behind icon */}
-      <Animated.View
-        style={[
-          styles.glow,
-          { backgroundColor: activeColor },
-          glowStyle,
-        ]}
-      />
-
-      {/* Icon */}
-      <Animated.View style={[styles.iconWrap, iconContainerStyle]}>
-        <Ionicons
-          size={focused ? 22 : 22}
-          name={focused ? activeIcon || name : name}
-          color={focused ? activeColor : color}
+    <TouchableOpacity
+      style={styles.tabButton}
+      onPress={handlePress}
+      activeOpacity={1}
+    >
+      <Animated.View style={[styles.iconWrap, iconStyle]}>
+        {/* icon rendered via animated color workaround */}
+        <AnimatedIcon
+          activeIndex={activeIndex}
+          index={index}
+          tab={tab}
+          isDark={isDark}
         />
       </Animated.View>
-
-      {/* Label */}
-      <Text
+      <Animated.Text
         style={[
           styles.label,
-          {
-            color: focused ? activeColor : color,
-            fontWeight: focused ? '800' : '500',
-          },
+          { color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' },
+          labelStyle,
         ]}
+        numberOfLines={1}
       >
-        {title}
-      </Text>
+        {tab.label}
+      </Animated.Text>
+    </TouchableOpacity>
+  );
+}
 
-      {/* Bottom pill indicator */}
-      <Animated.View
-        style={[
-          styles.pill,
-          { backgroundColor: activeColor },
-          pillStyle,
-        ]}
-      />
+// ─── Animated Icon (handles color separately) ─────────────────────────────────
+function AnimatedIcon({
+  activeIndex,
+  index,
+  tab,
+  isDark,
+}: {
+  activeIndex: Animated.SharedValue<number>;
+  index: number;
+  tab: (typeof TABS)[0];
+  isDark: boolean;
+}) {
+  // We can't pass animated color directly to Ionicons, so we render two icons
+  // and cross-fade them — active (white) fades in, inactive fades out.
+  const activeOpacity = useAnimatedStyle(() => {
+    const focused = interpolate(
+      activeIndex.value,
+      [index - 0.4, index, index + 0.4],
+      [0, 1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity: focused };
+  });
+
+  const inactiveOpacity = useAnimatedStyle(() => {
+    const focused = interpolate(
+      activeIndex.value,
+      [index - 0.4, index, index + 0.4],
+      [0, 1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity: 1 - focused };
+  });
+
+  return (
+    <View style={{ width: 24, height: 24 }}>
+      {/* inactive icon */}
+      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, inactiveOpacity]}>
+        <Ionicons size={22} name={tab.icon as any} color={isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af'} />
+      </Animated.View>
+      {/* active icon */}
+      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, activeOpacity]}>
+        <Ionicons size={22} name={tab.activeIcon as any} color="#fff" />
+      </Animated.View>
     </View>
   );
-};
+}
 
+// ─── Sliding Pill ─────────────────────────────────────────────────────────────
+function SlidingPill({
+  activeIndex,
+  isDark,
+}: {
+  activeIndex: Animated.SharedValue<number>;
+  isDark: boolean;
+}) {
+  const pillStyle = useAnimatedStyle(() => {
+    const x = interpolate(
+      activeIndex.value,
+      TABS.map((_, i) => i),
+      TABS.map((_, i) => i * TAB_W + TAB_W / 2 - PILL_W / 2),
+      Extrapolation.CLAMP
+    );
+    return {
+      transform: [{ translateX: x }],
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.pill,
+        {
+          backgroundColor: isDark ? '#c2324a' : '#e11d48',
+          shadowColor: isDark ? '#f43f5e' : '#e11d48',
+        },
+        pillStyle,
+      ]}
+    />
+  );
+}
+
+// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+  const isDark = useColorScheme() === 'dark';
+
+  // Shared value drives ALL animations — single source of truth
+  const activeIndex = useSharedValue(state.index);
+
+  // Keep in sync with route changes (back button, deep links, etc.)
+  React.useEffect(() => {
+    activeIndex.value = withSpring(state.index, {
+      damping: 22,
+      stiffness: 200,
+      mass: 0.7,
+    });
+  }, [state.index]);
+
+  return (
+    <View
+      style={[
+        styles.tabBar,
+        {
+          backgroundColor: isDark ? '#160A0D' : '#ffffff',
+          shadowColor: isDark ? '#000' : '#be123c',
+        },
+      ]}
+    >
+      {/* Sliding pill (sits behind icons) */}
+      <SlidingPill activeIndex={activeIndex} isDark={isDark} />
+
+      {/* Tab buttons */}
+      {TABS.map((tab, index) => {
+        const route = state.routes.find((r) => r.name === tab.name);
+        if (!route) return null;
+
+        return (
+          <TabButton
+            key={tab.name}
+            tab={tab}
+            index={index}
+            activeIndex={activeIndex}
+            isDark={isDark}
+            onPress={() => {
+              activeIndex.value = withSpring(index, {
+                damping: 22,
+                stiffness: 200,
+                mass: 0.7,
+              });
+              const isFocused = state.index === index;
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(tab.name);
+              }
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  tabItem: {
+  tabBar: {
+    flexDirection: 'row',
+    height: TAB_BAR_H + TAB_BAR_PADDING_BOTTOM,
+    paddingBottom: TAB_BAR_PADDING_BOTTOM,
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 2,
-    width: 64,
-    height: 56,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 20,
     position: 'relative',
+  },
+  pill: {
+    position: 'absolute',
+    top: (TAB_BAR_H - PILL_H) / 2 - TAB_BAR_PADDING_BOTTOM / 2,
+    width: PILL_W,
+    height: PILL_H,
+    borderRadius: PILL_H / 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  tabButton: {
+    width: TAB_W,
+    height: TAB_BAR_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
   },
   iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
-  },
-  glow: {
-    position: 'absolute',
-    top: 2,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    filter: 'blur(12px)',
-    // React Native doesn't support CSS filter, use shadow instead
-    shadowColor: '#f43f5e',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 8,
   },
   label: {
     fontSize: 9,
-    letterSpacing: 0.6,
-    marginTop: 1,
-    textTransform: 'uppercase',
-  },
-  pill: {
-    position: 'absolute',
-    bottom: -2,
-    width: 20,
-    height: 3,
-    borderRadius: 2,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'capitalize',
   },
 });
 
+// ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const tabs = [
-    { name: 'index', title: 'Home', icon: 'heart-outline', activeIcon: 'heart' },
-    { name: 'dares', title: 'Dares', icon: 'copy-outline', activeIcon: 'copy' },
-    { name: 'history', title: 'History', icon: 'hourglass-outline', activeIcon: 'hourglass' },
-    { name: 'chat', title: 'Chat', icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
-    { name: 'profile', title: 'Profile', icon: 'rose-outline', activeIcon: 'rose' },
-  ];
-
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarButton: HapticTab,
-          tabBarShowLabel: false,
-          tabBarActiveTintColor: isDark ? 'rgba(255,255,255,0.5)' : '#9ca3af',
-          tabBarInactiveTintColor: isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af',
-          tabBarStyle: {
-            backgroundColor: isDark ? '#1A0C0F' : '#ffffff',
-            borderTopWidth: 0,
-            borderTopColor: 'transparent',
-            elevation: 24,
-            shadowColor: isDark ? '#000' : '#be123c',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: isDark ? 0.5 : 0.08,
-            shadowRadius: 16,
-            height: 76,
-            paddingBottom: 10,
-            paddingTop: 8,
-          },
-        }}
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{ headerShown: false }}
       >
-        {tabs.map((tab) => (
-          <Tabs.Screen
-            key={tab.name}
-            name={tab.name}
-            options={{
-              title: tab.title,
-              tabBarIcon: ({ color, focused }) => (
-                <AnimatedTabIcon
-                  name={tab.icon}
-                  activeIcon={tab.activeIcon}
-                  title={tab.title}
-                  focused={focused}
-                  color={color}
-                  isDark={isDark}
-                />
-              ),
-            }}
-          />
+        {TABS.map((tab) => (
+          <Tabs.Screen key={tab.name} name={tab.name} options={{ title: tab.label }} />
         ))}
-        <Tabs.Screen
-          name="explore"
-          options={{ href: null, title: 'Explore' }}
-        />
+        <Tabs.Screen name="explore" options={{ href: null, title: 'Explore' }} />
       </Tabs>
       <Sidebar />
     </View>
