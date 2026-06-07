@@ -106,64 +106,76 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
 
   return (
-    <View
-      style={[
-        styles.tabBar,
-        {
-          backgroundColor: isDark ? '#251216' : '#ffffff', // Stands out against #0F0608 (dark) or bg-rose-50 (light)
-          borderTopColor: isDark ? '#3d1e24' : '#f1f5f9',
-          shadowColor: isDark ? '#000' : '#e11d48',
-        },
-      ]}
-    >
-      {TABS.map((tab, index) => {
-        const route = state.routes.find((r) => r.name === tab.name);
-        if (!route) return null;
-        const focused = state.index === index;
+    <View style={styles.barContainer}>
+      <View
+        style={[
+          styles.tabBar,
+          {
+            backgroundColor: isDark ? '#251216' : '#ffffff', // Distinct from the dark page background #0F0608
+            borderColor: isDark ? '#3d1e24' : '#f1f5f9',
+            shadowColor: isDark ? '#000' : '#e11d48',
+          },
+        ]}
+      >
+        {TABS.map((tab, index) => {
+          const route = state.routes.find((r) => r.name === tab.name);
+          if (!route) return null;
+          const focused = state.index === index;
 
-        return (
-          <TabItem
-            key={tab.name}
-            tab={tab}
-            focused={focused}
-            isDark={isDark}
-            onPress={() => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(tab.name);
-              }
-            }}
-          />
-        );
-      })}
+          return (
+            <TabItem
+              key={tab.name}
+              tab={tab}
+              focused={focused}
+              isDark={isDark}
+              onPress={() => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(tab.name);
+                }
+              }}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  barContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 24 : 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+  },
   tabBar: {
     flexDirection: 'row',
-    height: Platform.OS === 'ios' ? 84 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-    paddingTop: 8,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     width: '100%',
-    elevation: 16,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    borderTopWidth: 1,
+    maxWidth: 380,
+    elevation: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
   },
   tabItem: {
-    height: 44,
-    borderRadius: 22,
+    height: 46,
+    borderRadius: 23,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
