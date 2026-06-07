@@ -217,16 +217,15 @@ export default function Dashboard() {
             {/* Handle Bar */}
             <View className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full self-center mb-6" />
 
-            {/* Tab Switcher */}
             <View className="flex-row bg-[#f5eeed] dark:bg-rose-950/40 rounded-2xl p-1.5 mb-7">
               <TouchableOpacity
-                className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === 'create' ? 'bg-white dark:bg-[#271318] shadow-sm shadow-slate-200/50 dark:shadow-none' : ''}`}
+                className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === 'create' ? 'bg-white dark:bg-[#271318] shadow-sm dark:shadow-none' : ''}`}
                 onPress={() => switchRoomModalTab('create')}
               >
                 <Text className={`font-bold text-[14px] ${roomModalTab === 'create' ? 'text-[#af2c3b] dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>Create Room</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === 'join' ? 'bg-white dark:bg-[#271318] shadow-sm shadow-slate-200/50 dark:shadow-none' : ''}`}
+                className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === 'join' ? 'bg-white dark:bg-[#271318] shadow-sm dark:shadow-none' : ''}`}
                 onPress={() => switchRoomModalTab('join')}
               >
                 <Text className={`font-bold text-[14px] ${roomModalTab === 'join' ? 'text-[#af2c3b] dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>Join Room</Text>
@@ -269,9 +268,8 @@ export default function Dashboard() {
                   </View>
                 ) : null}
 
-                {/* Create Button */}
                 <TouchableOpacity
-                  className="bg-[#af2c3b] dark:bg-rose-600 rounded-full py-[18px] items-center shadow-lg shadow-red-300/50 dark:shadow-none flex-row justify-center"
+                  className="bg-[#af2c3b] dark:bg-rose-600 rounded-full py-[18px] items-center shadow-lg dark:shadow-none flex-row justify-center"
                   activeOpacity={0.8}
                   onPress={handleCreateRoom}
                   disabled={actionLoading}
@@ -318,10 +316,9 @@ export default function Dashboard() {
                   </View>
                 ) : null}
 
-                {/* Join Button */}
                 <TouchableOpacity
                   className={`rounded-full py-[18px] items-center shadow-lg flex-row justify-center mt-2 ${
-                    joinCode.trim().length >= 5 ? 'bg-[#0d5f5a] dark:bg-teal-600 shadow-teal-300/50 dark:shadow-none' : 'bg-slate-300 dark:bg-slate-800 shadow-slate-200/50 dark:shadow-none'
+                    joinCode.trim().length >= 5 ? 'bg-[#0d5f5a] dark:bg-teal-600 shadow dark:shadow-none' : 'bg-slate-300 dark:bg-slate-800 shadow-sm dark:shadow-none'
                   }`}
                   activeOpacity={0.8}
                   onPress={handleJoinRoom}
@@ -388,14 +385,14 @@ export default function Dashboard() {
 
         {/* Stats Section */}
         <View className="flex-row justify-between px-6 mt-5">
-          <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/40 rounded-[24px] px-5 py-4 w-[47%] shadow-sm shadow-rose-100/50 dark:shadow-none">
+          <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/40 rounded-[24px] px-5 py-4 w-[47%] shadow-sm dark:shadow-none">
             <View className="bg-rose-50/80 dark:bg-rose-500/10 w-8 h-8 rounded-full items-center justify-center mb-3">
               <Ionicons name="medal" size={17} color={isDark ? "#f43f5e" : "#e11d48"} />
             </View>
             <Text className="text-[26px] leading-8 font-black text-slate-900 dark:text-rose-400">24</Text>
             <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-400 mt-1 tracking-widest uppercase">Dares Finished</Text>
           </View>
-          <View className="bg-white dark:bg-[#122220] dark:border dark:border-teal-950/30 rounded-[24px] px-5 py-4 w-[47%] shadow-sm shadow-rose-100/50 dark:shadow-none">
+          <View className="bg-white dark:bg-[#122220] dark:border dark:border-teal-950/30 rounded-[24px] px-5 py-4 w-[47%] shadow-sm dark:shadow-none">
             <View className="bg-teal-50/80 dark:bg-teal-500/10 w-8 h-8 rounded-full items-center justify-center mb-3">
               <Ionicons name="flame" size={17} color={isDark ? "#2dd4bf" : "#0d9488"} />
             </View>
@@ -410,13 +407,12 @@ export default function Dashboard() {
         <View className="mx-6 mt-6">
           {roomLoading ? (
             /* Loading State */
-            <View className="bg-white dark:bg-[#271318] rounded-[36px] p-8 items-center shadow-sm shadow-rose-100/50 dark:shadow-none">
+            <View className="bg-white dark:bg-[#271318] rounded-[36px] p-8 items-center shadow-sm dark:shadow-none">
               <ActivityIndicator size="large" color="#af2c3b" />
               <Text className="text-slate-400 dark:text-slate-400 font-semibold text-sm mt-3">Checking room status...</Text>
             </View>
           ) : activeRoom ? (
-            /* ── ACTIVE ROOM CARD ────────────────────────── */
-            <View className={`bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] overflow-hidden shadow-xl shadow-rose-200/40 dark:shadow-none ${
+            <View className={`bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] overflow-hidden shadow-lg dark:shadow-none ${
               activeRoom.status === 'ACTIVE' ? 'border-l-[5px] border-l-teal-500 dark:border-l-teal-600' : ''
             }`}>
               {/* Room Header Strip Redesigned */}
@@ -466,8 +462,8 @@ export default function Dashboard() {
                     {/* Connection Line & Heart Indicator */}
                     <View className="flex-row items-center mx-3">
                       <View className={`w-4 h-[2px] ${activeRoom.status === 'ACTIVE' ? 'bg-teal-500/50' : 'bg-rose-200 dark:bg-rose-950/40'}`} />
-                      <View className={`w-8 h-8 rounded-full items-center justify-center shadow-md ${
-                        activeRoom.status === 'ACTIVE' ? 'bg-teal-500 shadow-teal-500/30' : 'bg-amber-500 shadow-amber-300'
+                      <View className={`w-8 h-8 rounded-full items-center justify-center shadow-sm ${
+                        activeRoom.status === 'ACTIVE' ? 'bg-teal-500' : 'bg-amber-500'
                       }`}>
                         <Ionicons 
                           name={activeRoom.status === 'ACTIVE' ? "heart" : "hourglass-outline"} 
@@ -516,10 +512,9 @@ export default function Dashboard() {
                   </View>
                 </View>
 
-                {/* Action Buttons */}
                 {activeRoom.status === 'ACTIVE' && (
                   <TouchableOpacity
-                    className="bg-[#af2c3b] dark:bg-rose-600 rounded-full py-[12px] items-center shadow-lg shadow-red-200/50 dark:shadow-none flex-row justify-center mb-2"
+                    className="bg-[#af2c3b] dark:bg-rose-600 rounded-full py-[12px] items-center shadow dark:shadow-none flex-row justify-center mb-2"
                     activeOpacity={0.8}
                     onPress={() => navigateTo('/dares')}
                   >
@@ -538,7 +533,7 @@ export default function Dashboard() {
             </View>
           ) : (
             /* ── NO ROOM CARD ────────────────────────────── */
-            <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] p-5 shadow-xl shadow-rose-200/40 dark:shadow-none relative overflow-hidden">
+            <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] p-5 shadow-lg dark:shadow-none relative overflow-hidden">
               {/* Background decorative elements */}
               <View className="absolute top-[-30] right-[-20] w-28 h-28 bg-rose-100/40 dark:bg-rose-500/10 rounded-full" />
               <View className="absolute bottom-[-20] left-[-15] w-20 h-20 bg-teal-100/30 dark:bg-teal-500/10 rounded-full" />
@@ -559,7 +554,7 @@ export default function Dashboard() {
 
               <View className="flex-row gap-3">
                 <TouchableOpacity
-                  className="flex-1 bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg shadow-red-200/50 dark:shadow-none flex-row justify-center"
+                  className="flex-1 bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-md dark:shadow-none flex-row justify-center"
                   activeOpacity={0.8}
                   onPress={() => openRoomModal('create')}
                 >
@@ -568,7 +563,7 @@ export default function Dashboard() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  className="flex-1 bg-[#0d5f5a] dark:bg-teal-600 rounded-2xl py-4 items-center shadow-lg shadow-teal-200/50 dark:shadow-none flex-row justify-center"
+                  className="flex-1 bg-[#0d5f5a] dark:bg-teal-600 rounded-2xl py-4 items-center shadow-md dark:shadow-none flex-row justify-center"
                   activeOpacity={0.8}
                   onPress={() => openRoomModal('join')}
                 >
@@ -582,7 +577,7 @@ export default function Dashboard() {
 
         {/* Active Challenge Section */}
         {activeChallenge && (
-          <View className="mx-6 mt-6 bg-white dark:bg-[#271318] rounded-[32px] overflow-hidden shadow-xl shadow-rose-200/40 dark:shadow-none border border-white dark:border-rose-950/20">
+          <View className="mx-6 mt-6 bg-white dark:bg-[#271318] rounded-[32px] overflow-hidden shadow-lg dark:shadow-none border border-white dark:border-rose-950/20">
             <View className="h-40 relative">
               <Image source={typeof activeChallenge.image === 'string' ? { uri: activeChallenge.image } : activeChallenge.image} className="w-full h-full" />
               <View className="absolute inset-0 bg-black/25" />
@@ -623,7 +618,7 @@ export default function Dashboard() {
             
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 16 }}>
               {displayPendingChallenges.map((challenge) => (
-                <View key={challenge.id} style={{ width: width - 48 }} className="bg-white dark:bg-[#271318] rounded-[28px] overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-rose-950/20">
+                <View key={challenge.id} style={{ width: width - 48 }} className="bg-white dark:bg-[#271318] rounded-[28px] overflow-hidden shadow-lg dark:shadow-none border border-slate-100 dark:border-rose-950/20">
                   <View className="h-32 relative">
                     <Image source={typeof challenge.image === 'string' ? { uri: challenge.image } : challenge.image} className="w-full h-full" />
                     <View className="absolute inset-0 bg-black/40" />
@@ -644,13 +639,13 @@ export default function Dashboard() {
 
                     <View className="flex-row gap-2">
                       <TouchableOpacity 
-                        className="flex-1 bg-red-500 dark:bg-red-600 py-3 rounded-xl items-center shadow-sm shadow-red-200/50 dark:shadow-none"
+                        className="flex-1 bg-red-500 dark:bg-red-600 py-3 rounded-xl items-center shadow-sm dark:shadow-none"
                         onPress={() => Alert.alert('Reject Dare', 'Are you sure you want to reject this dare?')}
                       >
                         <Text className="text-white font-bold text-[13px]">Reject</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
-                        className="flex-1 bg-emerald-500 dark:bg-emerald-600 py-3 rounded-xl items-center shadow-md shadow-emerald-200/50 dark:shadow-none"
+                        className="flex-1 bg-emerald-500 dark:bg-emerald-600 py-3 rounded-xl items-center shadow-md dark:shadow-none"
                         onPress={() => Alert.alert('Accept Dare', 'Get ready to complete this challenge!')}
                       >
                         <Text className="text-white font-bold text-[13px]">Accept</Text>
@@ -664,7 +659,7 @@ export default function Dashboard() {
         )}
 
         {/* Today's Dare Section */}
-        <View className="mx-6 mt-6 bg-white dark:bg-[#271318] dark:border dark:border-rose-950/40 rounded-[36px] p-7 shadow-xl shadow-rose-200/40 dark:shadow-none relative">
+        <View className="mx-6 mt-6 bg-white dark:bg-[#271318] dark:border dark:border-rose-950/40 rounded-[36px] p-7 shadow-lg dark:shadow-none relative">
           <View className="absolute top-7 right-7 bg-[#dfb15b] dark:bg-amber-500 w-8 h-8 rounded-full items-center justify-center shadow-sm">
             <Ionicons name="star" size={14} color="white" />
           </View>
@@ -675,14 +670,14 @@ export default function Dashboard() {
           <Text className="text-slate-500 dark:text-slate-300 mt-4 leading-6 text-[15px] font-medium">
             Find a place they&apos;ll discover later today—a coffee mug, a laptop, or a coat pocket.
           </Text>
-          <TouchableOpacity className="bg-rose-500 dark:bg-rose-600 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-lg shadow-rose-300 dark:shadow-none" activeOpacity={0.8}>
+          <TouchableOpacity className="bg-rose-500 dark:bg-rose-600 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-md dark:shadow-none" activeOpacity={0.8}>
             <Text className="text-white font-bold text-[15px] mr-2">Start Challenge</Text>
             <Ionicons name="play" size={16} color="white" />
           </TouchableOpacity>
         </View>
 
         {/* Coin Toss Decision Maker Section */}
-        <View className="mx-6 mt-6 bg-white dark:bg-[#271318] dark:border dark:border-rose-950/40 rounded-[36px] p-7 shadow-xl shadow-rose-200/40 dark:shadow-none relative overflow-hidden">
+        <View className="mx-6 mt-6 bg-white dark:bg-[#271318] dark:border dark:border-rose-950/40 rounded-[36px] p-7 shadow-lg dark:shadow-none relative overflow-hidden">
           {/* Background gold decoration */}
           <View className="absolute top-[-20] right-[-25] w-24 h-24 bg-amber-100/40 dark:bg-amber-500/10 rounded-full" />
           
@@ -701,7 +696,7 @@ export default function Dashboard() {
           </Text>
           
           <TouchableOpacity 
-            className="bg-amber-500 dark:bg-amber-600 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-lg shadow-amber-300 dark:shadow-none" 
+            className="bg-amber-500 dark:bg-amber-600 rounded-full py-[18px] items-center mt-7 flex-row justify-center shadow-md dark:shadow-none" 
             activeOpacity={0.8}
             onPress={() => navigateTo('/coin-toss')}
           >

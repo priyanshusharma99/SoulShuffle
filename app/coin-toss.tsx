@@ -164,7 +164,7 @@ export default function CoinToss() {
         <View className="items-center justify-center h-60 relative mb-8">
           <Animated.View 
             style={[styles.coin, animatedCoinStyle]}
-            className="shadow-2xl shadow-rose-900/40 dark:shadow-black"
+            className="shadow-2xl dark:shadow-black"
           >
             {/* Outer Gold Ring */}
             <View className="w-full h-full rounded-full border-[8px] border-[#dfb15b] bg-[#f9ebce] dark:bg-[#251711] items-center justify-center relative">
@@ -189,7 +189,7 @@ export default function CoinToss() {
             className={`rounded-full py-5 items-center justify-center flex-row shadow-lg ${
               isFlipping 
                 ? 'bg-slate-300 dark:bg-rose-950/40 shadow-none' 
-                : 'bg-[#af2c3b] dark:bg-rose-600 shadow-red-300/50 dark:shadow-none'
+                : 'bg-[#af2c3b] dark:bg-rose-600 shadow-md dark:shadow-none'
             }`}
             activeOpacity={0.85}
             onPress={handleFlip}
@@ -205,7 +205,7 @@ export default function CoinToss() {
         {/* Result Card */}
         {showResultCard && result && (
           <View className="px-6 mb-8">
-            <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] p-6 items-center shadow-sm shadow-rose-100/50 dark:shadow-none">
+            <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] p-6 items-center shadow-sm dark:shadow-none">
               <View className={`w-12 h-12 rounded-full items-center justify-center mb-3 ${
                 userChoice === result ? 'bg-teal-100 dark:bg-teal-500/10' : 'bg-rose-100 dark:bg-rose-500/10'
               }`}>

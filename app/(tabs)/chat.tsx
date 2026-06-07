@@ -107,7 +107,7 @@ export default function Chat() {
           </View>
 
           {/* System/Dare Message Context Card */}
-          <View className="w-[90%] self-center bg-white dark:bg-[#271318] rounded-[32px] overflow-hidden shadow-xl shadow-rose-200/40 dark:shadow-none border border-white dark:border-rose-950/20 mb-6">
+          <View className="w-[90%] self-center bg-white dark:bg-[#271318] rounded-[32px] overflow-hidden shadow-lg dark:shadow-none border border-white dark:border-rose-950/20 mb-6">
             <View className="relative h-40 bg-rose-300">
               <Image 
                 source={activeChallenge?.image ? (typeof activeChallenge.image === 'string' ? { uri: activeChallenge.image } : activeChallenge.image) : require('@/assets/images/couple_cover.jpeg')} 
