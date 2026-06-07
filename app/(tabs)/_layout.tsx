@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,15 +19,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-const SCREEN_W = Dimensions.get('window').width;
-
 const TABS = [
-  { name: 'index',   label: 'Home',    icon: 'heart-outline',      activeIcon: 'heart'       },
-  { name: 'dares',   label: 'Dares',   icon: 'copy-outline',       activeIcon: 'copy'        },
-  { name: 'history', label: 'History', icon: 'hourglass-outline',  activeIcon: 'hourglass'   },
-  { name: 'chat',    label: 'Chat',    icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
-  { name: 'profile', label: 'Profile', icon: 'rose-outline',       activeIcon: 'rose'        },
+  { name: 'index',   label: 'HOME',    icon: 'heart-outline',      activeIcon: 'heart'       },
+  { name: 'dares',   label: 'DARES',   icon: 'copy-outline',       activeIcon: 'copy'        },
+  { name: 'history', label: 'HISTORY', icon: 'hourglass-outline',  activeIcon: 'hourglass'   },
+  { name: 'chat',    label: 'CHAT',    icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
+  { name: 'profile', label: 'PROFILE', icon: 'rose-outline',       activeIcon: 'rose'        },
 ];
+
+const SPRING_CONFIG = {
+  damping: 15,
+  stiffness: 220,
+  mass: 0.5,
+};
 
 // ─── Single Animated Tab Item ─────────────────────────────────────────────────
 function TabItem({
@@ -42,54 +45,43 @@ function TabItem({
   isDark: boolean;
   onPress: () => void;
 }) {
-  // Pill background scale
-  const pillScale = useSharedValue(focused ? 1 : 0);
-  // Icon bounce on press
-  const pressScale = useSharedValue(1);
-  // Icon float when focused
-  const translateY = useSharedValue(focused ? -2 : 2);
-  // Label opacity
-  const labelOpacity = useSharedValue(focused ? 1 : 0);
+  // Animated values
+  const activeScale = useSharedValue(focused ? 1 : 0);
+  const activeOpacity = useSharedValue(focused ? 1 : 0);
+  const inactiveScale = useSharedValue(focused ? 0.7 : 1);
+  const inactiveOpacity = useSharedValue(focused ? 0 : 1);
 
   useEffect(() => {
-    pillScale.value = withSpring(focused ? 1 : 0, {
-      damping: 18,
-      stiffness: 220,
-      mass: 0.6,
-    });
-    translateY.value = withSpring(focused ? -2 : 2, {
-      damping: 16,
-      stiffness: 200,
-    });
-    labelOpacity.value = withTiming(focused ? 1 : 0, { duration: 200 });
+    if (focused) {
+      activeScale.value = withSpring(1, SPRING_CONFIG);
+      activeOpacity.value = withTiming(1, { duration: 150 });
+      inactiveScale.value = withSpring(0.7, SPRING_CONFIG);
+      inactiveOpacity.value = withTiming(0, { duration: 100 });
+    } else {
+      activeScale.value = withSpring(0, SPRING_CONFIG);
+      activeOpacity.value = withTiming(0, { duration: 100 });
+      inactiveScale.value = withSpring(1, SPRING_CONFIG);
+      inactiveOpacity.value = withTiming(1, { duration: 150 });
+    }
   }, [focused]);
 
   const handlePress = () => {
-    pressScale.value = withSpring(0.8, { damping: 6, stiffness: 400 }, () => {
-      pressScale.value = withSpring(1, { damping: 10, stiffness: 280 });
-    });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
   };
 
-  const pillStyle = useAnimatedStyle(() => ({
-    opacity: pillScale.value,
-    transform: [{ scale: pillScale.value }],
+  const activeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: activeScale.value }],
+    opacity: activeOpacity.value,
   }));
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: pressScale.value },
-      { translateY: translateY.value },
-    ],
+  const inactiveStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: inactiveScale.value }],
+    opacity: inactiveOpacity.value,
   }));
 
-  const labelStyle = useAnimatedStyle(() => ({
-    opacity: labelOpacity.value,
-  }));
-
-  const activeColor = '#f43f5e';
-  const inactiveColor = isDark ? 'rgba(255,255,255,0.38)' : '#94a3b8';
+  const activeBg = isDark ? '#e11d48' : '#e24e5d';
+  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.4)' : '#9ca3af';
 
   return (
     <TouchableOpacity
@@ -97,31 +89,27 @@ function TabItem({
       onPress={handlePress}
       activeOpacity={1}
     >
-      {/* Pill background */}
+      {/* Active State (Circular Pill with Icon & Text) */}
       <Animated.View
         style={[
-          styles.pill,
-          { backgroundColor: isDark ? '#7f1d32' : '#ffe4e6' },
-          pillStyle,
+          styles.activeBadge,
+          {
+            backgroundColor: activeBg,
+            shadowColor: activeBg,
+          },
+          activeStyle,
         ]}
-      />
-
-      {/* Icon */}
-      <Animated.View style={iconStyle}>
-        <Ionicons
-          name={(focused ? tab.activeIcon : tab.icon) as any}
-          size={22}
-          color={focused ? activeColor : inactiveColor}
-        />
+      >
+        <Ionicons size={18} name={tab.activeIcon as any} color="#fff" />
+        <Text style={styles.labelText} numberOfLines={1}>
+          {tab.label}
+        </Text>
       </Animated.View>
 
-      {/* Label — only visible when focused */}
-      <Animated.Text
-        style={[styles.label, { color: activeColor }, labelStyle]}
-        numberOfLines={1}
-      >
-        {tab.label}
-      </Animated.Text>
+      {/* Inactive State (Just the icon) */}
+      <Animated.View style={[styles.inactiveIconWrap, inactiveStyle]}>
+        <Ionicons size={24} name={tab.icon as any} color={inactiveColor} />
+      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -135,8 +123,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       style={[
         styles.tabBar,
         {
-          backgroundColor: isDark ? '#130810' : '#ffffff',
-          shadowColor: isDark ? '#000' : '#be123c',
+          backgroundColor: isDark ? '#160A0D' : '#ffffff',
+          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
         },
       ]}
     >
@@ -169,42 +157,51 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const TAB_H = Platform.OS === 'ios' ? 82 : 68;
+const TAB_BAR_H = Platform.OS === 'ios' ? 88 : 72;
 
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    height: TAB_H,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    height: TAB_BAR_H,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
     paddingTop: 8,
-    paddingHorizontal: 4,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 24,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopWidth: 1,
+    elevation: 8,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
     position: 'relative',
+    height: '100%',
   },
-  pill: {
+  activeBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'absolute',
-    width: 52,
-    height: 38,
-    borderRadius: 19,
-    top: 0,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  label: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'capitalize',
-    marginTop: 1,
+  inactiveIconWrap: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  labelText: {
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginTop: 2,
+    textTransform: 'uppercase',
+    color: '#ffffff',
   },
 });
 
