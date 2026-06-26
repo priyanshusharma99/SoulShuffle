@@ -26,7 +26,7 @@ const getLocalBackendUrl = () => {
   return Platform.OS === 'android' ? 'http://10.0.2.2:3000/api/v1' : 'http://localhost:3000/api/v1';
 };
 
-const BASE_URL = USE_LOCAL_BACKEND ? getLocalBackendUrl() : AWS_BACKEND_URL;
+export const BASE_URL = USE_LOCAL_BACKEND ? getLocalBackendUrl() : AWS_BACKEND_URL;
 
 console.log(`📡 Connecting API to: ${BASE_URL}`);
 

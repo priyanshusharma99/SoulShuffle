@@ -3,8 +3,9 @@ import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getActiveRoom, sendChallenge, ChallengePayload } from '@/services/roomService';
+import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { fetchCards } from '@/services/cardService';
+import { fetchCards, fetchAvailableDeck } from '@/services/cardService';
 import { useSidebar } from '@/context/SidebarContext';
 
 const sunsetPicnic = require('@/assets/images/sunset_picnic.jpeg');
@@ -17,7 +18,7 @@ type Dare = ChallengePayload & {
 
 // Helper to map card structure from Supabase
 const mapCardToDare = (card: any): Dare => {
-  const rawCategory = card.card_categories?.name || 'GENERAL';
+  const rawCategory = card.category_name || card.card_categories?.name || 'GENERAL';
   const cleanCategory = rawCategory.split('_')[0].toUpperCase();
 
   const difficulty = (card.attributes?.difficulty || 'MEDIUM').toUpperCase();
@@ -39,8 +40,8 @@ const mapCardToDare = (card: any): Dare => {
   }
 
   return {
-    id: card.id,
-    title: card.name,
+    id: card.deck_card_id || card.id,
+    title: card.card_name || card.name,
     category: cleanCategory,
     difficulty,
     stars,
@@ -143,7 +144,13 @@ export default function Dares() {
   const loadDares = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const fetched = await fetchCards();
+      const room = await getActiveRoom();
+      let fetched;
+      if (room) {
+        fetched = await fetchAvailableDeck(room.id);
+      } else {
+        fetched = await fetchCards();
+      }
       const mapped = fetched.map(mapCardToDare);
       setDares(mapped);
     } catch (error) {
@@ -188,7 +195,11 @@ export default function Dares() {
         return;
       }
 
-      await sendChallenge(selectedDare);
+      await sendChallenge(selectedDare.id.toString(), selectedDare.description);
+      
+      // Emit real-time event to partner so it appears instantly!
+      GameSocket.sendGameEvent(room.code, 'CHALLENGE_SENT', { challenge: selectedDare });
+
       setSelectedDare(null);
       Alert.alert('Challenge Sent', `${selectedDare.title} was sent to your partner.`);
     } catch (error: any) {

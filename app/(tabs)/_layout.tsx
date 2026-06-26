@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
   View,
@@ -20,11 +20,11 @@ import Animated, {
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TABS = [
-  { name: 'index',   label: 'Home',    icon: 'heart-outline',      activeIcon: 'heart'       },
-  { name: 'dares',   label: 'Dares',   icon: 'copy-outline',       activeIcon: 'copy'        },
-  { name: 'history', label: 'History', icon: 'hourglass-outline',  activeIcon: 'hourglass'   },
-  { name: 'chat',    label: 'Chat',    icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
-  { name: 'profile', label: 'Profile', icon: 'rose-outline',       activeIcon: 'rose'        },
+  { name: 'index',     label: 'Home',      icon: 'heart-outline',     activeIcon: 'heart'     },
+  { name: 'dares',     label: 'Dares',     icon: 'copy-outline',      activeIcon: 'copy'      },
+  { name: 'coin-toss', label: 'Coin Toss', icon: 'aperture-outline',  activeIcon: 'aperture'  },
+  { name: 'history',   label: 'History',   icon: 'hourglass-outline', activeIcon: 'hourglass' },
+  { name: 'profile',   label: 'Profile',   icon: 'rose-outline',      activeIcon: 'rose'      },
 ];
 
 // ─── Tab Button Item ──────────────────────────────────────────────────────────
@@ -107,6 +107,7 @@ function TabItem({
 // ─── Custom Floating Tab Bar ──────────────────────────────────────────────────
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
+  const router = useRouter();
 
   return (
     <View style={styles.barContainer}>
@@ -124,7 +125,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         {TABS.map((tab, index) => {
           const route = state.routes.find((r) => r.name === tab.name);
           if (!route) return null;
-          const focused = state.index === index;
+          const focused = state.index === state.routes.findIndex((r) => r.name === tab.name);
 
           return (
             <TabItem
@@ -206,6 +207,7 @@ export default function TabLayout() {
           <Tabs.Screen key={tab.name} name={tab.name} options={{ title: tab.label }} />
         ))}
         <Tabs.Screen name="explore" options={{ href: null, title: 'Explore' }} />
+        <Tabs.Screen name="chat" options={{ href: null, title: 'Chat' }} />
       </Tabs>
       <Sidebar />
     </View>

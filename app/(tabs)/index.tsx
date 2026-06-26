@@ -2,13 +2,51 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, ActivityIndicator, Alert, AppState, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { createRoom, joinRoom, getActiveRoom, Room, ExpiryType } from '@/services/roomService';
+import { createRoom, joinRoom, getActiveRoom, fetchCardSends, acceptCardSend, rejectCardSend, Room, ExpiryType } from '@/services/roomService';
+import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSidebar } from '@/context/SidebarContext';
 
 import CountdownTimer from '@/components/CountdownTimer';
 
 const coupleCover = require('@/assets/images/couple_cover.jpeg');
+
+// Helper to normalize the card send records from the backend API
+const normalizeSendRecord = (send: any) => {
+  if (!send) return null;
+  if (send.card && !send.cards) return send;
+
+  const cardObj = send.cards || {};
+  const rawCat = cardObj.card_categories?.name || 'GENERAL';
+  const cleanCategory = rawCat.split('_')[0].toUpperCase();
+  
+  const difficulty = (cardObj.attributes?.difficulty || 'MEDIUM').toUpperCase();
+  const timeRequirement = cardObj.attributes?.time || '30 mins';
+  const description = cardObj.power_description || cardObj.attributes?.description || 'No description available.';
+  const title = cardObj.name || 'Unnamed Challenge';
+  
+  let imageUrl = cardObj.image_url || null;
+  if (!imageUrl) {
+    if (cleanCategory.includes('ROMANCE') || cleanCategory.includes('ROMANTIC')) {
+      imageUrl = 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&h=300&fit=crop';
+    } else {
+      imageUrl = 'https://images.unsplash.com/photo-1517263904808-5dc91e3e7044?w=400&h=300&fit=crop';
+    }
+  }
+
+  return {
+    ...send,
+    created_at: send.sent_at || send.created_at || new Date().toISOString(),
+    card: {
+      title,
+      category: cleanCategory,
+      difficulty,
+      time_requirement: timeRequirement,
+      description,
+      image_url: imageUrl,
+    }
+  };
+};
 
 export default function Dashboard() {
   const { openSidebar } = useSidebar();
@@ -19,6 +57,7 @@ export default function Dashboard() {
   // ── Room State ─────────────────────────────────────────
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [roomLoading, setRoomLoading] = useState(true);
+  const [localPendingChallenges, setLocalPendingChallenges] = useState<any[]>([]);
   const [roomModalVisible, setRoomModalVisible] = useState(false);
   const [roomModalTab, setRoomModalTab] = useState<'create' | 'join'>('create');
   const [selectedExpiry, setSelectedExpiry] = useState<ExpiryType>('7_DAYS');
@@ -26,23 +65,28 @@ export default function Dashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
-  const activeChallenge = activeRoom?.game_state?.active_challenge;
+  const [cardSends, setCardSends] = useState<any[]>([]);
   
   // Find pending challenges
-  const pendingChallenges = activeRoom?.game_state?.challenge_history?.filter(c => c.status === 'PENDING') || [];
+  const pendingChallenges = cardSends.filter(c => c.status === 'SENT') || [];
+  const activeChallenges = cardSends.filter(c => c.status === 'IN_PROGRESS' || c.status === 'COMPLETED_BY_RECEIVER') || [];
+  const activeChallenge = activeChallenges.length > 0 ? activeChallenges[0] : null;
+  const completedChallenges = cardSends.filter(c => c.status === 'COMPLETED' || c.status === 'DEFLECTED' || c.status === 'EXPIRED') || [];
   
   // Dummy pending challenge for UI visualization if empty
   const displayPendingChallenges = pendingChallenges.length > 0 ? pendingChallenges : [
     {
       id: 'dummy-1',
-      title: 'Cook a Romantic Dinner',
-      category: 'Acts of Service',
-      difficulty: 'Medium',
-      time: '1 hour',
-      description: 'Prepare a nice meal with candles and soft music.',
-      image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&h=300&fit=crop',
-      status: 'PENDING',
-      sent_at: new Date().toISOString()
+      card: {
+        title: 'Cook a Romantic Dinner',
+        category: 'Acts of Service',
+        difficulty: 'Medium',
+        time_requirement: '1 hour',
+        description: 'Prepare a nice meal with candles and soft music.',
+        image_url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&h=300&fit=crop'
+      },
+      status: 'SENT',
+      created_at: new Date().toISOString()
     }
   ];
 
@@ -54,6 +98,17 @@ export default function Dashboard() {
       }
       const room = await getActiveRoom();
       setActiveRoom(room);
+      if (room) {
+        try {
+          const sends = await fetchCardSends(room.id);
+          const rawSends = sends?.sends || sends || [];
+          setCardSends(rawSends.map(normalizeSendRecord).filter(Boolean));
+        } catch (e) {
+          console.log('Failed to fetch card sends:', e);
+        }
+      } else {
+        setCardSends([]);
+      }
     } catch (err) {
       console.log('Failed to fetch active room:', err);
     } finally {
@@ -67,15 +122,36 @@ export default function Dashboard() {
     fetchActiveRoom();
   }, [fetchActiveRoom]);
 
+  // ── Socket Initialization & Lifecycle ───────────────────
   useEffect(() => {
-    if (activeRoom?.status !== 'WAITING' && activeRoom?.status !== 'ACTIVE') return;
+    const setupSocket = async () => {
+      if (activeRoom) {
+        await GameSocket.initialize();
+        GameSocket.joinRoom(activeRoom.code);
+      }
+    };
+    setupSocket();
+  }, [activeRoom?.code]);
 
-    const intervalId = setInterval(() => {
+  useEffect(() => {
+    const handlePartnerJoined = (payload: any) => {
+      console.log('Partner joined, re-fetching room!', payload);
       fetchActiveRoom(true);
-    }, 15000);
+    };
 
-    return () => clearInterval(intervalId);
-  }, [activeRoom?.status, fetchActiveRoom]);
+    const handleGameEvent = (payload: any) => {
+      console.log('Game event received, re-fetching room!', payload);
+      fetchActiveRoom(true);
+    };
+
+    GameSocket.on('partner_joined', handlePartnerJoined);
+    GameSocket.on('game_event', handleGameEvent);
+
+    return () => {
+      GameSocket.off('partner_joined', handlePartnerJoined);
+      GameSocket.off('game_event', handleGameEvent);
+    };
+  }, [fetchActiveRoom]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
@@ -113,14 +189,42 @@ export default function Dashboard() {
       setActionError('');
       const room = await joinRoom(joinCode.trim());
       setActiveRoom(room);
+      if (room) {
+        const sends = await fetchCardSends(room.id);
+        const rawSends = sends?.sends || sends || [];
+        setCardSends(rawSends.map(normalizeSendRecord).filter(Boolean));
+      }
       setRoomModalVisible(false);
       setJoinCode('');
     } catch (err: any) {
-      setActionError(err.response?.data?.message || err.message || 'Invalid room code');
+      setActionError(err.response?.data?.message || err.message || 'Failed to join room');
     } finally {
       setActionLoading(false);
     }
   };
+
+  // ── Card Game Engine Handlers ────────────────────────────
+  const handleAcceptCard = async (sendId: string) => {
+    try {
+      await acceptCardSend(sendId);
+      Alert.alert('Card Accepted', 'Get ready to complete this challenge!');
+      fetchActiveRoom(true);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.message || 'Failed to accept card');
+    }
+  };
+
+  const handleRejectCard = async (sendId: string) => {
+    try {
+      await rejectCardSend(sendId);
+      Alert.alert('Card Rejected', 'You have deflected this challenge.');
+      fetchActiveRoom(true);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.message || 'Failed to reject card');
+    }
+  };
+
+
 
   // ── Copy Code to Clipboard ─────────────────────────────
   const handleCopyCode = async (code: string) => {
@@ -579,7 +683,7 @@ export default function Dashboard() {
         {activeChallenge && (
           <View className="mx-6 mt-6 bg-white dark:bg-[#271318] rounded-[32px] overflow-hidden shadow-lg dark:shadow-none border border-white dark:border-rose-950/20">
             <View className="h-40 relative">
-              <Image source={typeof activeChallenge.image === 'string' ? { uri: activeChallenge.image } : activeChallenge.image} className="w-full h-full" />
+              <Image source={{ uri: activeChallenge.card.image_url }} className="w-full h-full" />
               <View className="absolute inset-0 bg-black/25" />
               <View className="absolute top-4 left-4 bg-[#fde047] px-3 py-1.5 rounded-full flex-row items-center">
                 <Ionicons name="flash" size={12} color="#854d0e" />
@@ -587,15 +691,15 @@ export default function Dashboard() {
               </View>
             </View>
             <View className="p-6">
-              <Text className="text-[10px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase mb-2">{activeChallenge.category}</Text>
-              <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">{activeChallenge.title}</Text>
-              <Text className="text-slate-500 dark:text-slate-300 text-[14px] leading-6 font-medium mb-5">{activeChallenge.description}</Text>
+              <Text className="text-[10px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase mb-2">{activeChallenge.card.category}</Text>
+              <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">{activeChallenge.card.title}</Text>
+              <Text className="text-slate-500 dark:text-slate-300 text-[14px] leading-6 font-medium mb-5">{activeChallenge.card.description}</Text>
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
                   <Ionicons name="time" size={14} color="#64748b" />
-                  <Text className="text-slate-500 dark:text-slate-400 font-bold text-[12px] ml-2 mr-4">{activeChallenge.time}</Text>
-                  {activeChallenge.sent_at && (
-                    <CountdownTimer targetDate={getTargetDateStr(activeChallenge.sent_at)} />
+                  <Text className="text-slate-500 dark:text-slate-400 font-bold text-[12px] ml-2 mr-4">{activeChallenge.card.time_requirement}</Text>
+                  {activeChallenge.created_at && (
+                    <CountdownTimer targetDate={getTargetDateStr(activeChallenge.created_at)} />
                   )}
                 </View>
                 <TouchableOpacity className="bg-rose-50 dark:bg-slate-800/60 px-5 py-3 rounded-full border border-rose-100 dark:border-slate-700/40" onPress={() => navigateTo('/history')}>
@@ -617,10 +721,10 @@ export default function Dashboard() {
             </View>
             
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 16 }}>
-              {displayPendingChallenges.map((challenge) => (
-                <View key={challenge.id} style={{ width: width - 48 }} className="bg-white dark:bg-[#271318] rounded-[28px] overflow-hidden shadow-lg dark:shadow-none border border-slate-100 dark:border-rose-950/20">
+              {displayPendingChallenges.map((cardSend) => (
+                <View key={cardSend.id} style={{ width: width - 48 }} className="bg-white dark:bg-[#271318] rounded-[28px] overflow-hidden shadow-lg dark:shadow-none border border-slate-100 dark:border-rose-950/20">
                   <View className="h-32 relative">
-                    <Image source={typeof challenge.image === 'string' ? { uri: challenge.image } : challenge.image} className="w-full h-full" />
+                    <Image source={{ uri: cardSend.card?.image_url }} className="w-full h-full" />
                     <View className="absolute inset-0 bg-black/40" />
                     <View className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 px-2.5 py-1 rounded-full flex-row items-center">
                       <Ionicons name="mail-unread" size={12} color={isDark ? "#fda4af" : "#e11d48"} />
@@ -628,25 +732,25 @@ export default function Dashboard() {
                     </View>
                   </View>
                   <View className="p-5">
-                    <Text className="text-[9px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase mb-1">{challenge.category}</Text>
-                    <Text className="text-lg font-black text-slate-900 dark:text-white tracking-tight mb-2" numberOfLines={1}>{challenge.title}</Text>
+                    <Text className="text-[9px] font-bold text-rose-500 dark:text-rose-400 tracking-widest uppercase mb-1">{cardSend.card.category}</Text>
+                    <Text className="text-lg font-black text-slate-900 dark:text-white tracking-tight mb-2" numberOfLines={1}>{cardSend.card.title}</Text>
                     
                     <View className="flex-row items-center mb-5 mt-1">
-                      {challenge.sent_at && (
-                        <CountdownTimer targetDate={getTargetDateStr(challenge.sent_at)} />
+                      {cardSend.created_at && (
+                        <CountdownTimer targetDate={getTargetDateStr(cardSend.created_at)} />
                       )}
                     </View>
 
                     <View className="flex-row gap-2">
                       <TouchableOpacity 
                         className="flex-1 bg-red-500 dark:bg-red-600 py-3 rounded-xl items-center shadow-sm dark:shadow-none"
-                        onPress={() => Alert.alert('Reject Dare', 'Are you sure you want to reject this dare?')}
+                        onPress={() => handleRejectCard(cardSend.id)}
                       >
                         <Text className="text-white font-bold text-[13px]">Reject</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
                         className="flex-1 bg-emerald-500 dark:bg-emerald-600 py-3 rounded-xl items-center shadow-md dark:shadow-none"
-                        onPress={() => Alert.alert('Accept Dare', 'Get ready to complete this challenge!')}
+                        onPress={() => handleAcceptCard(cardSend.id)}
                       >
                         <Text className="text-white font-bold text-[13px]">Accept</Text>
                       </TouchableOpacity>

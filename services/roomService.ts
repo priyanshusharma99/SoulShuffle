@@ -62,7 +62,37 @@ export const getActiveRoom = async (): Promise<Room | null> => {
 };
 
 // ── SEND CHALLENGE ──────────────────────────────────────
-export const sendChallenge = async (challenge: ChallengePayload) => {
-  const response = await api.post('/rooms/challenge', { challenge });
+export const sendChallenge = async (deckCardId: string, message?: string) => {
+  const room = await getActiveRoom();
+  if (!room) {
+    throw new Error('No active room found.');
+  }
+
+  const response = await api.post(`/user/deck/${deckCardId}/send`, {
+    room_id: room.id,
+    receiver_id: room.partner_id,
+    message: message || ''
+  });
+  return response.data.data;
+};
+
+// ── CARD SENDS (PHASE 4 ENGINE) ────────────────────────
+export const fetchCardSends = async (roomId: string) => {
+  const response = await api.get(`/user/deck/sends?room_id=${roomId}`);
+  return response.data.data;
+};
+
+export const acceptCardSend = async (sendId: string) => {
+  const response = await api.patch(`/user/deck/sends/${sendId}/accept`);
+  return response.data.data;
+};
+
+export const rejectCardSend = async (sendId: string) => {
+  const response = await api.patch(`/user/deck/sends/${sendId}/deflect`);
+  return response.data.data;
+};
+
+export const completeCardSend = async (sendId: string) => {
+  const response = await api.patch(`/user/deck/sends/${sendId}/complete`);
   return response.data.data;
 };

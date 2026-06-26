@@ -33,3 +33,11 @@ export const fetchCards = async (): Promise<Card[]> => {
   const response = await api.get('/cards');
   return response.data.data.cards;
 };
+
+/**
+ * Fetch the user's available (unused, unexpired) deck for a specific room
+ */
+export const fetchAvailableDeck = async (roomId: string): Promise<any[]> => {
+  const response = await api.get(`/user/deck/available?room_id=${roomId}`);
+  return response.data.data.cards;
+};
