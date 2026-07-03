@@ -60,6 +60,29 @@ class GameSocket {
       const cbs = this.callbacks['partner_joined'] || [];
       cbs.forEach(cb => cb(payload));
     });
+
+    // ── Remote Card Engine Event Listeners ──
+    const cardEvents = [
+      'card_received',
+      'card_seen',
+      'card_accepted',
+      'card_deflected',
+      'card_completed_by_receiver',
+      'card_confirmed',
+      'card_rejected',
+      'card_reminder',
+      'deflect_card_used',
+      'card_reversed',
+      'card_timeout_extended'
+    ];
+
+    cardEvents.forEach(evt => {
+      this.socket?.on(evt, (payload) => {
+        console.log(`Received remote socket event [${evt}] with payload:`, payload);
+        const cbs = this.callbacks['game_event'] || [];
+        cbs.forEach(cb => cb({ eventType: evt.toUpperCase(), data: payload }));
+      });
+    });
   }
 
   static joinRoom(roomCode: string) {

@@ -1,5 +1,6 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -107,7 +108,6 @@ function TabItem({
 // ─── Custom Floating Tab Bar ──────────────────────────────────────────────────
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
-  const router = useRouter();
 
   return (
     <View style={styles.barContainer}>
@@ -197,6 +197,19 @@ const styles = StyleSheet.create({
 
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function TabLayout() {
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    const checkToken = async () => {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        router.replace('/');
+      }
+    };
+    checkToken();
+  }, [segments]);
+
   return (
     <View style={{ flex: 1 }}>
       <Tabs

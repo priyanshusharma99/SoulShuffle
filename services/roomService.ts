@@ -97,3 +97,13 @@ export const completeCardSend = async (sendId: string) => {
   const response = await api.patch(`/user/deck/sends/${sendId}/complete`);
   return response.data.data;
 };
+
+export const confirmCardSend = async (sendId: string) => {
+  const response = await api.patch(`/user/deck/sends/${sendId}/confirm`);
+  return response.data.data;
+};
+
+export const rejectCardSendReal = async (sendId: string, roomId: string) => {
+  const response = await api.patch(`/user/deck/sends/${sendId}/reject`, { room_id: roomId });
+  return response.data.data;
+};

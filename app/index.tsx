@@ -1,10 +1,23 @@
-import { Text, View, TouchableOpacity } from 'react-native'
-import React, { useState } from 'react'
-import SigninForm from '@/components/signinForm'
-import SignupForm from '@/components/signupForm'
+import { Text, View, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import SigninForm from '@/components/signinForm';
+import SignupForm from '@/components/signupForm';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Index = () => {
-  const [mode, setMode] = useState('signin')
+  const [mode, setMode] = useState('signin');
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkToken = async () => {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (token) {
+        router.replace('/(tabs)');
+      }
+    };
+    checkToken();
+  }, []);
 
   return (
     <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]'>

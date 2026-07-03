@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform, StatusBar, TextInput, ActivityIndicator, Alert, AppState, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { createRoom, joinRoom, getActiveRoom, fetchCardSends, acceptCardSend, rejectCardSend, completeCardSend, Room, ExpiryType } from '@/services/roomService';
+import { createRoom, joinRoom, getActiveRoom, fetchCardSends, acceptCardSend, rejectCardSend, completeCardSend, confirmCardSend, rejectCardSendReal, Room, ExpiryType } from '@/services/roomService';
 import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSidebar } from '@/context/SidebarContext';
@@ -222,14 +222,27 @@ export default function Dashboard() {
     }
   };
 
-  const handleRejectCard = async (sendId: string) => {
-    try {
-      await rejectCardSend(sendId);
-      Alert.alert('Card Rejected', 'You have deflected this challenge.');
-      fetchActiveRoom(true);
-    } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.message || 'Failed to reject card');
-    }
+  const handleRejectCard = async (sendId: string, roomId: string) => {
+    Alert.alert(
+      'Reject Challenge?',
+      'Rejecting this challenge will trigger Penalty 3, transferring 1 card from your deck to your partner\'s deck as a penalty. Are you sure you want to proceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reject', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await rejectCardSendReal(sendId, roomId);
+              Alert.alert('Challenge Rejected', 'The challenge has been rejected and 1 card was transferred to your partner.');
+              fetchActiveRoom(true);
+            } catch (e: any) {
+              Alert.alert('Error', e.response?.data?.message || 'Failed to reject card');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCompleteCard = async (sendId: string) => {
@@ -239,6 +252,16 @@ export default function Dashboard() {
       fetchActiveRoom(true);
     } catch (e: any) {
       Alert.alert('Error', e.response?.data?.message || 'Failed to complete card');
+    }
+  };
+
+  const handleConfirmCompleteCard = async (sendId: string) => {
+    try {
+      await confirmCardSend(sendId);
+      Alert.alert('Challenge Confirmed!', 'Thank you! You have confirmed the challenge completion.');
+      fetchActiveRoom(true);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.message || 'Failed to confirm challenge');
     }
   };
 
@@ -703,16 +726,30 @@ export default function Dashboard() {
             <View className="h-40 relative">
               <Image source={{ uri: activeChallenge.card.image_url }} className="w-full h-full" />
               <View className="absolute inset-0 bg-black/25" />
-              {activeChallenge.sender_id === currentUserId ? (
-                <View className="absolute top-4 left-4 bg-teal-500 dark:bg-teal-600 px-3 py-1.5 rounded-full flex-row items-center">
-                  <Ionicons name="paper-plane" size={12} color="white" />
-                  <Text className="text-white font-bold text-[10px] tracking-widest uppercase ml-1.5">Sent Dare (In Progress)</Text>
-                </View>
+              {activeChallenge.status === 'COMPLETED_BY_RECEIVER' ? (
+                activeChallenge.sender_id === currentUserId ? (
+                  <View className="absolute top-4 left-4 bg-amber-500 dark:bg-amber-600 px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
+                    <Ionicons name="alert-circle" size={12} color="white" />
+                    <Text className="text-white font-bold text-[10px] tracking-widest uppercase ml-1.5">Needs Confirmation</Text>
+                  </View>
+                ) : (
+                  <View className="absolute top-4 left-4 bg-slate-400 dark:bg-slate-500 px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
+                    <Ionicons name="time" size={12} color="white" />
+                    <Text className="text-white font-bold text-[10px] tracking-widest uppercase ml-1.5">Waiting for Partner</Text>
+                  </View>
+                )
               ) : (
-                <View className="absolute top-4 left-4 bg-[#fde047] px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
-                  <Ionicons name="flash" size={12} color="#854d0e" />
-                  <Text className="text-[#854d0e] font-bold text-[10px] tracking-widest uppercase ml-1.5">My Active Challenge</Text>
-                </View>
+                activeChallenge.sender_id === currentUserId ? (
+                  <View className="absolute top-4 left-4 bg-teal-500 dark:bg-teal-600 px-3 py-1.5 rounded-full flex-row items-center">
+                    <Ionicons name="paper-plane" size={12} color="white" />
+                    <Text className="text-white font-bold text-[10px] tracking-widest uppercase ml-1.5">Sent Dare (In Progress)</Text>
+                  </View>
+                ) : (
+                  <View className="absolute top-4 left-4 bg-[#fde047] px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
+                    <Ionicons name="flash" size={12} color="#854d0e" />
+                    <Text className="text-[#854d0e] font-bold text-[10px] tracking-widest uppercase ml-1.5">My Active Challenge</Text>
+                  </View>
+                )
               )}
             </View>
             <View className="p-6">
@@ -720,12 +757,21 @@ export default function Dashboard() {
               <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">{activeChallenge.card.title}</Text>
               
               {activeChallenge.sender_id === currentUserId && (
-                <View className="bg-teal-50/50 dark:bg-[#180D10]/40 px-4 py-3 rounded-2xl border border-teal-100/30 dark:border-rose-950/20 mb-5 flex-row items-center">
-                  <Ionicons name="hourglass-outline" size={16} color={isDark ? "#2dd4bf" : "#0d5f5a"} />
-                  <Text className="text-[#0d5f5a] dark:text-teal-400 font-semibold text-[12.5px] leading-5 ml-2.5 flex-1">
-                    Your partner accepted this dare and is completing it.
-                  </Text>
-                </View>
+                activeChallenge.status === 'COMPLETED_BY_RECEIVER' ? (
+                  <View className="bg-amber-50/50 dark:bg-[#271318]/45 px-4 py-3 rounded-2xl border border-amber-100/30 dark:border-rose-950/20 mb-5 flex-row items-center">
+                    <Ionicons name="gift-outline" size={16} color={isDark ? "#fbbf24" : "#d97706"} />
+                    <Text className="text-[#b45309] dark:text-amber-400 font-semibold text-[12.5px] leading-5 ml-2.5 flex-1">
+                      Your partner marked this dare as completed. Please confirm!
+                    </Text>
+                  </View>
+                ) : (
+                  <View className="bg-teal-50/50 dark:bg-[#180D10]/40 px-4 py-3 rounded-2xl border border-teal-100/30 dark:border-rose-950/20 mb-5 flex-row items-center">
+                    <Ionicons name="hourglass-outline" size={16} color={isDark ? "#2dd4bf" : "#0d5f5a"} />
+                    <Text className="text-[#0d5f5a] dark:text-teal-400 font-semibold text-[12.5px] leading-5 ml-2.5 flex-1">
+                      Your partner accepted this dare and is completing it.
+                    </Text>
+                  </View>
+                )
               )}
 
               <Text className="text-slate-500 dark:text-slate-300 text-[14px] leading-6 font-medium mb-5">{activeChallenge.card.description}</Text>
@@ -751,17 +797,33 @@ export default function Dashboard() {
                 </View>
 
                 {activeChallenge.sender_id !== currentUserId ? (
-                  <TouchableOpacity 
-                    className="bg-emerald-500 dark:bg-emerald-600 px-5 py-3 rounded-full flex-row items-center shadow-md dark:shadow-none active:opacity-85"
-                    onPress={() => handleCompleteCard(activeChallenge.id)}
-                  >
-                    <Ionicons name="checkmark-circle" size={14} color="white" />
-                    <Text className="text-white font-bold text-[12px] ml-1.5">Complete</Text>
-                  </TouchableOpacity>
+                  activeChallenge.status === 'COMPLETED_BY_RECEIVER' ? (
+                    <View className="bg-slate-100 dark:bg-[#271318]/50 px-5 py-3 rounded-full border border-slate-200/45 dark:border-rose-950/10">
+                      <Text className="text-slate-400 dark:text-slate-500 font-bold text-[12px]">Waiting for confirmation...</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      className="bg-emerald-500 dark:bg-emerald-600 px-5 py-3 rounded-full flex-row items-center shadow-md dark:shadow-none active:opacity-85"
+                      onPress={() => handleCompleteCard(activeChallenge.id)}
+                    >
+                      <Ionicons name="checkmark-circle" size={14} color="white" />
+                      <Text className="text-white font-bold text-[12px] ml-1.5">Complete</Text>
+                    </TouchableOpacity>
+                  )
                 ) : (
-                  <TouchableOpacity className="bg-rose-50 dark:bg-slate-800/60 px-5 py-3 rounded-full border border-rose-100 dark:border-slate-700/40" onPress={() => navigateTo('/history')}>
-                    <Text className="text-[#b91c1c] dark:text-rose-400 font-bold text-[12px]">View History</Text>
-                  </TouchableOpacity>
+                  activeChallenge.status === 'COMPLETED_BY_RECEIVER' ? (
+                    <TouchableOpacity 
+                      className="bg-emerald-500 dark:bg-emerald-600 px-5 py-3 rounded-full flex-row items-center shadow-md dark:shadow-none active:opacity-85"
+                      onPress={() => handleConfirmCompleteCard(activeChallenge.id)}
+                    >
+                      <Ionicons name="checkmark-circle" size={14} color="white" />
+                      <Text className="text-white font-bold text-[12px] ml-1.5">Confirm Completion</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity className="bg-rose-50 dark:bg-slate-800/60 px-5 py-3 rounded-full border border-rose-100 dark:border-slate-700/40" onPress={() => navigateTo('/history')}>
+                      <Text className="text-[#b91c1c] dark:text-rose-400 font-bold text-[12px]">View History</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
             </View>
@@ -823,7 +885,7 @@ export default function Dashboard() {
                       <View className="flex-row gap-2">
                         <TouchableOpacity 
                           className="flex-1 bg-red-500 dark:bg-red-600 py-3 rounded-xl items-center shadow-sm dark:shadow-none"
-                          onPress={() => handleRejectCard(cardSend.id)}
+                          onPress={() => handleRejectCard(cardSend.id, cardSend.room_id || activeRoom?.id || '')}
                         >
                           <Text className="text-white font-bold text-[13px]">Reject</Text>
                         </TouchableOpacity>
