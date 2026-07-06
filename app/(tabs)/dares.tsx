@@ -287,6 +287,22 @@ export default function Dares() {
     { id: 103, title: 'Spicy Nights', count: 10, isPaid: true, image: require('../../assets/images/bundle_spicy.png'), price: 'Premium' },
   ];
 
+  const handleBundlePress = (bundle: any) => {
+    let storeBundleId = '';
+    if (bundle.id === 101) storeBundleId = 'dummy-romance';
+    else if (bundle.id === 103) storeBundleId = 'dummy-spicy';
+    else if (bundle.id === 102) storeBundleId = 'dummy-cozy';
+
+    if (storeBundleId) {
+      router.push({
+        pathname: '/store',
+        params: { buyBundleId: storeBundleId }
+      });
+    } else {
+      router.push('/store');
+    }
+  };
+
   const handleSendChallenge = async () => {
     if (!selectedDare) return;
 
@@ -428,7 +444,11 @@ export default function Dares() {
             <Text className="px-6 text-lg font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Dare Bundles</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-6" contentContainerStyle={{ paddingRight: 40 }}>
               {bundles.map((bundle) => (
-                <TouchableOpacity key={bundle.id} className="w-[280px] h-48 mr-4 rounded-[28px] overflow-hidden relative shadow-sm border border-slate-100 dark:border-rose-950/20 bg-white dark:bg-[#271318]">
+                <TouchableOpacity
+                  key={bundle.id}
+                  className="w-[280px] h-48 mr-4 rounded-[28px] overflow-hidden relative shadow-sm border border-slate-100 dark:border-rose-950/20 bg-white dark:bg-[#271318]"
+                  onPress={() => handleBundlePress(bundle)}
+                >
                   <Image source={typeof bundle.image === 'string' ? { uri: bundle.image } : bundle.image} className="w-full h-[65%] absolute top-0" />
                   <View className="absolute inset-0 bg-black/20" />
                   
