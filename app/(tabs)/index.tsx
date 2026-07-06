@@ -7,6 +7,7 @@ import { createRoom, joinRoom, getActiveRoom, fetchCardSends, acceptCardSend, re
 import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSidebar } from '@/context/SidebarContext';
+import { useNotifications } from '@/context/NotificationContext';
 import { getMyProfile } from '@/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -103,6 +104,7 @@ const calculateStreak = (sends: any[]) => {
 
 export default function Dashboard() {
   const { openSidebar } = useSidebar();
+  const { unreadCount } = useNotifications();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { width } = useWindowDimensions();
@@ -650,12 +652,22 @@ export default function Dashboard() {
             <Ionicons name="infinite" size={28} color={isDark ? "#fda4af" : "#be123c"} style={{ transform: [{ rotate: '-15deg' }] }} />
             <Text className="text-red-700 dark:text-rose-400 font-black text-xl tracking-tight">SoulShuffle</Text>
           </View>
-          <TouchableOpacity onPress={() => navigateTo('/profile')}>
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop' }} 
-              className="w-8 h-8 rounded-full border border-rose-200 dark:border-slate-800"
-            />
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity onPress={() => navigateTo('/notifications')} style={{ position: 'relative' }}>
+              <Ionicons name="notifications-outline" size={26} color={isDark ? "#fff" : "#9f1239"} />
+              {unreadCount > 0 && (
+                <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#e11d48', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: isDark ? '#0F0608' : '#fff1f2' }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigateTo('/profile')}>
+              <Image 
+                source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop' }} 
+                className="w-8 h-8 rounded-full border border-rose-200 dark:border-slate-800"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Welcome Section */}

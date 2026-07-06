@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 import { SidebarProvider } from '@/context/SidebarContext';
+import { NotificationProvider } from '@/context/NotificationContext';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -24,6 +25,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : DefaultTheme}>
       <SidebarProvider>
+        <NotificationProvider>
           <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="questionnaire" options={{ headerShown: false, gestureEnabled: false }} />
@@ -32,6 +34,7 @@ export default function RootLayout() {
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        </NotificationProvider>
       </SidebarProvider>
     </ThemeProvider>
   );
