@@ -27,6 +27,10 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.soulshuffle.CoupleGame"
     },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#e11d48"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
