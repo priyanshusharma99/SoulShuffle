@@ -1,7 +1,7 @@
-import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native'
+import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert, Modal, ActivityIndicator } from 'react-native'
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { signIn } from '../services/authService'
+import { signIn, forgotPassword, resetPassword } from '../services/authService'
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 
@@ -10,13 +10,22 @@ const SigninForm = () => {
         const [password, setPassword] = useState('')
         const [showPassword, setShowPassword] = useState(false)
         const [isLoading, setIsLoading] = useState(false)
+        const [errorMessage, setErrorMessage] = useState('')
         const router = useRouter()
         const colorScheme = useColorScheme()
         const isDark = colorScheme === 'dark'
 
+        const [forgotPasswordModalVisible, setForgotPasswordModalVisible] = useState(false)
+        const [forgotPasswordStep, setForgotPasswordStep] = useState(1) // 1 = email, 2 = otp + new password
+        const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+        const [otp, setOtp] = useState('')
+        const [newPassword, setNewPassword] = useState('')
+        const [isSubmitting, setIsSubmitting] = useState(false)
+
         const handleSignIn = async () => {
+            setErrorMessage('');
             if (!email || !password) {
-                Alert.alert("Error", "Please enter email and password");
+                setErrorMessage("Please enter email and password");
                 return;
             }
             try {
@@ -31,9 +40,51 @@ const SigninForm = () => {
                 const message = error?.response?.data?.message 
                   || error?.message 
                   || 'An unexpected error occurred';
-                Alert.alert("Login Failed", message);
+                
+                if (Platform.OS === 'web') {
+                    setErrorMessage(message);
+                } else {
+                    Alert.alert("Login Failed", message);
+                }
             } finally {
                 setIsLoading(false);
+            }
+        }
+
+        const handleForgotPassword = async () => {
+            if (!forgotPasswordEmail) {
+                Alert.alert("Error", "Please enter your email");
+                return;
+            }
+            try {
+                setIsSubmitting(true);
+                await forgotPassword(forgotPasswordEmail);
+                setForgotPasswordStep(2);
+                Alert.alert("Success", "OTP sent to your email");
+            } catch (error: any) {
+                Alert.alert("Error", error?.response?.data?.message || "Failed to send OTP");
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+
+        const handleResetPassword = async () => {
+            if (!otp || !newPassword) {
+                Alert.alert("Error", "Please enter OTP and new password");
+                return;
+            }
+            try {
+                setIsSubmitting(true);
+                await resetPassword(forgotPasswordEmail, otp, newPassword);
+                setForgotPasswordModalVisible(false);
+                setForgotPasswordStep(1);
+                setOtp('');
+                setNewPassword('');
+                Alert.alert("Success", "Password reset successfully! You can now log in.");
+            } catch (error: any) {
+                Alert.alert("Error", error?.response?.data?.message || "Failed to reset password");
+            } finally {
+                setIsSubmitting(false);
             }
         }
         return (
@@ -87,10 +138,17 @@ const SigninForm = () => {
                                         <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
                                     </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity className="mt-4 self-end">
+                                <TouchableOpacity className="mt-4 self-end" onPress={() => { setForgotPasswordEmail(email); setForgotPasswordStep(1); setForgotPasswordModalVisible(true); }}>
                                     <Text className="text-rose-500 dark:text-rose-400 font-semibold text-sm">Forgot Password?</Text>
                                 </TouchableOpacity>
                             </View>
+
+                            {errorMessage ? (
+                                <View className="bg-rose-100 dark:bg-rose-950/60 p-4 rounded-2xl mb-4 border border-rose-200 dark:border-rose-900/50 flex-row items-center">
+                                    <Ionicons name="warning" size={20} color="#e11d48" />
+                                    <Text className="text-rose-600 dark:text-rose-400 font-bold ml-2 text-[13px] flex-1">{errorMessage}</Text>
+                                </View>
+                            ) : null}
 
                             <TouchableOpacity
                                 className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isLoading ? 'opacity-70' : ''}`}
@@ -121,6 +179,87 @@ const SigninForm = () => {
 
                     </KeyboardAvoidingView>
                 </SafeAreaView>
+
+                <Modal
+                    visible={forgotPasswordModalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setForgotPasswordModalVisible(false)}
+                >
+                    <View className="flex-1 justify-end bg-black/50">
+                        <View className="bg-white dark:bg-[#1f0f13] rounded-t-[32px] p-6 pb-24 shadow-2xl">
+                            <View className="flex-row justify-between items-center mb-6">
+                                <Text className="text-xl font-bold text-slate-800 dark:text-white">
+                                    {forgotPasswordStep === 1 ? 'Reset Password' : 'Enter OTP & New Password'}
+                                </Text>
+                                <TouchableOpacity onPress={() => setForgotPasswordModalVisible(false)} className="p-2 bg-slate-100 dark:bg-rose-950/30 rounded-full">
+                                    <Ionicons name="close" size={24} color={isDark ? "#f43f5e" : "#64748b"} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {forgotPasswordStep === 1 ? (
+                                <View>
+                                    <Text className="text-slate-500 dark:text-slate-400 mb-4 font-medium text-sm">
+                                        Enter your email address and we'll send you an OTP to reset your password.
+                                    </Text>
+                                    <View className="flex-row items-center border border-slate-200 dark:border-rose-950/60 bg-slate-50 dark:bg-[#0F0608] rounded-2xl h-14 px-4 overflow-hidden mb-6">
+                                        <Ionicons name="mail-outline" size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
+                                        <TextInput
+                                            placeholder="Enter your email"
+                                            placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
+                                            className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
+                                            value={forgotPasswordEmail}
+                                            onChangeText={setForgotPasswordEmail}
+                                            autoCapitalize="none"
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isSubmitting ? 'opacity-70' : ''}`}
+                                        onPress={handleForgotPassword}
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Send OTP</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View>
+                                    <Text className="text-slate-500 dark:text-slate-400 mb-4 font-medium text-sm">
+                                        Enter the OTP sent to {forgotPasswordEmail} and choose a new password.
+                                    </Text>
+                                    <View className="flex-row items-center border border-slate-200 dark:border-rose-950/60 bg-slate-50 dark:bg-[#0F0608] rounded-2xl h-14 px-4 overflow-hidden mb-4">
+                                        <Ionicons name="keypad-outline" size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
+                                        <TextInput
+                                            placeholder="Enter OTP"
+                                            placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
+                                            className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
+                                            value={otp}
+                                            onChangeText={setOtp}
+                                            keyboardType="number-pad"
+                                        />
+                                    </View>
+                                    <View className="flex-row items-center border border-slate-200 dark:border-rose-950/60 bg-slate-50 dark:bg-[#0F0608] rounded-2xl h-14 px-4 overflow-hidden mb-6">
+                                        <Ionicons name="lock-closed-outline" size={20} color={isDark ? "#f43f5e" : "#94a3b8"} />
+                                        <TextInput
+                                            placeholder="New Password"
+                                            placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
+                                            className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
+                                            value={newPassword}
+                                            onChangeText={setNewPassword}
+                                            secureTextEntry={true}
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isSubmitting ? 'opacity-70' : ''}`}
+                                        onPress={handleResetPassword}
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Reset Password</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                </Modal>
             </View>
         )
 }

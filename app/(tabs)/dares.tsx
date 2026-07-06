@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getActiveRoom, sendChallenge, ChallengePayload, Room } from '@/services/roomService';
 import GameSocket from '@/services/socketService';
@@ -151,24 +152,60 @@ export default function Dares() {
     }
   ];
 
+  const CACHE_KEY = '@soulshuffle_dares_cache';
+
   const loadDares = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      const appLoadStartTime = performance.now();
+
+      // 1. FAST LOCAL LOAD (Instant UI)
+      try {
+        const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          const { cachedDares, cachedLimits, roomId } = JSON.parse(cachedData);
+          if (cachedDares && cachedDares.length > 0) {
+            setDares(cachedDares);
+            if (cachedLimits) setLimits(cachedLimits);
+            if (roomId) setRoom({ id: roomId, code: '', status: 'ACTIVE' } as any);
+            if (!silent) setLoading(false);
+          }
+        }
+      } catch (e) {
+        console.log('Failed to load cache:', e);
+      }
+
+      // 2. BACKGROUND FETCH (Update data)
       const activeRoom = await getActiveRoom();
       setRoom(activeRoom);
       
       if (activeRoom && activeRoom.status === 'ACTIVE') {
+        const apiCallStartTime = performance.now();
         const [fetched, fetchedLimits] = await Promise.all([
           fetchAvailableDeck(activeRoom.id),
           fetchSendLimits()
         ]);
+        const apiCallEndTime = performance.now();
+        console.log(`[Performance] Dares API Call Time: ${(apiCallEndTime - apiCallStartTime).toFixed(2)} ms`);
+        
         const mapped = fetched.map(mapCardToDare);
         setDares(mapped);
         setLimits(fetchedLimits);
+
+        // Save to cache
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+          cachedDares: mapped,
+          cachedLimits: fetchedLimits,
+          roomId: activeRoom.id
+        })).catch(() => {});
       } else {
         setDares([]);
         setLimits(null);
+        AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
       }
+      
+      const appLoadEndTime = performance.now();
+      console.log(`[Performance] Total Dares Load Time: ${(appLoadEndTime - appLoadStartTime).toFixed(2)} ms`);
     } catch (error) {
       console.log('Failed to fetch dares from backend, loading fallback cards:', error);
       const fallbacks = getFallbackCards().map(mapCardToDare);
@@ -275,6 +312,20 @@ export default function Dares() {
           ...selectedDare,
           message: note
         }
+      });
+
+      // OPTIMISTIC UPDATE: Remove used card from state and cache immediately
+      const usedDareId = selectedDare.id;
+      setDares(prevDares => {
+        const updatedDares = prevDares.filter(d => d.id !== usedDareId);
+        AsyncStorage.getItem(CACHE_KEY).then(cached => {
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.cachedDares = updatedDares;
+            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
+          }
+        }).catch(() => {});
+        return updatedDares;
       });
 
       setSelectedDare(null);

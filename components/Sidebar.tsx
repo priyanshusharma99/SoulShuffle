@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Modal, Platform, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSidebar } from '@/context/SidebarContext';
@@ -12,6 +13,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [isLogoutModalVisible, setLogoutModalVisible] = React.useState(false);
 
   if (!isOpen) return null;
 
@@ -29,22 +31,28 @@ export default function Sidebar() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            closeSidebar();
-            router.replace('/' as any);
-          },
-        },
-      ]
-    );
+    setLogoutModalVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutModalVisible(false);
+    closeSidebar();
+    
+    // Ensure tokens are explicitly cleared BEFORE navigating
+    try {
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
+      await logout(); // Also call the service just in case
+    } catch (e) {}
+    
+    if (Platform.OS === 'web') {
+      window.location.href = '/';
+    } else {
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+      router.replace('/');
+    }
   };
 
   // Helper to determine if a route is active
@@ -174,6 +182,49 @@ export default function Sidebar() {
           </View>
         </View>
       </View>
+
+      {/* Beautiful Custom Logout Confirmation Modal */}
+      <Modal
+        visible={isLogoutModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60 px-6">
+          <View className="bg-white dark:bg-[#1f0f13] w-full rounded-[32px] p-6 shadow-2xl items-center">
+            
+            {/* Warning Icon Container */}
+            <View className="w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-950/50 items-center justify-center mb-5">
+              <Ionicons name="log-out-outline" size={32} color="#e11d48" />
+            </View>
+
+            {/* Texts */}
+            <Text className="text-xl font-black text-slate-800 dark:text-white mb-2 text-center">Ready to leave?</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-center mb-8 px-4 font-medium leading-5">
+              Are you sure you want to log out of your Love Dare account?
+            </Text>
+
+            {/* Buttons */}
+            <View className="w-full flex-row gap-3">
+              <TouchableOpacity 
+                className="flex-1 h-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800/50"
+                onPress={() => setLogoutModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text className="font-bold text-slate-600 dark:text-slate-300">Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                className="flex-1 h-14 items-center justify-center rounded-2xl bg-rose-500 shadow-lg shadow-rose-500/30"
+                onPress={confirmLogout}
+                activeOpacity={0.7}
+              >
+                <Text className="font-bold text-white">Yes, Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

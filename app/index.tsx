@@ -7,17 +7,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Index = () => {
   const [mode, setMode] = useState('signin');
+  const [isChecking, setIsChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const checkToken = async () => {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (token) {
-        router.replace('/(tabs)');
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        if (token) {
+          router.replace('/(tabs)');
+        } else {
+          setIsChecking(false);
+        }
+      } catch (error) {
+        setIsChecking(false);
       }
     };
     checkToken();
   }, []);
+
+  // Prevent rendering the login forms while checking AsyncStorage
+  if (isChecking) {
+    return (
+      <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]' />
+    );
+  }
 
   return (
     <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]'>
