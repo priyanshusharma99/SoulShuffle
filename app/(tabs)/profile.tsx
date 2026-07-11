@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
 import { Image, Platform, ScrollView, StatusBar, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getMyProfile } from '@/services/authService';
+import { getMyProfileCached } from '@/services/authService';
 import { getActiveRoom } from '@/services/roomService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,26 +20,27 @@ export default function Profile() {
 
   useEffect(() => {
     const loadProfileAndRoom = async () => {
+      // ── Step 1: Load user name from cache (instant, no API call) ──
       try {
-        const profile = await getMyProfile();
-        if (profile?.first_name || profile?.users?.name) {
-          setUserName(profile.first_name || profile.users.name.split(' ')[0]);
-        }
+        const { firstName } = await getMyProfileCached();
+        setUserName(firstName);
       } catch (err) {
-        console.log('Profile fetch failed in profile.tsx:', err);
+        console.log('Profile cache read failed in profile.tsx:', err);
       }
 
+      // ── Step 2: Load room + partner name ──
       try {
         const room = await getActiveRoom();
         setActiveRoom(room);
         if (room) {
-          // Resolve partner name from AsyncStorage or room properties
+          // Read partner name from cache first (set when room was joined/from socket)
           const cachedPartner = await AsyncStorage.getItem(`partnerName_${room.id}`);
           if (cachedPartner) {
             setPartnerName(cachedPartner);
-          } else {
-            const resolved = room.partner_name || 'Partner';
-            setPartnerName(resolved);
+          } else if (room.partner_name) {
+            setPartnerName(room.partner_name);
+            // Store it for next time
+            await AsyncStorage.setItem(`partnerName_${room.id}`, room.partner_name);
           }
 
           // Calculate connection duration in days
@@ -100,7 +101,7 @@ export default function Profile() {
         <View className="items-center mt-4">
           <View className="flex-row justify-center relative w-full h-40">
             {/* Left Image (Alex) */}
-            <View className="absolute right-1/2 mr-[-10px] bg-slate-800 rounded-t-[40px] rounded-br-[40px] rounded-bl-[10px] overflow-hidden w-40 h-40 shadow-lg z-10">
+            <View className="absolute right-1/2 mr-[-10px] bg-slate-800 rounded-t-[40px] rounded-br-[40px] rounded-bl-[10px] overflow-hidden w-40 h-40 z-10">
               <Image
                 source={{ uri: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop' }}
                 className="w-full h-full"
@@ -108,7 +109,7 @@ export default function Profile() {
             </View>
 
             {/* Right Image (Sam) */}
-            <View className="absolute left-1/2 ml-[-20px] bg-[#669894] rounded-t-[40px] rounded-bl-[40px] rounded-br-[10px] overflow-hidden w-40 h-40 shadow-lg">
+            <View className="absolute left-1/2 ml-[-20px] bg-[#669894] rounded-t-[40px] rounded-bl-[40px] rounded-br-[10px] overflow-hidden w-40 h-40">
               <Image
                 source={{ uri: 'https://plus.unsplash.com/premium_photo-1678120616858-54b35e2380f9?w=200&h=200&fit=crop' }}
                 className="w-full h-full"
@@ -116,7 +117,7 @@ export default function Profile() {
             </View>
 
             {/* Shared Badge */}
-            <View className="absolute bottom-[-16px] z-20 bg-[#0d5f5a] dark:bg-teal-600 px-4 py-2 rounded-full flex-row items-center justify-center shadow-lg">
+            <View className="absolute bottom-[-16px] z-20 bg-[#0d5f5a] dark:bg-teal-600 px-4 py-2 rounded-full flex-row items-center justify-center">
               <Ionicons name="heart" size={12} color="white" />
               <Text className="text-white font-bold text-[10px] ml-1 tracking-widest uppercase">Happy Together</Text>
             </View>
@@ -132,19 +133,19 @@ export default function Profile() {
 
         {/* Top Cards Info */}
         <View className="px-6 mt-8">
-          <View className="bg-white dark:bg-[#271318] rounded-[24px] p-5 shadow-sm mb-4 border border-slate-100/50 dark:border-rose-950/20">
+          <View className="bg-white dark:bg-[#271318] rounded-[24px] p-5 mb-4 border border-slate-100/50 dark:border-rose-950/20">
             <Ionicons name="book" size={18} color={isDark ? "#f43f5e" : "#af2c3b"} className="mb-2" />
             <Text className="text-lg font-bold text-slate-800 dark:text-white tracking-tight mt-1">Memory Book</Text>
             <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">124 moments captured since 2021</Text>
           </View>
 
-          <View className="bg-[#fc6062] dark:bg-indigo-900/80 rounded-[24px] p-5 shadow-lg mb-4 flex-col justify-center">
+          <View className="bg-[#fc6062] dark:bg-indigo-900/80 rounded-[24px] p-5 mb-4 flex-col justify-center">
             <Ionicons name="trophy" size={18} color={isDark ? "#fff" : "#3c0c11"} className="mb-2" />
             <Text className="text-lg font-black text-slate-900 dark:text-white tracking-tight mt-1">Level 14</Text>
             <Text className="text-[10px] font-bold text-slate-900/60 dark:text-slate-200/60 mt-1 tracking-widest uppercase">Romantic Strategists</Text>
           </View>
 
-          <View className="bg-[#e4dad6]/30 dark:bg-[#271318]/80 rounded-[24px] p-6 shadow-sm border border-slate-100 dark:border-rose-950/30 overflow-hidden relative">
+          <View className="bg-[#e4dad6]/30 dark:bg-[#271318]/80 rounded-[24px] p-6 border border-slate-100 dark:border-rose-950/30 overflow-hidden relative">
             <Text className="text-base font-bold text-slate-800 dark:text-white tracking-tight mb-3">Favorite Memory</Text>
             <Text className="text-sm font-medium italic text-slate-600 dark:text-slate-300 leading-6 pr-6">
               &quot;That rainy afternoon in Kyoto when we got lost in the bamboo forest and ended up in that tiny tea house.&quot;
@@ -171,7 +172,7 @@ export default function Profile() {
             </TouchableOpacity>
           </View>
 
-          <View className="bg-[#f5eeed]/60 dark:bg-[#271318]/50 rounded-[32px] p-6 shadow-sm shadow-slate-100 dark:shadow-none">
+          <View className="bg-[#f5eeed]/60 dark:bg-[#271318]/50 rounded-[32px] p-6 shadow-slate-100">
             <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-400 tracking-widest uppercase mb-1">Current Milestone</Text>
             <View className="flex-row items-end justify-between">
               <Text className="text-lg font-bold text-slate-800 dark:text-white leading-6 max-w-[70%]">First International Trip Together</Text>
@@ -218,7 +219,7 @@ export default function Profile() {
         <View className="mt-8 px-6">
           <Text className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Dare Preferences</Text>
 
-          <View className="bg-white dark:bg-[#271318] rounded-[32px] p-6 shadow-sm border border-slate-50/50 dark:border-rose-950/20">
+          <View className="bg-white dark:bg-[#271318] rounded-[32px] p-6 border border-slate-50/50 dark:border-rose-950/20">
             <View className="flex-row items-center justify-between mb-6">
               <View className="flex-row items-center">
                 <Ionicons name="restaurant" size={18} color={isDark ? "#f43f5e" : "#af2c3b"} />
@@ -394,7 +395,7 @@ export default function Profile() {
         <View className="mt-8 px-6 mb-4">
           <Text className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">Settings</Text>
 
-          <View className="bg-white dark:bg-[#271318] rounded-[32px] p-6 py-2 shadow-sm border border-slate-50/50 dark:border-rose-950/20">
+          <View className="bg-white dark:bg-[#271318] rounded-[32px] p-6 py-2 border border-slate-50/50 dark:border-rose-950/20">
             {/* Dark Mode Switch Toggle */}
             <View className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20">
               <View className="flex-row items-center flex-1">
@@ -451,3 +452,4 @@ export default function Profile() {
     </SafeAreaView>
   );
 }
+

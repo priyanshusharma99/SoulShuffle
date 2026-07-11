@@ -1,8 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import api from '@/services/api';
 import GameSocket from '@/services/socketService';
+
+// ─── Configure how notifications appear when the app is in the foreground ─────
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.warn('[Notifications] Not supported in this environment (likely Expo Go).');
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface AppNotification {
@@ -97,6 +113,54 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     } catch (e) {}
   }, []);
 
+  // ── Request Android notification permission on first launch ────────────────
+  useEffect(() => {
+    const requestNotificationPermission = async () => {
+      if (Platform.OS === 'web') return;
+
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+
+        if (existingStatus === 'granted') return; // Already allowed — do nothing
+
+        if (existingStatus === 'denied') {
+          // User previously denied — can only fix via Settings now
+          Alert.alert(
+            'Notifications Disabled',
+            'SoulShuffle notifications are disabled. To get dare alerts and partner updates, please enable notifications in your device Settings.',
+            [
+              { text: 'Not Now', style: 'cancel' },
+              {
+                text: 'Open Settings',
+                onPress: () => Linking.openSettings(),
+              },
+            ]
+          );
+          return;
+        }
+
+        // First time — show the system permission dialog
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        });
+
+        if (status !== 'granted') {
+          console.log('[Notifications] Permission not granted by user.');
+        } else {
+          console.log('[Notifications] Permission granted.');
+        }
+      } catch (error) {
+        console.warn('[Notifications] requestPermissionsAsync failed (Expo Go limitation).');
+      }
+    };
+
+    requestNotificationPermission();
+  }, []);
+
   // ── Socket: listen for new_notification event ──────────────────────────────
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -105,7 +169,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       const socket = GameSocket.socket;
       if (!socket || listenerRegistered.current) return;
 
-      socket.on('new_notification', (notification: AppNotification) => {
+      socket.on('new_notification', async (notification: AppNotification) => {
         console.log('[NotificationContext] new_notification received:', notification);
 
         // Prepend to list
@@ -113,6 +177,22 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
 
         // Bump unread count
         setUnreadCount(prev => prev + 1);
+
+        // Trigger OS-level local notification
+        if (Platform.OS !== 'web') {
+          try {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: notification.title,
+                body: notification.body,
+                data: notification.data || {},
+              },
+              trigger: null, // trigger immediately
+            });
+          } catch (e) {
+            console.warn('[Notifications] scheduleNotificationAsync failed (Expo Go limitation).');
+          }
+        }
       });
 
       listenerRegistered.current = true;

@@ -1,5 +1,6 @@
 import api from './api';
 import { getMyProfile } from './authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ── Types ────────────────────────────────────────────────
 export type ExpiryType = '7_DAYS' | '30_DAYS' | '1_YEAR';
@@ -39,16 +40,39 @@ export interface SentChallenge extends ChallengePayload {
   sent_at?: string;
 }
 
+// ── CLEAR ROOM CACHE ─────────────────────────────────────
+// Call this when a room is left, completed, or expired
+export const clearRoomCache = async (roomId: string) => {
+  await AsyncStorage.removeItem(`partnerName_${roomId}`);
+};
+
 // ── CREATE ROOM ──────────────────────────────────────────
 export const createRoom = async (expiryType: ExpiryType = '7_DAYS'): Promise<Room> => {
   const response = await api.post('/rooms/create', { expiry_type: expiryType });
-  return response.data.data.room;
+  const room: Room = response.data.data.room;
+  // Store room ID so we know which cache to clear later
+  await AsyncStorage.setItem('activeRoomId', room.id);
+  return room;
 };
 
 // ── JOIN ROOM ────────────────────────────────────────────
 export const joinRoom = async (code: string): Promise<Room> => {
   const response = await api.post('/rooms/join', { code: code.toUpperCase() });
-  return response.data.data.room;
+  const room: Room = response.data.data.room;
+  // Cache partner name immediately from the room data
+  await AsyncStorage.setItem('activeRoomId', room.id);
+  const partnerName = room.host_name || room.partner_name || null;
+  if (partnerName) {
+    await AsyncStorage.setItem(`partnerName_${room.id}`, partnerName);
+  }
+  return room;
+};
+
+// ── LEAVE ROOM ───────────────────────────────────────────
+export const leaveRoom = async (roomId: string): Promise<void> => {
+  await api.post('/rooms/leave', { room_id: roomId });
+  await clearRoomCache(roomId);
+  await AsyncStorage.removeItem('activeRoomId');
 };
 
 // ── GET ACTIVE ROOM ──────────────────────────────────────
@@ -117,12 +141,21 @@ export const confirmCardSend = async (sendId: string) => {
   return response.data.data;
 };
 
-export const deflectCardSend = async (sendId: string) => {
-  const response = await api.patch(`/user/deck/sends/${sendId}/deflect`);
+export const deflectCardSend = async (sendId: string, deflectDeckCardId: string) => {
+  const response = await api.post(`/user/deck/sends/${sendId}/use-deflect`, {
+    deflect_deck_card_id: deflectDeckCardId
+  });
   return response.data.data;
 };
 
 export const fetchDeflectCards = async (roomId: string) => {
   const response = await api.get(`/user/deck/deflect-cards?room_id=${roomId}`);
   return response.data.data;
+};
+
+// ── HISTORY ──────────────────────────────────────────────
+export const fetchRoomHistory = async (roomId?: string) => {
+  const url = roomId ? `/rooms/history?room_id=${roomId}` : '/rooms/history';
+  const response = await api.get(url);
+  return response.data.data || [];
 };

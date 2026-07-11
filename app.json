@@ -18,12 +18,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "package": "com.soulshuffle.CoupleGame"
     },
@@ -59,7 +58,18 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#e11d48",
+          "defaultChannel": "default",
+          "androidMode": "default",
+          "androidCollapsedTitle": "SoulShuffle"
+        }
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -68,7 +78,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4f89a57f-3a76-4a4c-8c50-3363f558cb16"
+        "projectId": "75231063-db0f-42e1-9654-e92a69abe55d"
       }
     }
   }

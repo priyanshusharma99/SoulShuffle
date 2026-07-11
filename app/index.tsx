@@ -1,37 +1,32 @@
 import { Text, View, TouchableOpacity } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import SigninForm from '@/components/signinForm';
 import SignupForm from '@/components/signupForm';
-import { useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Index = () => {
   const [mode, setMode] = useState('signin');
-  const [isChecking, setIsChecking] = useState(true);
-  const router = useRouter();
 
-  useEffect(() => {
-    const checkToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        if (token) {
-          router.replace('/(tabs)');
-        } else {
-          setIsChecking(false);
+  useFocusEffect(
+    useCallback(() => {
+      const checkToken = async () => {
+        try {
+          console.log('[INDEX] useFocusEffect: checking token...');
+          const token = await AsyncStorage.getItem('accessToken');
+          console.log('[INDEX] Token found:', token ? 'YES (redirecting to tabs)' : 'NO (showing login)');
+          if (token) {
+            const { router } = await import('expo-router');
+            router.replace('/(tabs)');
+          }
+        } catch (e) {
+          console.error('[INDEX] Token check error:', e);
         }
-      } catch (error) {
-        setIsChecking(false);
-      }
-    };
-    checkToken();
-  }, []);
+      };
 
-  // Prevent rendering the login forms while checking AsyncStorage
-  if (isChecking) {
-    return (
-      <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]' />
-    );
-  }
+      checkToken();
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   return (
     <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]'>
@@ -47,3 +42,5 @@ const Index = () => {
 }
 
 export default Index
+
+
