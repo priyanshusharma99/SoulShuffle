@@ -105,7 +105,7 @@ const SigninForm = () => {
                             <Text className="text-slate-500 dark:text-slate-400 mt-2 text-base font-medium">Ignite the spark, play together.</Text>
                         </View>
 
-                        <View className="bg-white/90 dark:bg-[#271318]/90 rounded-[32px] p-6 shadow-xl shadow-rose-100 dark:shadow-none border border-white/60 dark:border-rose-950/20">
+                        <View className="bg-white/90 dark:bg-[#271318]/90 rounded-[32px] p-6 shadow-rose-100 border border-white/60 dark:border-rose-950/20">
 
                             <View className="mb-5">
                                 <Text className="text-slate-700 dark:text-slate-300 font-semibold mb-2 ml-1 text-sm">Email or Phone</Text>
@@ -151,7 +151,7 @@ const SigninForm = () => {
                             ) : null}
 
                             <TouchableOpacity
-                                className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isLoading ? 'opacity-70' : ''}`}
+                                className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-rose-300 ${isLoading ? 'opacity-70' : ''}`}
                                 activeOpacity={0.8}
                                 onPress={handleSignIn}
                                 disabled={isLoading}
@@ -164,11 +164,11 @@ const SigninForm = () => {
                         <View className="mt-8 items-center">
                             <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mb-5">Or continue with</Text>
                             <View className="flex-row gap-4 w-full">
-                                <TouchableOpacity className="flex-1 bg-white/90 dark:bg-[#271318] border border-slate-100 dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center shadow-sm dark:shadow-none" activeOpacity={0.7}>
+                                <TouchableOpacity className="flex-1 bg-white/90 dark:bg-[#271318] border border-slate-100 dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center" activeOpacity={0.7}>
                                     <Ionicons name="logo-google" size={20} color="#ea4335" />
                                     <Text className="text-slate-700 dark:text-white font-bold ml-2">Google</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity className="flex-1 bg-[#1A1A1A] dark:bg-[#180D10] border border-transparent dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center shadow-sm dark:shadow-none" activeOpacity={0.7}>
+                                <TouchableOpacity className="flex-1 bg-[#1A1A1A] dark:bg-[#180D10] border border-transparent dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center" activeOpacity={0.7}>
                                     <Ionicons name="logo-apple" size={20} color="#ffffff" />
                                     <Text className="text-white font-bold ml-2">Apple</Text>
                                 </TouchableOpacity>
@@ -186,8 +186,11 @@ const SigninForm = () => {
                     transparent={true}
                     onRequestClose={() => setForgotPasswordModalVisible(false)}
                 >
-                    <View className="flex-1 justify-end bg-black/50">
-                        <View className="bg-white dark:bg-[#1f0f13] rounded-t-[32px] p-6 pb-24 shadow-2xl">
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+                        className="flex-1 justify-end bg-black/50"
+                    >
+                        <View className="bg-white dark:bg-[#1f0f13] rounded-t-[32px] p-6 pb-24">
                             <View className="flex-row justify-between items-center mb-6">
                                 <Text className="text-xl font-bold text-slate-800 dark:text-white">
                                     {forgotPasswordStep === 1 ? 'Reset Password' : 'Enter OTP & New Password'}
@@ -214,7 +217,7 @@ const SigninForm = () => {
                                         />
                                     </View>
                                     <TouchableOpacity
-                                        className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isSubmitting ? 'opacity-70' : ''}`}
+                                        className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-rose-300 ${isSubmitting ? 'opacity-70' : ''}`}
                                         onPress={handleForgotPassword}
                                         disabled={isSubmitting}
                                     >
@@ -249,7 +252,7 @@ const SigninForm = () => {
                                         />
                                     </View>
                                     <TouchableOpacity
-                                        className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-lg shadow-rose-300 dark:shadow-none ${isSubmitting ? 'opacity-70' : ''}`}
+                                        className={`bg-rose-500 dark:bg-rose-600 rounded-2xl h-14 items-center justify-center flex-row shadow-rose-300 ${isSubmitting ? 'opacity-70' : ''}`}
                                         onPress={handleResetPassword}
                                         disabled={isSubmitting}
                                     >
@@ -258,10 +261,11 @@ const SigninForm = () => {
                                 </View>
                             )}
                         </View>
-                    </View>
+                    </KeyboardAvoidingView>
                 </Modal>
             </View>
         )
 }
 
 export default SigninForm
+

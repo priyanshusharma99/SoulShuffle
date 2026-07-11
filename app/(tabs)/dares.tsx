@@ -24,7 +24,7 @@ const mapCardToDare = (card: any): Dare => {
   const cleanCategory = rawCategory.split('_')[0].toUpperCase();
 
   const difficulty = (card.attributes?.difficulty || 'MEDIUM').toUpperCase();
-  const time = card.attributes?.time || '30 mins';
+  const time = card.attributes?.time || '24 hrs';
   const stars = card.attributes?.stars || 2;
   const description = card.power_description || card.attributes?.description || 'No description available.';
 
@@ -93,7 +93,7 @@ export default function Dares() {
       power_description: "Take a walk together under the moonlight and share a memory from when you first met.",
       image_url: null,
       card_type: "ACTION",
-      attributes: { difficulty: "medium", time: "30 mins", stars: 2 },
+      attributes: { difficulty: "medium", time: "24 hrs", stars: 2 },
       card_categories: { id: "c1", name: "Romance_123" }
     },
     {
@@ -183,7 +183,7 @@ export default function Dares() {
         const apiCallStartTime = performance.now();
         const [fetched, fetchedLimits] = await Promise.all([
           fetchAvailableDeck(activeRoom.id),
-          fetchSendLimits()
+          fetchSendLimits(activeRoom.id)
         ]);
         const apiCallEndTime = performance.now();
         console.log(`[Performance] Dares API Call Time: ${(apiCallEndTime - apiCallStartTime).toFixed(2)} ms`);
@@ -253,7 +253,7 @@ export default function Dares() {
   const renderDisconnectedState = () => {
     return (
       <View className="flex-1 justify-center items-center px-8 py-16">
-        <View className="bg-white dark:bg-[#271318] rounded-[32px] p-8 items-center shadow-lg shadow-rose-100/50 dark:shadow-none border border-rose-100/50 dark:border-rose-950/20 w-full max-w-sm">
+        <View className="bg-white dark:bg-[#271318] rounded-[32px] p-8 items-center shadow-rose-100/50 border border-rose-100/50 dark:border-rose-950/20 w-full max-w-sm">
           <View className="w-20 h-20 bg-rose-50 dark:bg-rose-950/30 rounded-full items-center justify-center mb-6">
             <Ionicons name="heart-dislike-outline" size={42} color={isDark ? "#f43f5e" : "#e11d48"} />
           </View>
@@ -267,7 +267,7 @@ export default function Dares() {
           </Text>
 
           <TouchableOpacity
-            className="w-full bg-[#af2c3b] dark:bg-rose-600 rounded-full py-4 items-center justify-center shadow-md shadow-rose-900/10 dark:shadow-none"
+            className="w-full bg-[#af2c3b] dark:bg-rose-600 rounded-full py-4 items-center justify-center shadow-rose-900/10"
             activeOpacity={0.85}
             onPress={() => router.push('/')}
           >
@@ -400,7 +400,7 @@ export default function Dares() {
         >
           {/* Search Bar */}
           <View className="px-6 mt-2 mb-6">
-            <View className="bg-white dark:bg-[#271318] rounded-2xl h-14 flex-row items-center px-4 shadow-sm shadow-slate-100 dark:shadow-none border border-slate-50 dark:border-rose-950/20">
+            <View className="bg-white dark:bg-[#271318] rounded-2xl h-14 flex-row items-center px-4 shadow-slate-100 border border-slate-50 dark:border-rose-950/20">
               <Ionicons name="search" size={20} color={isDark ? "#fff" : "#000"} />
               <TextInput 
                 placeholder="Search for a dare..."
@@ -417,7 +417,7 @@ export default function Dares() {
             {['ALL', ...Array.from(new Set(dares.map(d => d.category)))].map(cat => (
               <TouchableOpacity 
                 key={cat}
-                className={`px-6 py-4 rounded-full shadow-sm mr-2 border ${
+                className={`px-6 py-4 rounded-full mr-2 border ${
                   selectedCategory === cat 
                     ? 'bg-rose-500 border-rose-500' 
                     : 'bg-white dark:bg-[#271318] border-slate-50 dark:border-rose-950/20'
@@ -433,7 +433,7 @@ export default function Dares() {
 
           {/* Actions Row */}
           <View className="flex-row items-center px-6 mb-8">
-            <TouchableOpacity className="bg-white dark:bg-[#271318] px-5 py-3 rounded-2xl flex-row items-center shadow-sm shadow-slate-100 dark:shadow-none border border-slate-50 dark:border-rose-950/20">
+            <TouchableOpacity className="bg-white dark:bg-[#271318] px-5 py-3 rounded-2xl flex-row items-center shadow-slate-100 border border-slate-50 dark:border-rose-950/20">
               <Ionicons name="dice-outline" size={18} color={isDark ? "#fff" : "#000"} />
               <Text className="text-slate-800 dark:text-white font-bold text-xs ml-2">Shuffle Cards</Text>
             </TouchableOpacity>
@@ -497,7 +497,7 @@ export default function Dares() {
               }).map((dare) => (
                 <TouchableOpacity
                   key={dare.id}
-                  className="w-[48%] bg-white dark:bg-[#271318] rounded-[24px] overflow-hidden shadow-sm border border-slate-50 dark:border-rose-950/20 pb-4"
+                  className="w-[48%] bg-white dark:bg-[#271318] rounded-[24px] overflow-hidden border border-slate-50 dark:border-rose-950/20 pb-4"
                   activeOpacity={0.85}
                   onPress={() => setSelectedDare(dare)}
                 >
@@ -505,7 +505,7 @@ export default function Dares() {
                     <Image source={typeof dare.image === 'string' ? { uri: dare.image } : dare.image} className="w-full h-full" />
                     
                     {/* Difficulty & Premium Badges */}
-                    <View className="absolute top-3 left-3 bg-white/95 dark:bg-[#0F0608]/95 px-2.5 py-1 rounded-full flex-row items-center shadow-sm">
+                    <View className="absolute top-3 left-3 bg-white/95 dark:bg-[#0F0608]/95 px-2.5 py-1 rounded-full flex-row items-center">
                       {Array.from({ length: dare.stars }).map((_, i) => (
                         <Ionicons key={i} name="star" size={10} color="#f59e0b" style={{ marginRight: 2 }} />
                       ))}
@@ -513,7 +513,7 @@ export default function Dares() {
                     </View>
 
                     {dare.isPaid && (
-                      <View className="absolute top-3 right-3 bg-white/95 dark:bg-[#0F0608]/95 w-6 h-6 rounded-full flex-row items-center justify-center shadow-sm">
+                      <View className="absolute top-3 right-3 bg-white/95 dark:bg-[#0F0608]/95 w-6 h-6 rounded-full flex-row items-center justify-center">
                         <Ionicons name="lock-closed" size={10} color={isDark ? "#f43f5e" : "#ab2f33"} />
                       </View>
                     )}
@@ -629,10 +629,10 @@ export default function Dares() {
                 )}
 
                 <TouchableOpacity
-                  className={`rounded-full py-[18px] items-center justify-center flex-row shadow-lg ${
+                  className={`rounded-full py-[18px] items-center justify-center flex-row ${
                     isSending || (limits !== null && !limits.can_send)
-                      ? 'bg-slate-100 dark:bg-rose-950/15 shadow-none border border-slate-200/45 dark:border-rose-950/20'
-                      : 'bg-[#af2c3b] dark:bg-rose-600 shadow-md dark:shadow-none'
+                      ? 'bg-slate-100 dark:bg-rose-950/15 border border-slate-200/45 dark:border-rose-950/20'
+                      : 'bg-[#af2c3b] dark:bg-rose-600'
                   }`}
                   activeOpacity={0.85}
                   onPress={handleSendChallenge}
@@ -665,3 +665,4 @@ export default function Dares() {
     </SafeAreaView>
   );
 }
+

@@ -395,7 +395,7 @@ export default function Questionnaire() {
         style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
       >
         <StatusBar barStyle="dark-content" backgroundColor="#fff1f2" />
-        <View className="bg-white/60 w-20 h-20 rounded-[28px] items-center justify-center mb-6 border border-white/40 shadow-sm">
+        <View className="bg-white/60 w-20 h-20 rounded-[28px] items-center justify-center mb-6 border border-white/40">
           <Text className="text-4xl">💕</Text>
         </View>
         <ActivityIndicator size="large" color="#f43f5e" />
@@ -414,7 +414,7 @@ export default function Questionnaire() {
         style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
       >
         <StatusBar barStyle="dark-content" backgroundColor="#fff1f2" />
-        <View className="bg-white/60 w-20 h-20 rounded-[28px] items-center justify-center mb-6 border border-white/40 shadow-sm">
+        <View className="bg-white/60 w-20 h-20 rounded-[28px] items-center justify-center mb-6 border border-white/40">
           <Ionicons name="alert-circle-outline" size={40} color="#f43f5e" />
         </View>
         <Text className="text-slate-800 font-bold text-lg text-center mb-2">
@@ -425,7 +425,7 @@ export default function Questionnaire() {
         </Text>
         <TouchableOpacity
           onPress={loadQuestions}
-          className="bg-rose-500 rounded-2xl px-8 py-4 mb-4 shadow-lg"
+          className="bg-rose-500 rounded-2xl px-8 py-4 mb-4"
           activeOpacity={0.8}
         >
           <Text className="text-white font-bold text-base">Try Again</Text>
@@ -511,7 +511,7 @@ export default function Questionnaire() {
           >
             {/* Emoji Header */}
             <View className="items-center mb-2">
-              <View className="bg-white/60 w-20 h-20 rounded-[28px] items-center justify-center mb-5 border border-white/40 shadow-sm">
+              <View className="bg-white/60 w-20 h-20 rounded-[28px] items-center justify-center mb-5 border border-white/40">
                 <Text className="text-4xl">
                   {QUESTION_EMOJIS[currentStep] ?? DEFAULT_EMOJI}
                 </Text>
@@ -546,7 +546,7 @@ export default function Questionnaire() {
                     ],
                   }}
                 >
-                  <View className="bg-white/90 rounded-[28px] p-2 shadow-md border border-white/60">
+                  <View className="bg-white/90 rounded-[28px] p-2 border border-white/60">
                     <TextInput
                       placeholder={
                         inputType === 'slider' ? 'Enter a number...' : 'Type here...'
@@ -588,8 +588,8 @@ export default function Questionnaire() {
                         activeOpacity={0.7}
                         className={`flex-row items-center mb-3 rounded-[22px] px-5 py-[18px] border-2 ${
                           selected
-                            ? 'bg-rose-500 border-rose-500 shadow-lg'
-                            : 'bg-white/90 border-white/40 shadow-sm'
+                            ? 'bg-rose-500 border-rose-500'
+                            : 'bg-white/90 border-white/40'
                         }`}
                       >
                         <Text
@@ -634,10 +634,10 @@ export default function Questionnaire() {
               onPress={handleNext}
               disabled={isNextDisabled() || isSubmitting}
               activeOpacity={0.8}
-              className={`rounded-[20px] h-[60px] items-center justify-center flex-row shadow-lg ${
+              className={`rounded-[20px] h-[60px] items-center justify-center flex-row ${
                 isNextDisabled() || isSubmitting
                   ? 'bg-slate-200 shadow-transparent'
-                  : 'bg-rose-500 shadow-md'
+                  : 'bg-rose-500'
               }`}
             >
               {isSubmitting && currentStep === questions.length - 1 ? (
@@ -667,8 +667,8 @@ export default function Questionnaire() {
               onPress={handleNext}
               activeOpacity={0.8}
               disabled={isSubmitting}
-              className={`rounded-[20px] h-[60px] items-center justify-center flex-row shadow-lg ${
-                isSubmitting ? 'bg-rose-400 shadow-md' : 'bg-rose-500 shadow-md'
+              className={`rounded-[20px] h-[60px] items-center justify-center flex-row ${
+                isSubmitting ? 'bg-rose-400' : 'bg-rose-500'
               }`}
             >
               {isSubmitting && currentStep === questions.length - 1 ? (
@@ -692,3 +692,4 @@ export default function Questionnaire() {
     </SafeAreaView>
   );
 }
+

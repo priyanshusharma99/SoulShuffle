@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Modal, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,24 @@ export default function Sidebar() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [isLogoutModalVisible, setLogoutModalVisible] = React.useState(false);
+  const [userName, setUserName] = useState('User');
+  const [partnerName, setPartnerName] = useState<string | null>(null);
+
+  // Load names from cache on open — instant, no API call
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadNames = async () => {
+      const cachedName = await AsyncStorage.getItem('cachedUserName');
+      if (cachedName) setUserName(cachedName);
+
+      const activeRoomId = await AsyncStorage.getItem('activeRoomId');
+      if (activeRoomId) {
+        const cachedPartner = await AsyncStorage.getItem(`partnerName_${activeRoomId}`);
+        if (cachedPartner) setPartnerName(cachedPartner);
+      }
+    };
+    loadNames();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -35,22 +53,20 @@ export default function Sidebar() {
   };
 
   const confirmLogout = async () => {
+    // Close UI immediately so there's no visual delay
     setLogoutModalVisible(false);
     closeSidebar();
-    
-    // Ensure tokens are explicitly cleared BEFORE navigating
+
+    // Clear ALL storage — tokens, cached names, room data
     try {
-      await AsyncStorage.removeItem('accessToken');
-      await AsyncStorage.removeItem('refreshToken');
-      await logout(); // Also call the service just in case
+      await logout();
     } catch (e) {}
-    
+
+    // Navigate to login. Use replace so the tabs stack is destroyed and
+    // the index.tsx mounts fresh, re-running its token check correctly.
     if (Platform.OS === 'web') {
       window.location.href = '/';
     } else {
-      if (router.canDismiss()) {
-        router.dismissAll();
-      }
       router.replace('/');
     }
   };
@@ -66,7 +82,7 @@ export default function Sidebar() {
   const getLinkStyle = (route: string) => {
     const active = isRouteActive(route);
     if (active) {
-      return 'flex-row items-center bg-[#e4525f] py-4 px-6 rounded-full mb-2 shadow-sm shadow-red-200 dark:shadow-none';
+      return 'flex-row items-center bg-[#e4525f] py-4 px-6 rounded-full mb-2 shadow-red-200';
     }
     return 'flex-row items-center py-4 px-6 mb-2 rounded-full';
   };
@@ -95,7 +111,7 @@ export default function Sidebar() {
         />
         
         {/* Menu Panel */}
-        <View className="bg-[#fff8f7] dark:bg-[#180D10] w-[80%] h-full pt-16 rounded-tr-[40px] rounded-br-[40px] shadow-2xl shadow-slate-900/40 dark:shadow-black/60 border-r border-[#ffeceb] dark:border-rose-950/20" style={{ zIndex: 1001 }}>
+        <View className="bg-[#fff8f7] dark:bg-[#180D10] w-[80%] h-full pt-16 rounded-tr-[40px] rounded-br-[40px] shadow-slate-900/40 dark:shadow-black/60 border-r border-[#ffeceb] dark:border-rose-950/20" style={{ zIndex: 1001 }}>
           <View className="px-8 pb-8 flex-1">
             
             {/* Avatar Section */}
@@ -109,7 +125,9 @@ export default function Sidebar() {
               </View>
             </View>
 
-            <Text className="text-[28px] font-black text-[#af2c3b] dark:text-slate-100 tracking-tight">Alex & Sam</Text>
+            <Text className="text-[28px] font-black text-[#af2c3b] dark:text-slate-100 tracking-tight">
+              {partnerName ? `${userName} & ${partnerName}` : userName}
+            </Text>
             <Text className="text-[10px] font-bold text-[#e18e8e] dark:text-rose-400/60 tracking-[0.15em] uppercase mt-2">Level 14 Romantic</Text>
             <Text className="text-[14px] font-medium text-slate-600 dark:text-slate-400 mt-1 mb-10">Connected since 2022</Text>
 
@@ -191,7 +209,7 @@ export default function Sidebar() {
         onRequestClose={() => setLogoutModalVisible(false)}
       >
         <View className="flex-1 justify-center items-center bg-black/60 px-6">
-          <View className="bg-white dark:bg-[#1f0f13] w-full rounded-[32px] p-6 shadow-2xl items-center">
+          <View className="bg-white dark:bg-[#1f0f13] w-full rounded-[32px] p-6 items-center">
             
             {/* Warning Icon Container */}
             <View className="w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-950/50 items-center justify-center mb-5">
@@ -215,7 +233,7 @@ export default function Sidebar() {
               </TouchableOpacity>
               
               <TouchableOpacity 
-                className="flex-1 h-14 items-center justify-center rounded-2xl bg-rose-500 shadow-lg shadow-rose-500/30"
+                className="flex-1 h-14 items-center justify-center rounded-2xl bg-rose-500 shadow-rose-500/30"
                 onPress={confirmLogout}
                 activeOpacity={0.7}
               >
@@ -228,3 +246,4 @@ export default function Sidebar() {
     </View>
   );
 }
+

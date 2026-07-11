@@ -7,10 +7,22 @@ const saveTokens = async (accessToken: string, refreshToken: string) => {
   await AsyncStorage.setItem('refreshToken', refreshToken);
 };
 
+// Helper to clear user cache
+const clearUserCache = async () => {
+  await AsyncStorage.removeItem('accessToken');
+  await AsyncStorage.removeItem('refreshToken');
+  await AsyncStorage.removeItem('cachedUserName');
+  await AsyncStorage.removeItem('cachedUserId');
+};
+
 // ── SIGN UP ──────────────────────────────────────────────
 export const signUp = async (name: string, email: string, password: string) => {
   const response = await api.post('/auth/signup', { name, email, password });
   await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
+  // Cache name immediately after signup
+  const firstName = response.data.data?.user?.first_name || name.split(' ')[0];
+  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
+  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
   return response.data.data; // contains user object too
 };
 
@@ -18,6 +30,10 @@ export const signUp = async (name: string, email: string, password: string) => {
 export const signIn = async (email: string, password: string) => {
   const response = await api.post('/auth/login', { email, password });
   await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
+  // Cache name immediately after login
+  const firstName = response.data.data?.user?.first_name || response.data.data?.profile?.first_name;
+  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
+  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
   return response.data.data;
 };
 
@@ -25,6 +41,9 @@ export const signIn = async (email: string, password: string) => {
 export const googleLogin = async (googleIdToken: string) => {
   const response = await api.post('/auth/google', { token: googleIdToken });
   await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
+  const firstName = response.data.data?.user?.first_name;
+  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
+  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
   return response.data.data;
 };
 
@@ -47,12 +66,38 @@ export const resetPassword = async (email: string, otp: string, newPassword: str
 };
 
 // ── LOGOUT ───────────────────────────────────────────────
+// Clears ALL cached data: tokens, user name, user ID, and all partner/room caches
 export const logout = async () => {
   await AsyncStorage.clear();
 };
 
-// ── GET ME ───────────────────────────────────────────────
+// ── GET MY PROFILE (raw API) ──────────────────────────────
 export const getMyProfile = async () => {
   const response = await api.get('/profile/me');
   return response.data.data.profile;
+};
+
+// ── GET PROFILE WITH CACHING ─────────────────────────────
+// Reads from cache first (instant). Falls back to API if not cached, then saves the result.
+export const getMyProfileCached = async (): Promise<{ id: string | null; firstName: string }> => {
+  const cachedName = await AsyncStorage.getItem('cachedUserName');
+  const cachedId = await AsyncStorage.getItem('cachedUserId');
+
+  // Return instantly if we have both cached values
+  if (cachedName && cachedId) {
+    return { id: cachedId, firstName: cachedName };
+  }
+
+  // Fall back to API and persist the result for next time
+  try {
+    const profile = await getMyProfile();
+    const firstName = profile?.first_name || profile?.users?.name?.split(' ')[0] || 'User';
+    const userId = profile?.id || null;
+    if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
+    if (userId) await AsyncStorage.setItem('cachedUserId', userId);
+    return { id: userId, firstName };
+  } catch {
+    // Network down — return whatever we had cached
+    return { id: cachedId ?? null, firstName: cachedName ?? 'User' };
+  }
 };

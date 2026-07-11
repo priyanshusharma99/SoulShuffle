@@ -55,8 +55,8 @@ export interface SendLimits {
 /**
  * Fetch daily and active limits for sending cards
  */
-export const fetchSendLimits = async (): Promise<SendLimits> => {
-  const response = await api.get('/user/deck/sends/limits');
+export const fetchSendLimits = async (roomId: string): Promise<SendLimits> => {
+  const response = await api.get(`/user/deck/sends/limits?room_id=${roomId}`);
   return response.data.data;
 };
 

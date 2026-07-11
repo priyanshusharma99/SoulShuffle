@@ -205,7 +205,7 @@ export default function CoinToss() {
           {/* Real-time Sync Status */}
           {room && room.status === 'ACTIVE' ? (
             <View className="flex-row items-center bg-teal-50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/30 px-3.5 py-1.5 rounded-full">
-              <View className="w-2 h-2 rounded-full bg-teal-500 mr-2 shadow-sm shadow-teal-500/50" />
+              <View className="w-2 h-2 rounded-full bg-teal-500 mr-2 shadow-teal-500/50" />
               <Text className="text-teal-700 dark:text-teal-400 font-bold text-xs">
                 Flips Synced with Partner
               </Text>
@@ -279,10 +279,10 @@ export default function CoinToss() {
         {/* Flip Button */}
         <View className="px-6 mb-8">
           <TouchableOpacity
-            className={`rounded-full py-5 items-center justify-center flex-row shadow-lg ${
+            className={`rounded-full py-5 items-center justify-center flex-row ${
               isFlipping 
-                ? 'bg-slate-300 dark:bg-rose-950/40 shadow-none' 
-                : 'bg-[#af2c3b] dark:bg-rose-600 shadow-md dark:shadow-none'
+                ? 'bg-slate-300 dark:bg-rose-950/40' 
+                : 'bg-[#af2c3b] dark:bg-rose-600'
             }`}
             activeOpacity={0.85}
             onPress={handleFlip}
@@ -298,7 +298,7 @@ export default function CoinToss() {
         {/* Result Card */}
         {showResultCard && result && (
           <View className="px-6 mb-8">
-            <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] p-6 items-center shadow-sm dark:shadow-none">
+            <View className="bg-white dark:bg-[#271318] dark:border dark:border-rose-950/20 rounded-[28px] p-6 items-center">
               <View className={`w-12 h-12 rounded-full items-center justify-center mb-3 ${
                 userChoice === result ? 'bg-teal-100 dark:bg-teal-500/10' : 'bg-rose-100 dark:bg-rose-500/10'
               }`}>
@@ -391,3 +391,4 @@ const styles = StyleSheet.create({
     borderRadius: 70,
   }
 });
+

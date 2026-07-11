@@ -43,3 +43,4 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
     </View>
   );
 }
+

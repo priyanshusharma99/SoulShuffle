@@ -1,36 +1,50 @@
 import { Text, View, TouchableOpacity } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import SigninForm from '@/components/signinForm';
 import SignupForm from '@/components/signupForm';
-import { useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Index = () => {
   const [mode, setMode] = useState('signin');
   const [isChecking, setIsChecking] = useState(true);
-  const router = useRouter();
 
-  useEffect(() => {
-    const checkToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        if (token) {
-          router.replace('/(tabs)');
-        } else {
-          setIsChecking(false);
+  // useFocusEffect runs every time the screen comes into focus — including
+  // after a logout redirect. This prevents the black screen bug where
+  // useEffect([]) only ran on the first mount and never re-checked the token.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setIsChecking(true);
+
+      const checkToken = async () => {
+        try {
+          const token = await AsyncStorage.getItem('accessToken');
+          if (!active) return;
+          if (token) {
+            // Still logged in — go to tabs
+            const { router } = await import('expo-router');
+            router.replace('/(tabs)');
+          } else {
+            // No token — show login form
+            setIsChecking(false);
+          }
+        } catch {
+          if (active) setIsChecking(false);
         }
-      } catch (error) {
-        setIsChecking(false);
-      }
-    };
-    checkToken();
-  }, []);
+      };
 
-  // Prevent rendering the login forms while checking AsyncStorage
+      checkToken();
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  // Show a blank screen while checking — same background as the app
   if (isChecking) {
-    return (
-      <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]' />
-    );
+    return <View className='flex-1 bg-rose-50 dark:bg-[#0F0608]' />;
   }
 
   return (
@@ -47,3 +61,5 @@ const Index = () => {
 }
 
 export default Index
+
+
