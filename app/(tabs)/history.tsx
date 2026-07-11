@@ -62,11 +62,11 @@ export default function History() {
     const now = new Date();
     if (activeFilter === 'THIS_WEEK') {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return challengeHistory.filter(c => new Date(c.sent_at) >= weekAgo);
+      return challengeHistory.filter(c => c.sent_at ? new Date(c.sent_at) >= weekAgo : false);
     }
     if (activeFilter === 'LAST_MONTH') {
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      return challengeHistory.filter(c => new Date(c.sent_at) >= monthAgo);
+      return challengeHistory.filter(c => c.sent_at ? new Date(c.sent_at) >= monthAgo : false);
     }
     return challengeHistory;
   }, [challengeHistory, activeFilter]);
@@ -87,7 +87,8 @@ export default function History() {
     let currentStreak = 0;
     if (history.length > 0) {
       const dates = history
-        .map(c => new Date(c.sent_at).setHours(0,0,0,0))
+        .filter(c => c.sent_at)
+        .map(c => new Date(c.sent_at!).setHours(0,0,0,0))
         .sort((a, b) => b - a);
       const uniqueDates = [...new Set(dates)];
       const today = new Date().setHours(0,0,0,0);

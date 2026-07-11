@@ -88,8 +88,82 @@ export default function StoreScreen() {
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
   // Bypass Payment State
-  const [paymentStep, setPaymentStep] = useState<'details' | 'processing'>('details');
+  const [paymentStep, setPaymentStep] = useState<'details' | 'select_method' | 'card_form' | 'upi_form' | 'net_banking_form' | 'otp' | 'processing'>('details');
   const [processingStatus, setProcessingStatus] = useState('Unlocking bundle...');
+
+  // Payment Form States
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCVV, setCardCVV] = useState('');
+  const [upiId, setUpiId] = useState('');
+
+  // Input Formatting Helpers
+  const formatCardNumber = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const matches = cleaned.match(/\d{1,4}/g);
+    if (matches) {
+      return matches.join(' ');
+    }
+    return cleaned;
+  };
+
+  const formatExpiry = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    if (cleaned.length >= 2) {
+      return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`;
+    }
+    return cleaned;
+  };
+
+  const startPaymentProcessing = async () => {
+    if (!selectedBundle || !selectedPlan) {
+      Alert.alert('Error', 'Please select a valid bundle and plan before unlocking.');
+      setPaymentStep('details');
+      return;
+    }
+
+    setBuying(true);
+    setPaymentStep('processing');
+    
+    const steps = [
+      'Verifying credentials...',
+      'Contacting merchant gateway...',
+      'Securing payment token...',
+      'Bypassing payment and unlocking bundle...'
+    ];
+
+    for (const stepText of steps) {
+      setProcessingStatus(stepText);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+    
+    try {
+      // Call the backend API to securely mock the purchase and assign cards
+      await bypassStorePurchase(selectedBundle.id, selectedPlan.id);
+      
+      setPurchaseSuccess(true);
+      
+      // Automatically close success screen after 2.5s and reload data
+      setTimeout(() => {
+        setCheckoutVisible(false);
+        setPaymentStep('details');
+        loadData();
+        // Reset form inputs
+        setCardName('');
+        setCardNumber('');
+        setCardExpiry('');
+        setCardCVV('');
+        setUpiId('');
+      }, 2500);
+    } catch (e) {
+      console.log('Failed to save mock purchase:', e);
+      Alert.alert('Transaction Failed', 'We could not complete your mock transaction. Please try again.');
+      setPaymentStep('details');
+    } finally {
+      setBuying(false);
+    }
+  };
 
   // Fallback Dummy Bundles for Sandbox Preview
   const DUMMY_BUNDLES: CardBundle[] = [
@@ -674,6 +748,37 @@ export default function StoreScreen() {
                         Unlock Now (Bypass Payment)
                       </Text>
                     </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* STEP 5: Net Banking Form */}
+                {paymentStep === 'net_banking_form' && (
+                  <View>
+                    <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-3">Select Your Bank</Text>
+                    <View className="gap-2 mb-6">
+                      {[
+                        { name: 'State Bank of India', code: 'SBI', icon: 'business' },
+                        { name: 'HDFC Bank', code: 'HDFC', icon: 'business' },
+                        { name: 'ICICI Bank', code: 'ICICI', icon: 'business' },
+                        { name: 'Axis Bank', code: 'AXIS', icon: 'business' }
+                      ].map((bank) => (
+                        <TouchableOpacity
+                          key={bank.code}
+                          className="flex-row items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-rose-950/20 bg-slate-50 dark:bg-[#271318]/20 active:opacity-80"
+                          onPress={() => {
+                            startPaymentProcessing();
+                          }}
+                        >
+                          <View className="flex-row items-center">
+                            <View className="w-8 h-8 rounded-full bg-sky-50 dark:bg-sky-950/30 items-center justify-center mr-3">
+                              <Ionicons name={bank.icon as any} size={15} color="#0284c7" />
+                            </View>
+                            <Text className="text-sm font-bold text-slate-800 dark:text-slate-200">{bank.name}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 )}
 
