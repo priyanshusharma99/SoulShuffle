@@ -480,7 +480,194 @@ export default function StoreScreen() {
 
                     <TouchableOpacity
                       className="bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg dark:shadow-none"
-                      onPress={handleBypassPayment}
+                      onPress={() => setPaymentStep('select_method')}
+                    >
+                      <Text className="text-white font-extrabold text-[15px]">
+                        Proceed to Payment (₹{selectedPlan?.price})
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* STEP 2: Choose Payment Method */}
+                {paymentStep === 'select_method' && (
+                  <View className="gap-3.5 mb-2">
+                    <TouchableOpacity
+                      className="bg-slate-50 dark:bg-[#271318]/50 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 flex-row items-center justify-between active:opacity-80"
+                      onPress={() => setPaymentStep('card_form')}
+                    >
+                      <View className="flex-row items-center">
+                        <View className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/30 items-center justify-center mr-4">
+                          <Ionicons name="card-outline" size={22} color="#e11d48" />
+                        </View>
+                        <View>
+                          <Text className="text-[15px] font-black text-slate-800 dark:text-white">Credit / Debit Card</Text>
+                          <Text className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Visa, Mastercard, RuPay, Maestro</Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="bg-slate-50 dark:bg-[#271318]/50 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 flex-row items-center justify-between active:opacity-80"
+                      onPress={() => setPaymentStep('upi_form')}
+                    >
+                      <View className="flex-row items-center">
+                        <View className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/30 items-center justify-center mr-4">
+                          <Ionicons name="phone-portrait-outline" size={22} color="#0d6e67" />
+                        </View>
+                        <View>
+                          <Text className="text-[15px] font-black text-slate-800 dark:text-white">UPI Payment</Text>
+                          <Text className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Google Pay, PhonePe, Paytm, BHIM</Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="bg-slate-50 dark:bg-[#271318]/50 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 flex-row items-center justify-between active:opacity-80"
+                      onPress={() => setPaymentStep('net_banking_form')}
+                    >
+                      <View className="flex-row items-center">
+                        <View className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/30 items-center justify-center mr-4">
+                          <Ionicons name="business-outline" size={22} color="#0284c7" />
+                        </View>
+                        <View>
+                          <Text className="text-[15px] font-black text-slate-800 dark:text-white">Net Banking</Text>
+                          <Text className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">All major Indian retail banks</Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* STEP 3: Card Details Form */}
+                {paymentStep === 'card_form' && (
+                  <View>
+                    <View className="mb-4">
+                      <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-1.5">Cardholder Name</Text>
+                      <TextInput
+                        placeholder="e.g. John Doe"
+                        placeholderTextColor={isDark ? "rgba(255,255,255,0.2)" : "#94a3b8"}
+                        className="bg-slate-50 dark:bg-[#271318]/40 border border-slate-150 dark:border-rose-950/20 text-slate-900 dark:text-white rounded-2xl px-4 py-3.5 text-[14px] font-semibold"
+                        value={cardName}
+                        onChangeText={setCardName}
+                        autoCapitalize="words"
+                      />
+                    </View>
+
+                    <View className="mb-4">
+                      <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-1.5">Card Number</Text>
+                      <View className="relative">
+                        <TextInput
+                          placeholder="0000 0000 0000 0000"
+                          placeholderTextColor={isDark ? "rgba(255,255,255,0.2)" : "#94a3b8"}
+                          keyboardType="numeric"
+                          maxLength={19}
+                          className="bg-slate-50 dark:bg-[#271318]/40 border border-slate-150 dark:border-rose-950/20 text-slate-900 dark:text-white rounded-2xl pl-4 pr-12 py-3.5 text-[14px] font-semibold tracking-wider"
+                          value={cardNumber}
+                          onChangeText={(t) => setCardNumber(formatCardNumber(t))}
+                        />
+                        <View className="absolute right-4 top-3.5">
+                          <Ionicons name="card" size={22} color={isDark ? "#fda4af" : "#94a3b8"} />
+                        </View>
+                      </View>
+                    </View>
+
+                    <View className="flex-row gap-4 mb-8">
+                      <View className="flex-1">
+                        <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-1.5">Expiry Date</Text>
+                        <TextInput
+                          placeholder="MM/YY"
+                          placeholderTextColor={isDark ? "rgba(255,255,255,0.2)" : "#94a3b8"}
+                          keyboardType="numeric"
+                          maxLength={5}
+                          className="bg-slate-50 dark:bg-[#271318]/40 border border-slate-150 dark:border-rose-950/20 text-slate-900 dark:text-white rounded-2xl px-4 py-3.5 text-[14px] font-semibold text-center"
+                          value={cardExpiry}
+                          onChangeText={(t) => setCardExpiry(formatExpiry(t))}
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-1.5">CVV Code</Text>
+                        <TextInput
+                          placeholder="***"
+                          placeholderTextColor={isDark ? "rgba(255,255,255,0.2)" : "#94a3b8"}
+                          keyboardType="numeric"
+                          secureTextEntry
+                          maxLength={3}
+                          className="bg-slate-50 dark:bg-[#271318]/40 border border-slate-150 dark:border-rose-950/20 text-slate-900 dark:text-white rounded-2xl px-4 py-3.5 text-[14px] font-semibold text-center"
+                          value={cardCVV}
+                          onChangeText={(t) => setCardCVV(t.replace(/\D/g, ''))}
+                        />
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      className="bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg dark:shadow-none"
+                      onPress={() => {
+                        if (!cardName.trim() || cardNumber.length < 19 || cardExpiry.length < 5 || cardCVV.length < 3) {
+                          Alert.alert('Incomplete Details', 'Please enter valid credit card details.');
+                          return;
+                        }
+                        startPaymentProcessing();
+                      }}
+                      disabled={buying}
+                    >
+                      <Text className="text-white font-extrabold text-[15px]">
+                        Pay Securely ₹{selectedPlan?.price}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* STEP 4: UPI Form */}
+                {paymentStep === 'upi_form' && (
+                  <View>
+                    {/* Quick Launch Apps */}
+                    <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-3">Quick Pay using UPI Apps</Text>
+                    <View className="flex-row justify-between gap-3 mb-6">
+                      {[
+                        { name: 'Google Pay', icon: 'logo-google', bg: 'bg-[#e8f0fe] dark:bg-sky-950/30', color: '#1a73e8' },
+                        { name: 'PhonePe', icon: 'wallet', bg: 'bg-[#f3e8ff] dark:bg-purple-950/30', color: '#5f259f' },
+                        { name: 'Paytm', icon: 'send', bg: 'bg-[#e0f2fe] dark:bg-[#1e152a]', color: '#002e6e' }
+                      ].map((app) => (
+                        <TouchableOpacity
+                          key={app.name}
+                          className="flex-1 items-center justify-center py-3.5 rounded-2xl border border-slate-100 dark:border-rose-950/20 bg-slate-50 dark:bg-[#271318]/20 active:opacity-80"
+                          onPress={() => {
+                            setUpiId(`couple.${app.name.toLowerCase().replace(' ', '')}@upi`);
+                          }}
+                        >
+                          <View className={`w-8 h-8 rounded-full ${app.bg} items-center justify-center mb-1.5`}>
+                            <Ionicons name={app.icon as any} size={15} color={app.color} />
+                          </View>
+                          <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{app.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <View className="mb-8">
+                      <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-1.5">Or Enter Custom UPI ID</Text>
+                      <TextInput
+                        placeholder="e.g. username@upi"
+                        placeholderTextColor={isDark ? "rgba(255,255,255,0.2)" : "#94a3b8"}
+                        className="bg-slate-50 dark:bg-[#271318]/40 border border-slate-150 dark:border-rose-950/20 text-slate-900 dark:text-white rounded-2xl px-4 py-3.5 text-[14px] font-semibold"
+                        value={upiId}
+                        onChangeText={setUpiId}
+                        autoCapitalize="none"
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      className="bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg dark:shadow-none"
+                      onPress={() => {
+                        if (!upiId.trim() || !upiId.includes('@')) {
+                          Alert.alert('Invalid UPI ID', 'Please enter a valid UPI address (e.g. name@bank).');
+                          return;
+                        }
+                        startPaymentProcessing();
+                      }}
                       disabled={buying}
                     >
                       <Text className="text-white font-extrabold text-[15px]">
