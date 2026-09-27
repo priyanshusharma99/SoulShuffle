@@ -345,9 +345,12 @@ export default function TabLayout() {
   // ── Logout handler: resets root Stack to login screen ──
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('app:logout', () => {
-      console.log('[TABS LAYOUT] app:logout → resetting root stack to index');
-      router.replace('/');
-    });
+      console.log('[TABS LAYOUT] app:logout resetting root stack to index');
+        setTimeout(() => {
+           while (router.canGoBack()) { router.back(); }
+           router.replace('/');
+        }, 100);
+      });
     return () => sub.remove();
   }, [router]);
 

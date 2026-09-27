@@ -1,9 +1,10 @@
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useSidebar } from '@/context/SidebarContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logout, getMyProfileCached } from '@/services/authService';
 import { leaveRoom, getActiveRoom } from '@/services/roomService';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Platform, Text, TouchableOpacity, View, DeviceEventEmitter, ScrollView, NativeModules } from 'react-native';
 import { router, usePathname } from 'expo-router';
@@ -121,41 +122,35 @@ export default function Sidebar() {
           onPress: async () => {
             console.log('[LOGOUT] Step 1: User confirmed logout');
             setIsLoggingOut(true);
-            closeSidebar();
             try {
               try {
-                if (NativeModules.RNGoogleSignin) {
-                  const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-                  GoogleSignin.configure({
-                    webClientId: '950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com',
-                    iosClientId: '950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com',
-                    offlineAccess: false,
-                  });
-                  try {
-                    await GoogleSignin.signInSilently();
-                  } catch (e) {}
-                  
-                  await GoogleSignin.signOut();
-                  console.log('[LOGOUT] Google session cleared.');
-                  
-                  try {
-                    await GoogleSignin.revokeAccess();
-                  } catch (e) {}
-                } else {
-                  console.log('[LOGOUT] RNGoogleSignin not found. Skipping Google logout (Expo Go mode).');
-                }
+                const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+                  if (!isExpoGo) {
+                    const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+                    GoogleSignin.configure({
+                      webClientId: "950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com",
+                      iosClientId: "950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com",
+                      offlineAccess: false,
+                    });
+                    try { await GoogleSignin.signInSilently(); } catch (e) {}
+                    await GoogleSignin.signOut();
+                    console.log("[LOGOUT] Google session cleared.");
+                    try { await GoogleSignin.revokeAccess(); } catch (e) {}
+                  } else {
+                    console.log("[LOGOUT] Skipping Google logout (Expo Go mode).");
+                  }
               } catch (googleErr) {
                 console.log('[LOGOUT] Google sign out error (ignoring):', googleErr);
               }
 
               console.log('[LOGOUT] Step 2: Clearing ALL AsyncStorage data...');
-              await AsyncStorage.clear();
+              await logout();
               const tokenCheck = await AsyncStorage.getItem('accessToken');
               console.log('[LOGOUT] Step 3: Token after clear =', tokenCheck, '(must be null)');
 
-              console.log('[LOGOUT] Step 4: Emitting app:logout for root layout to navigate...');
-              DeviceEventEmitter.emit('app:logout');
-              console.log('[LOGOUT] Step 5: Done.');
+              console.log('[LOGOUT] Step 4: Emitting app:logout...');
+                DeviceEventEmitter.emit('app:logout');
+                console.log('[LOGOUT] Step 5: Done.');
             } catch (e) {
               console.error('[LOGOUT] ERROR:', e);
               setIsLoggingOut(false);
@@ -240,7 +235,7 @@ export default function Sidebar() {
             </View>
 
             <Text style={{ fontSize: 22, fontWeight: '900', color: 'white', letterSpacing: -0.5 }}>
-              {partnerName ? `${userName} & ${partnerName}` : userName}
+              {userName}
             </Text>
             <Text style={{ fontSize: 12, fontWeight: '500', color: '#888', marginTop: 4, marginBottom: 16 }}>
               Same team, Always ♡

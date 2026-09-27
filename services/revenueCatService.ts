@@ -1,3 +1,4 @@
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 class RevenueCatService {
@@ -16,6 +17,11 @@ class RevenueCatService {
         return;
       }
 
+      const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+      if (isExpoGo) {
+        console.log('[RevenueCatService] Skipping init in Expo Go.');
+        return;
+      }
       const apiKey = Platform.OS === 'ios' 
         ? (process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || 'appl_dummy_key')
         : (process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || 'goog_dummy_key');
