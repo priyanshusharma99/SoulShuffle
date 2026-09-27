@@ -5,13 +5,14 @@ import { leaveRoom, getActiveRoom } from '@/services/roomService';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Platform, Text, TouchableOpacity, View, DeviceEventEmitter } from 'react-native';
-import { router } from 'expo-router';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Text, TouchableOpacity, View, DeviceEventEmitter, ScrollView, NativeModules } from 'react-native';
+import { router, usePathname } from 'expo-router';
 import api from '@/services/api';
 
 import { DEFAULT_AVATAR } from '@/hooks/use-user-avatar';
 
 export default function Sidebar() {
+  const pathname = usePathname();
   const { isOpen, closeSidebar } = useSidebar();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -123,35 +124,25 @@ export default function Sidebar() {
             closeSidebar();
             try {
               try {
-                // Lazily require to prevent crashing Expo Go
-                const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-                
-                // Configure must be called before signOut, otherwise it fails
-                GoogleSignin.configure({
-                  webClientId: '950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com',
-                  iosClientId: '950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com',
-                  offlineAccess: false,
-                });
-
-                try {
-                  // If the app was restarted, the native SDK might not know we are signed in,
-                  // so we should try to restore the session silently before signing out,
-                  // otherwise signOut() might throw an error and fail to clear Play Services.
+                if (NativeModules.RNGoogleSignin) {
+                  const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+                  GoogleSignin.configure({
+                    webClientId: '950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com',
+                    iosClientId: '950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com',
+                    offlineAccess: false,
+                  });
                   try {
                     await GoogleSignin.signInSilently();
                   } catch (e) {}
                   
                   await GoogleSignin.signOut();
                   console.log('[LOGOUT] Google session cleared.');
-                } catch (e) {
-                  console.log('[LOGOUT] signOut error: ', e);
-                }
-                
-                try {
-                  await GoogleSignin.revokeAccess();
-                  console.log('[LOGOUT] Google access revoked to force account picker next time.');
-                } catch (e) {
-                  console.log('[LOGOUT] revokeAccess error: ', e);
+                  
+                  try {
+                    await GoogleSignin.revokeAccess();
+                  } catch (e) {}
+                } else {
+                  console.log('[LOGOUT] RNGoogleSignin not found. Skipping Google logout (Expo Go mode).');
                 }
               } catch (googleErr) {
                 console.log('[LOGOUT] Google sign out error (ignoring):', googleErr);
@@ -188,142 +179,105 @@ export default function Sidebar() {
     );
   }
 
+  const MenuItem = ({ icon, label, path, isActive = false, isLogout = false }: { icon: any, label: string, path?: string, isActive?: boolean, isLogout?: boolean }) => (
+    <TouchableOpacity
+      onPress={() => isLogout ? handleLogout() : navigateTo(path!)}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginBottom: 8,
+        borderRadius: 16,
+        backgroundColor: isActive || isLogout ? '#3c101c' : 'transparent',
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{
+          width: 32,
+          height: 32,
+          borderRadius: 10,
+          backgroundColor: isActive || isLogout ? 'transparent' : '#2d141d',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Ionicons name={icon} size={16} color={isLogout ? "#e55f75" : isActive ? "white" : "#ffb3c6"} />
+        </View>
+        <Text style={{
+          color: isLogout ? "#e55f75" : "white",
+          fontWeight: '700',
+          fontSize: 14,
+          marginLeft: 14,
+        }}>
+          {label}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={14} color={isLogout ? "#e55f75" : "white"} />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}>
-      <View className="flex-1 flex-row">
+      <View style={{ flex: 1, flexDirection: 'row' }}>
         {/* Backdrop Overlay */}
         <TouchableOpacity
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          className="bg-black/30 dark:bg-black/50"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
           onPress={() => !isLoggingOut && closeSidebar()}
         />
 
         {/* Menu Panel */}
-        <View className="bg-[#fff8f7] dark:bg-[#180D10] w-[80%] h-full pt-16 rounded-tr-[40px] rounded-br-[40px] shadow-slate-900/40 dark:shadow-black/60 border-r border-[#ffeceb] dark:border-rose-950/20" style={{ zIndex: 1001 }}>
-          <View className="px-8 pb-8 flex-1">
+        <View style={{ width: '82%', height: '100%', backgroundColor: '#130508', borderTopRightRadius: 40, borderBottomRightRadius: 40, paddingTop: 40, zIndex: 1001 }}>
+          <View style={{ paddingHorizontal: 20, paddingBottom: 16, flex: 1 }}>
 
             {/* Avatar Section */}
-            <View className="relative w-20 h-20 mb-4 rounded-full bg-rose-500/10 dark:bg-rose-950/40 items-center justify-center p-2 border-[2.5px] border-[#e24e5d] dark:border-rose-400">
+            <View style={{ width: 68, height: 68, marginBottom: 12, borderRadius: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ff2d55' }}>
               <Image
                 source={{ uri: userAvatar }}
-                className="w-14 h-14"
+                style={{ width: 52, height: 52, borderRadius: 26 }}
                 resizeMode="contain"
               />
             </View>
 
-            <Text className="text-[28px] font-black text-[#af2c3b] dark:text-slate-100 tracking-tight">
+            <Text style={{ fontSize: 22, fontWeight: '900', color: 'white', letterSpacing: -0.5 }}>
               {partnerName ? `${userName} & ${partnerName}` : userName}
             </Text>
-            {connectionString ? (
-              <Text className="text-[14px] font-medium text-slate-600 dark:text-slate-400 mt-1 mb-8">{connectionString}</Text>
-            ) : (
-              <View className="mb-6" />
-            )}
+            <Text style={{ fontSize: 12, fontWeight: '500', color: '#888', marginTop: 4, marginBottom: 16 }}>
+              Same team, Always ♡
+            </Text>
+            
+            <View style={{ height: 1, backgroundColor: '#2a141a', marginBottom: 16 }} />
 
             {/* Menu Links */}
-            <View className="mt-6 gap-1">
-              <TouchableOpacity
-                className="flex-row items-center py-3.5 px-2 mb-1 rounded-full"
-                onPress={() => navigateTo('/')}
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="home" size={22} color={isDark ? '#fda4af' : '#857169'} />
-                </View>
-                <Text className="text-[#857169] dark:text-slate-200 font-bold text-[16px] ml-4">Home</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="flex-row items-center py-3.5 px-2 mb-1 rounded-full"
-                onPress={() => navigateTo('/dares')}
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="trophy" size={22} color={isDark ? '#fda4af' : '#857169'} />
-                </View>
-                <Text className="text-[#857169] dark:text-slate-200 font-bold text-[16px] ml-4">Challenges</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="flex-row items-center py-3.5 px-2 mb-1 rounded-full"
-                onPress={() => navigateTo('/history')}
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="time" size={22} color={isDark ? '#fda4af' : '#857169'} />
-                </View>
-                <Text className="text-[#857169] dark:text-slate-200 font-bold text-[16px] ml-4">History</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="flex-row items-center py-3.5 px-2 mb-1 rounded-full"
-                onPress={() => navigateTo('/store')}
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="cart" size={22} color={isDark ? '#fda4af' : '#857169'} />
-                </View>
-                <Text className="text-[#857169] dark:text-slate-200 font-bold text-[16px] ml-4">Store</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="flex-row items-center py-3.5 px-2 mb-1 rounded-full"
-                onPress={() => navigateTo('/coin-toss')}
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="pricetag" size={22} color={isDark ? '#fda4af' : '#857169'} />
-                </View>
-                <Text className="text-[#857169] dark:text-slate-200 font-bold text-[16px] ml-4">Coin Toss</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Bottom Menu Items */}
-            <View className="mt-auto">
-              <TouchableOpacity
-                className="flex-row items-center py-3.5 px-2 mb-2 rounded-full"
-                onPress={() => navigateTo('/profile')}
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="settings" size={22} color={isDark ? '#fda4af' : '#857169'} />
-                </View>
-                <Text className="text-[#857169] dark:text-slate-200 font-bold text-[16px] ml-4">Settings</Text>
-              </TouchableOpacity>
-
-              {/* Logout Button */}
-              <TouchableOpacity
-                onPress={handleLogout}
-                className="flex-row items-center py-3.5 px-3 mb-2 rounded-full bg-rose-50 dark:bg-[#250e14] border border-transparent dark:border-rose-950/30"
-              >
-                <View className="w-7 items-center justify-center">
-                  <Ionicons name="log-out-outline" size={22} color="#e11d48" />
-                </View>
-                <Text className="text-rose-600 dark:text-rose-400 font-bold text-[16px] ml-4">Log Out</Text>
-              </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <MenuItem icon="home" label="Home" path="/" isActive={pathname === '/' || pathname === ''} />
+              <MenuItem icon="trophy" label="Challenges" path="/dares" isActive={pathname === '/dares'} />
+              <MenuItem icon="time" label="History" path="/history" isActive={pathname === '/history'} />
+              <MenuItem icon="cart" label="Store" path="/store" isActive={pathname === '/store'} />
+              <MenuItem icon="pricetag" label="Coin Toss" path="/coin-toss" isActive={pathname === '/coin-toss'} />
+              <MenuItem icon="settings" label="Settings" path="/profile" isActive={pathname === '/profile'} />
+              <MenuItem icon="log-out-outline" label="Log Out" isLogout={true} />
             </View>
           </View>
 
           {/* Footer */}
-          <View className="px-8 pb-12 pt-4 border-t border-slate-100 dark:border-slate-800/20 bg-[#fffdfc] dark:bg-[#180D10]/40 rounded-br-[40px]">
-            <Text className="text-3xl font-black italic text-[#af2c3b] dark:text-slate-100 tracking-tight mb-2">Soul Shuffle</Text>
-            <Text className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-widest uppercase">Version 1.1.1</Text>
+          <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 2, color: '#666' }}>SOUL SHUFFLE</Text>
+            <Text style={{ fontSize: 9, fontWeight: '600', color: '#555', marginTop: 4 }}>v 1.1.1</Text>
           </View>
         </View>
       </View>
 
       {/* FULL-SCREEN LOADING SPINNER */}
       {isLoggingOut && (
-        <View
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}
-          className="bg-[#180D10]/90 items-center justify-center"
-        >
-          <View className="bg-white dark:bg-[#1E1E1E] p-8 rounded-2xl items-center border border-rose-950/40 shadow-rose-900/20">
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(19,5,8,0.9)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: '#1e1e1e', padding: 32, borderRadius: 16, alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#e11d48" />
-            <Text className="text-white font-bold mt-6 text-lg tracking-wide">
-              Signing Out...
-            </Text>
-            <Text className="text-rose-400/80 text-xs font-medium mt-2">
-              Securing your session
-            </Text>
+            <Text style={{ color: 'white', fontWeight: 'bold', marginTop: 24, fontSize: 18 }}>Signing Out...</Text>
+            <Text style={{ color: '#888', fontSize: 12, marginTop: 8 }}>Securing your session</Text>
           </View>
         </View>
       )}
     </View>
   );
 }
-

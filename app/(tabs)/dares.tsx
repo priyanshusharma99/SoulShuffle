@@ -1,6 +1,6 @@
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation, interpolateColor } from 'react-native-reanimated';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Dimensions, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter } from 'react-native';
+import { View, Easing, Text, ScrollView, Dimensions, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter, Animated as RNAnimated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -155,9 +155,6 @@ const CarouselItemUI = ({ item, isDark, onSelectDare }: any) => {
              <Text className="text-white text-[11px] font-black tracking-widest uppercase">{item.category}</Text>
           </View>
         ) : <View />}
-        <TouchableOpacity className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}>
-           <Ionicons name="heart-outline" size={20} color="white" />
-        </TouchableOpacity>
       </View>
 
       <View className="absolute bottom-6 left-5 right-5">
@@ -254,25 +251,31 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
         if (isSwipeRight) {
           isAnimating.current = true;
           Animated.timing(currentPosition, {
-            toValue: { x: SCREEN_WIDTH + 100, y: gestureState.dy + (gestureState.vy * 50) },
-            duration: 150,
-            useNativeDriver: false
-          }).start(() => {
+              toValue: { x: SCREEN_WIDTH * 2, y: gestureState.dy + (gestureState.vy * 50) },
+              duration: 250,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: false
+            }).start(() => {
             setCurrentIndex(prev => (prev < d.length - 1 ? prev + 1 : 0));
-            currentPosition.setValue({ x: 0, y: 0 });
-            isAnimating.current = false;
-          });
+              setTimeout(() => {
+                currentPosition.setValue({ x: 0, y: 0 });
+                isAnimating.current = false;
+              }, 50);
+            });
         } else if (isSwipeLeft) {
           isAnimating.current = true;
           Animated.timing(currentPosition, {
-            toValue: { x: -SCREEN_WIDTH - 100, y: gestureState.dy + (gestureState.vy * 50) },
-            duration: 150,
-            useNativeDriver: false
-          }).start(() => {
+              toValue: { x: -SCREEN_WIDTH * 2, y: gestureState.dy + (gestureState.vy * 50) },
+              duration: 250,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: false
+            }).start(() => {
             setCurrentIndex(prev => (prev < d.length - 1 ? prev + 1 : 0));
-            currentPosition.setValue({ x: 0, y: 0 });
-            isAnimating.current = false;
-          });
+              setTimeout(() => {
+                currentPosition.setValue({ x: 0, y: 0 });
+                isAnimating.current = false;
+              }, 50);
+            });
         } else {
           Animated.spring(currentPosition, {
             toValue: { x: 0, y: 0 },
@@ -294,7 +297,9 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
       cardsToRender.push({ item: data[idx], offset, originalIndex: idx });
     }
 
+    if (!data || data.length === 0) return null;
     const frontCard = data[currentIndex];
+    if (!frontCard) return null;
     const frontPosition = getPosition(frontCard.id);
 
     return cardsToRender.map(({ item, offset, originalIndex }) => {
@@ -308,7 +313,7 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
       if (isFront) {
         const itemPosition = getPosition(item.id);
         const rotate = itemPosition.x.interpolate({
-          inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
           outputRange: ['-8deg', '0deg', '8deg'],
           extrapolate: 'clamp'
         });
@@ -327,22 +332,22 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
         }
       } else if (isSecond) {
         const scale = frontPosition.x.interpolate({
-          inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
           outputRange: [1, 0.94, 1],
           extrapolate: 'clamp'
         });
         const rotate = frontPosition.x.interpolate({
-          inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
           outputRange: ['0deg', '-6deg', '0deg'],
           extrapolate: 'clamp'
         });
         const translateX = frontPosition.x.interpolate({
-          inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
           outputRange: [0, -25, 0],
           extrapolate: 'clamp'
         });
         const translateY = frontPosition.x.interpolate({
-          inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
           outputRange: [0, -10, 0],
           extrapolate: 'clamp'
         });
@@ -441,6 +446,36 @@ export default function Dares() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const searchBarAnim = React.useRef(new RNAnimated.Value(0)).current;
+
+  const toggleSearch = () => {
+    if (searchOpen) {
+      // Close: animate out then reset
+      RNAnimated.timing(searchBarAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start(() => {
+        setSearchQuery('');
+        setSearchOpen(false);
+      });
+    } else {
+      setSearchOpen(true);
+      RNAnimated.timing(searchBarAnim, { toValue: 1, duration: 250, useNativeDriver: false }).start();
+    }
+  };
+
+  // Compute search-filtered deck: matching cards float to the TOP of the deck
+  const getFilteredDares = (baseDares: any[]) => {
+    if (!searchQuery.trim()) return baseDares;
+    const q = searchQuery.trim().toLowerCase();
+    const matching = baseDares.filter(d =>
+      (d.title || d.name || '').toLowerCase().includes(q) ||
+      (d.category || '').toLowerCase().includes(q)
+    );
+    const rest = baseDares.filter(d =>
+      !(d.title || d.name || '').toLowerCase().includes(q) &&
+      !(d.category || '').toLowerCase().includes(q)
+    );
+    return [...matching, ...rest];
+  };
 
   const getFallbackCards = () => [
     {
@@ -611,25 +646,25 @@ export default function Dares() {
       return;
     }
 
+    // ── Hard limit guard (double-check even if button was enabled) ──
+    if (limits && limits.can_send === false) {
+      const msg = limits.daily_remaining <= 0
+        ? `Daily limit reached (${limits.daily_limit} cards/day). Come back tomorrow!`
+        : `You already have ${limits.active_count} active card(s) pending. Wait for your partner to respond before sending more.`;
+      Alert.alert('Send Limit Reached', msg);
+      return;
+    }
+
     const targetDare = selectedDare;
     const currentNote = note;
     const backupDares = [...dares];
-    
-    setSelectedDare(null);
-    setIsSending(false);
-    Alert.alert('Challenge Sent', `${targetDare.title} was sent to your partner!`);
 
-    setDares(prevDares => {
-      const updatedDares = prevDares.filter(d => d.id !== targetDare.id);
-      AsyncStorage.getItem(CACHE_KEY).then(cached => {
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          parsed.cachedDares = updatedDares;
-          AsyncStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
-        }
-      }).catch(() => {});
-      return updatedDares;
-    });
+    // Close modal and start sending spinner
+    setSelectedDare(null);
+    setIsSending(true);
+
+    // Optimistic: remove card from visible list & update limits
+    setDares(prevDares => prevDares.filter(d => d.id !== targetDare.id));
 
     const backupLimits = limits ? { ...limits } : null;
     let newOptimisticLimits = limits ? { ...limits } : null;
@@ -643,46 +678,51 @@ export default function Dares() {
       };
       newOptimisticLimits.can_send = newOptimisticLimits.daily_remaining > 0 && newOptimisticLimits.active_remaining > 0;
       setLimits(newOptimisticLimits);
-      
+    }
+
+    try {
+      await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
+
+      // ✅ Success — now alert and emit socket event
+      Alert.alert('Challenge Sent! 🎯', `"${targetDare.title}" was sent to your partner!`);
+      GameSocket.sendGameEvent(activeRoom.code, 'CHALLENGE_SENT', {
+        challenge: { ...targetDare, message: currentNote }
+      });
+
+      // Sync fresh limits from backend
+      try {
+        const freshLimits = await fetchSendLimits(activeRoom.id);
+        setLimits(freshLimits);
+        AsyncStorage.getItem(CACHE_KEY).then(cached => {
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.cachedLimits = freshLimits;
+            parsed.cachedDares = dares.filter((d: any) => d.id !== targetDare.id);
+            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
+          }
+        }).catch(() => {});
+      } catch (e) {}
+
+    } catch (error: any) {
+      // ❌ API failed — restore card + limits
+      setDares(backupDares);
+      if (backupLimits) setLimits(backupLimits);
+
+      const errMsg = error?.response?.data?.message || error?.message || 'Failed to send card.';
+      Alert.alert('Could Not Send', errMsg);
+
+      // Restore cache
       AsyncStorage.getItem(CACHE_KEY).then(cached => {
         if (cached) {
           const parsed = JSON.parse(cached);
-          parsed.cachedLimits = newOptimisticLimits;
+          parsed.cachedDares = backupDares;
+          if (backupLimits) parsed.cachedLimits = backupLimits;
           AsyncStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
         }
       }).catch(() => {});
+    } finally {
+      setIsSending(false);
     }
-
-    sendChallenge(targetDare.id.toString(), currentNote, activeRoom)
-      .then(async () => {
-        GameSocket.sendGameEvent(activeRoom.code, 'CHALLENGE_SENT', { 
-          challenge: { ...targetDare, message: currentNote }
-        });
-        try {
-          const freshLimits = await fetchSendLimits(activeRoom.id);
-          setLimits(freshLimits);
-          AsyncStorage.getItem(CACHE_KEY).then(cached => {
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              parsed.cachedLimits = freshLimits;
-              AsyncStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
-            }
-          }).catch(() => {});
-        } catch (e) {}
-      })
-      .catch((error: any) => {
-        setDares(backupDares);
-        if (backupLimits) {
-          setLimits(backupLimits);
-          AsyncStorage.getItem(CACHE_KEY).then(cached => {
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              parsed.cachedLimits = backupLimits;
-              AsyncStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
-            }
-          }).catch(() => {});
-        }
-      });
   };
 
   const bgColor = isDark ? '#120E15' : '#F7F4F6';
@@ -730,28 +770,84 @@ export default function Dares() {
           contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
         >
           {/* Header Title */}
-          <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 }}>
+          <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <Text style={{ fontSize: 32, fontWeight: '900', color: textColor, letterSpacing: -0.5 }}>Dares</Text>
-              <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}>
-                <Text style={{ color: textColor, fontWeight: '800', fontSize: 13 }}>
-                  {selectedCategory === 'ALL' 
-                    ? dares.length 
-                    : dares.filter((d: any) => d.category === selectedCategory).length} Cards
-                </Text>
+              {/* Right side: Search Icon + Card Count */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                {/* Search Circle Button */}
+                <TouchableOpacity
+                  onPress={toggleSearch}
+                  style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: searchOpen ? '#FF296D' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)'),
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={searchOpen ? 'close' : 'search'} size={17} color={searchOpen ? '#fff' : textColor} />
+                </TouchableOpacity>
+                {/* Card Count Badge */}
+                <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}>
+                  <Text style={{ color: textColor, fontWeight: '800', fontSize: 13 }}>
+                    {searchQuery.trim()
+                      ? getFilteredDares(selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory)).filter(d => (d.title || d.name || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) || (d.category || '').toLowerCase().includes(searchQuery.trim().toLowerCase())).length
+                      : selectedCategory === 'ALL'
+                        ? dares.length
+                        : dares.filter((d: any) => d.category === selectedCategory).length} Cards
+                  </Text>
+                </View>
               </View>
             </View>
             <Text style={{ color: subTextColor, fontSize: 15, fontWeight: '500', letterSpacing: -0.2 }}>
-              {selectedCategory === 'ALL' 
-                ? "Step out, connect, and make memories 💖" 
-                : `${selectedCategory.charAt(0) + selectedCategory.slice(1).toLowerCase()} dares to explore`}
+              {searchQuery.trim()
+                ? `Showing results for "${searchQuery}"`
+                : selectedCategory === 'ALL'
+                  ? "Step out, connect, and make memories 💖"
+                  : `${selectedCategory.charAt(0) + selectedCategory.slice(1).toLowerCase()} dares to explore`}
             </Text>
+
+            {/* Animated Search Bar - always mounted, animation drives visibility */}
+            <RNAnimated.View style={{
+              overflow: 'hidden',
+              opacity: searchBarAnim,
+              maxHeight: searchBarAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 56] }),
+              marginTop: searchBarAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 14] }),
+            }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center',
+                backgroundColor: isDark ? '#1C0E14' : '#F3F4F6',
+                borderRadius: 16, paddingHorizontal: 14,
+                borderWidth: 1.5,
+                borderColor: searchQuery.trim() ? '#FF296D' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+              }}>
+                <Ionicons name="search-outline" size={16} color={searchQuery.trim() ? '#FF296D' : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)')} />
+                <TextInput
+                  autoFocus={searchOpen}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search cards or categories..."
+                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                  style={{
+                    flex: 1, marginLeft: 10, paddingVertical: 13,
+                    fontSize: 15, fontWeight: '500',
+                    color: textColor,
+                  }}
+                />
+                {searchQuery.trim() ? (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle" size={18} color="#FF296D" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </RNAnimated.View>
+
           </View>
 
           {/* Carousel */}
           <View style={{ marginTop: 8, marginBottom: 30 }}>
               <DareCarousel 
-                data={selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory)} 
+                data={getFilteredDares(selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory))} 
                 isDark={isDark} 
                 onSelectDare={setSelectedDare} 
               />
@@ -826,26 +922,43 @@ export default function Dares() {
                         elevation: 3
                       }}
                     >
-                      <View style={{ width: '100%', height: '52%' }}>
-                        <Image source={cat.image} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                      </View>
-                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', paddingHorizontal: 8, paddingBottom: 2 }}>
-                        <Text 
-                          numberOfLines={1} 
-                          adjustsFontSizeToFit 
-                          minimumFontScale={0.85}
-                          style={{ fontSize: 14, fontWeight: '800', color: selectedCategory === cat.id ? '#FFF' : cat.color, textAlign: 'center', width: '100%' }}
-                        >
-                          {cat.label}
-                        </Text>
-                        <Text 
-                          numberOfLines={1}
-                          style={{ fontSize: 12, fontWeight: '700', color: selectedCategory === cat.id ? 'rgba(255,255,255,0.9)' : subTextColor, marginTop: 3, textAlign: 'center' }}
-                        >
-                          {cat.count} {cat.count === 1 ? 'Card' : 'Cards'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
+                      <View style={{ width: '100%', height: '65%', position: 'relative' }}>
+                          <Image source={cat.image} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          
+                          {/* Top Right Card Count Badge */}
+                          <View style={{ 
+                            position: 'absolute', 
+                            top: 6, 
+                            right: 6, 
+                            backgroundColor: 'rgba(0,0,0,0.6)', 
+                            borderRadius: 12, 
+                            paddingHorizontal: 6,
+                            paddingVertical: 3,
+                            minWidth: 24, 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.1)'
+                          }}>
+                            <Text style={{ color: 'white', fontSize: 10, fontWeight: '900' }}>{cat.count}</Text>
+                          </View>
+                        </View>
+                        
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', paddingHorizontal: 8 }}>
+                          <Text 
+                            numberOfLines={1}
+                            style={{ 
+                              fontSize: 14, 
+                              fontWeight: '800', 
+                              color: selectedCategory === cat.id ? '#FFF' : cat.color, 
+                              textAlign: 'center', 
+                              width: '100%' 
+                            }}
+                          >
+                            {cat.label}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>

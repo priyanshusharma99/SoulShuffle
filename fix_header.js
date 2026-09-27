@@ -1,43 +1,14 @@
 const fs = require('fs');
-let content = fs.readFileSync('app/(tabs)/dares.tsx', 'utf8');
+let code = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 
-// The current header block starts with "{/* Header */}" and ends at "</View>" before "{loading ?"
-const headerStart = "{/* Header */}";
-const headerEnd = "</View>";
+code = code.replace(
+  '<View>\n                  <Text className="text-gray-400 text-sm font-medium mb-1">\n                    Good evening,\n                  </Text>\n                  <Text className="text-white text-2xl font-black tracking-tight">\n                    {userName} & {partnerName} 💕\n                  </Text>\n                </View>\n                <View style={{ alignItems: \\'flex-end\\' }}>',
+  '<View className="flex-1 mr-4">\n                  <Text className="text-gray-400 text-sm font-medium mb-1">\n                    Good evening,\n                  </Text>\n                  <Text className="text-white text-2xl font-black tracking-tight" numberOfLines={1} ellipsizeMode="tail">\n                    {userName} & {partnerName} 💕\n                  </Text>\n                </View>\n                <View style={{ alignItems: \\'flex-end\\', flexShrink: 0 }}>'
+);
+code = code.replace(
+  '<View>\r\n                  <Text className="text-gray-400 text-sm font-medium mb-1">\r\n                    Good evening,\r\n                  </Text>\r\n                  <Text className="text-white text-2xl font-black tracking-tight">\r\n                    {userName} & {partnerName} 💕\r\n                  </Text>\r\n                </View>\r\n                <View style={{ alignItems: \\'flex-end\\' }}>',
+  '<View className="flex-1 mr-4">\r\n                  <Text className="text-gray-400 text-sm font-medium mb-1">\r\n                    Good evening,\r\n                  </Text>\r\n                  <Text className="text-white text-2xl font-black tracking-tight" numberOfLines={1} ellipsizeMode="tail">\r\n                    {userName} & {partnerName} 💕\r\n                  </Text>\r\n                </View>\r\n                <View style={{ alignItems: \\'flex-end\\', flexShrink: 0 }}>'
+);
 
-const startIdx = content.indexOf(headerStart);
-let afterHeaderIdx = content.indexOf(headerEnd, startIdx + headerStart.length);
-afterHeaderIdx = content.indexOf("</View>", afterHeaderIdx + 1); // it's nested
-afterHeaderIdx = content.indexOf("</View>", afterHeaderIdx + 1); 
-
-// Better way: use regex to replace the entire header View block
-const headerRegex = /\{\/\* Header \*\/\}[\s\S]*?(?=\{\s*loading \?)/;
-
-const newHeader = \{/* Header */}
-        <View className="flex-row items-center justify-between px-6 pt-5 pb-3 bg-[#fff8f7] dark:bg-[#0B0406] z-10">
-          <TouchableOpacity onPress={openSidebar}>
-            <Ionicons name="menu-outline" size={32} color={isDark ? "#fff" : "#000"} />
-          </TouchableOpacity>
-          <View className="flex-row items-center justify-center absolute left-0 right-0 z-[-1]" pointerEvents="none" style={{ paddingHorizontal: 100 }}>
-            <Ionicons name="infinite" size={28} color="#FF1B6B" style={{ transform: [{ rotate: '-15deg' }] }} />
-            <Text className="text-[#FF1B6B] font-black text-[22px] leading-6 tracking-tight ml-1" style={{ flexShrink: 1, textAlign: 'center' }}>SoulShuffl\\ne</Text>
-          </View>
-          <View className="flex-row items-center gap-4">
-            <TouchableOpacity>
-               <Ionicons name="notifications-outline" size={26} color={isDark ? "#fff" : "#000"} />
-               <View className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#FF1B6B]" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/profile')}>
-              <Image 
-                source={{ uri: userAvatar }} 
-                className="w-9 h-9 rounded-full border border-slate-200 dark:border-rose-950/30"
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        \;
-
-content = content.replace(headerRegex, newHeader);
-fs.writeFileSync('app/(tabs)/dares.tsx', content, 'utf8');
-console.log('Fixed Header');
+fs.writeFileSync('app/(tabs)/index.tsx', code);
+console.log('Fixed header layout');
