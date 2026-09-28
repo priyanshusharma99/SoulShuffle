@@ -206,213 +206,157 @@ const SigninForm = () => {
             }
         }
         return (
-            <View className="flex-1 relative overflow-hidden">
-                <View className='absolute w-[500px] h-[500px] bg-pink-200/40 dark:bg-[#271318]/40 rounded-full -top-40 -left-20' />
-                <View className='absolute w-[400px] h-[400px] bg-purple-200/40 dark:bg-rose-950/10 rounded-full top-60 -right-40' />
+    <View className="w-full gap-y-3.5 px-6 mt-1">
+        {/* Google & Apple Auth Row */}
+        <View className="flex-row gap-x-3">
+            <TouchableOpacity 
+                onPress={googleLogin}
+                className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
+            >
+                <Ionicons name="logo-google" size={18} color="white" />
+                <Text className="text-white font-semibold text-sm ml-2">Google</Text>
+            </TouchableOpacity>
 
-                <SafeAreaView className="flex-1">
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                        className="flex-1 justify-center px-6"
-                    >
-                        <View className="items-center mb-6 mt-16">
-                            <View className="flex-row items-center gap-1.5 mb-2">
-                                <Ionicons name="infinite" size={38} color={isDark ? '#fda4af' : '#be123c'} style={{ transform: [{ rotate: '-15deg' }] }} />
-                                <Text className="text-red-700 dark:text-rose-400 font-black text-4xl tracking-tight">SoulShuffle</Text>
-                            </View>
-                            <Text className="text-slate-500 dark:text-slate-400 mt-2 text-base font-medium">Ignite the spark, play together.</Text>
-                        </View>
+            <TouchableOpacity 
+                onPress={appleLogin}
+                className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
+            >
+                <Ionicons name="logo-apple" size={18} color="white" />
+                <Text className="text-white font-semibold text-sm ml-2">Apple</Text>
+            </TouchableOpacity>
+        </View>
 
-                        <View className="bg-white/90 dark:bg-[#271318]/90 rounded-2xl p-6 shadow-rose-100 border border-white/60 dark:border-rose-950/20">
+        {/* Divider */}
+        <View className="flex-row items-center my-1 px-4">
+            <View className="flex-1 h-[1px] bg-white/10" />
+            <Text className="text-white/30 px-3 font-bold text-[10px] tracking-widest uppercase">Or Continue With</Text>
+            <View className="flex-1 h-[1px] bg-white/10" />
+        </View>
 
-                            <View className="mb-5">
-                                <Text className="text-slate-700 dark:text-slate-300 font-semibold mb-2 ml-1 text-sm">Email</Text>
-                                <View className="flex-row items-center border border-slate-100 dark:border-rose-950/40 bg-slate-50/50 dark:bg-[#0F0608] rounded-2xl h-14 px-4 overflow-hidden">
-                                    <Ionicons name="mail-outline" size={20} color={isDark ? "#D36B93" : "#666666"} />
-                                    <TextInput
-                                        placeholder="Enter your email"
-                                        placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
-                                        className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
-                                        value={email}
-                                        onChangeText={setEmail}
-                                        autoCapitalize="none"
-                                    />
-                                </View>
-                            </View>
+        {/* Email & Password */}
+        <View className="relative">
+            <Ionicons name="mail-outline" size={18} color="#FF296D" style={{ position: 'absolute', top: 14, left: 18, zIndex: 1 }} />
+            <TextInput
+                className="w-full bg-[#160B12] rounded-full pl-12 pr-6 py-3.5 text-white text-sm border border-white/5"
+                placeholder="Email Address"
+                placeholderTextColor="#71717a"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={{ color: 'white' }}
+            />
+        </View>
 
-                            <View className="mb-6">
-                                <Text className="text-slate-700 dark:text-slate-300 font-semibold mb-2 ml-1 text-sm">Password</Text>
-                                <View className="flex-row items-center border border-slate-100 dark:border-rose-950/40 bg-slate-50/50 dark:bg-[#0F0608] rounded-2xl h-14 px-4 overflow-hidden">
-                                    <Ionicons name="lock-closed-outline" size={20} color={isDark ? "#D36B93" : "#666666"} />
-                                    <TextInput
-                                        placeholder="Enter your password"
-                                        placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
-                                        className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        secureTextEntry={!showPassword}
-                                        autoCapitalize="none"
-                                    />
-                                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-1">
-                                        <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={isDark ? "#D36B93" : "#666666"} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
+        <View className="relative">
+            <Ionicons name="lock-closed-outline" size={18} color="#FF296D" style={{ position: 'absolute', top: 14, left: 18, zIndex: 1 }} />
+            <TextInput
+                className="w-full bg-[#160B12] rounded-full pl-12 pr-12 py-3.5 text-white text-sm border border-white/5"
+                placeholder="Password"
+                placeholderTextColor="#71717a"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                style={{ color: 'white' }}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ position: 'absolute', top: 14, right: 18, zIndex: 1 }}>
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#71717a" />
+            </TouchableOpacity>
+        </View>
 
-                            {errorMessage ? (
-                                <Text className="text-red-500 text-sm mb-4 ml-1">{errorMessage}</Text>
-                            ) : null}
+        {/* Forgot Password Link */}
+        <View className="items-end px-2 mt-[-6px]">
+            <TouchableOpacity onPress={() => setForgotPasswordModalVisible(true)}>
+                <Text className="text-[#FF296D] text-xs font-medium">Forgot Password?</Text>
+            </TouchableOpacity>
+        </View>
 
-                            <TouchableOpacity
-                                className="bg-rose-500 rounded-2xl h-14 items-center justify-center shadow-lg mb-4"
-                                activeOpacity={0.85}
-                                onPress={handleSignIn}
-                                disabled={isLoading}
+        {/* Error Message */}
+        {errorMessage ? (
+            <Text className="text-rose-500 text-xs text-center font-medium">{errorMessage}</Text>
+        ) : null}
+
+        {/* Sign In Button */}
+        <TouchableOpacity 
+            onPress={handleSignIn}
+            disabled={isLoading}
+            className="w-full bg-[#FF296D] rounded-full py-4 flex-row items-center justify-center shadow-lg shadow-rose-500/30 mt-1"
+        >
+            {isLoading ? (
+                <ActivityIndicator color="white" />
+            ) : (
+                <Text className="text-white font-bold text-[16px] tracking-wide">Sign In</Text>
+            )}
+        </TouchableOpacity>
+
+        {/* Modal preserved */}
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={forgotPasswordModalVisible}
+            onRequestClose={() => setForgotPasswordModalVisible(false)}
+        >
+            <View className="flex-1 justify-end bg-black/60">
+                <View className="bg-[#1A1418] rounded-t-3xl p-6 pb-12">
+                    <View className="flex-row justify-between items-center mb-6">
+                        <Text className="text-white text-xl font-bold">Reset Password</Text>
+                        <TouchableOpacity onPress={() => setForgotPasswordModalVisible(false)}>
+                            <Ionicons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {forgotPasswordStep === 1 ? (
+                        <>
+                            <Text className="text-white/70 mb-4">Enter your email address to receive an OTP.</Text>
+                            <TextInput
+                                className="w-full bg-black/40 rounded-full px-6 py-4 text-white border border-white/10 mb-4"
+                                placeholder="Email Address"
+                                placeholderTextColor="#71717a"
+                                value={forgotPasswordEmail}
+                                onChangeText={setForgotPasswordEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity 
+                                onPress={handleForgotPassword}
+                                disabled={isSubmitting}
+                                className="w-full bg-[#FF296D] rounded-full py-4 items-center justify-center"
                             >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
-                                    <Text className="text-white font-bold text-base">Sign In</Text>
-                                )}
+                                {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Send OTP</Text>}
                             </TouchableOpacity>
-
-                            <View className="flex-row items-center mb-6">
-                                <TouchableOpacity onPress={() => setRememberMe(!rememberMe)} className="mr-2">
-                                    <Ionicons name={rememberMe ? "checkbox" : "square-outline"} size={22} color={rememberMe ? "#f43f5e" : (isDark ? "#64748b" : "#94a3b8")} />
-                                </TouchableOpacity>
-                                <Text className="text-slate-500 dark:text-slate-400 text-sm flex-1">Remember me</Text>
-                                <TouchableOpacity onPress={() => setForgotPasswordModalVisible(true)}>
-                                    <Text className="text-rose-500 font-semibold text-sm">Forgot Password?</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                        <View className="mt-8 items-center">
-                            <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mb-5">Or continue with</Text>
-                            <View className="flex-row gap-4 w-full">
-
-                                <TouchableOpacity 
-                                    className="flex-1 bg-white dark:bg-[#180D10] border border-slate-200 dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center shadow-sm" 
-                                    activeOpacity={0.7}
-                                    onPress={handleGoogleLogin}
-                                    disabled={isLoading}
-                                >
-                                    <Ionicons name="logo-google" size={20} color={isDark ? "#ffffff" : "#DB4437"} />
-                                    <Text className="text-slate-700 dark:text-white font-bold ml-2">Google</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity 
-                                    className="flex-1 bg-[#1A1A1A] dark:bg-[#180D10] border border-transparent dark:border-rose-950/20 rounded-2xl h-14 flex-row items-center justify-center" 
-                                    activeOpacity={0.7}
-                                    onPress={handleAppleLogin}
-                                    disabled={isLoading}
-                                >
-                                    <Ionicons name="logo-apple" size={20} color="#ffffff" />
-                                    <Text className="text-white font-bold ml-2">Apple</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                        </View>
-
-                    </KeyboardAvoidingView>
-                </SafeAreaView>
-
-                <Modal
-                    visible={forgotPasswordModalVisible}
-                    animationType="slide"
-                    transparent={true}
-                    onRequestClose={() => setForgotPasswordModalVisible(false)}
-                >
-                    <KeyboardAvoidingView 
-                        behavior="padding" 
-                        className="flex-1 justify-end bg-black/50"
-                    >
-                        <ScrollView
-                            bounces={false}
-                            keyboardShouldPersistTaps="handled"
-                            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-                        >
-                        <TouchableOpacity 
-                            style={{ flex: 1 }} 
-                            activeOpacity={1} 
-                            onPress={() => setForgotPasswordModalVisible(false)} 
-                        />
-                        <View className="bg-white dark:bg-[#1f0f13] rounded-t-[32px] p-6 pb-24">
-                            <View className="flex-row justify-between items-center mb-6">
-                                <Text className="text-xl font-bold text-slate-800 dark:text-white">
-                                    {forgotPasswordStep === 1 ? 'Reset Password' : 'Enter OTP & New Password'}
-                                </Text>
-                                <TouchableOpacity onPress={() => setForgotPasswordModalVisible(false)} className="p-2 bg-slate-100 dark:bg-rose-950/30 rounded-full">
-                                    <Ionicons name="close" size={24} color={isDark ? "#f43f5e" : "#64748b"} />
-                                </TouchableOpacity>
-                            </View>
-
-                            {forgotPasswordStep === 1 ? (
-                                <View>
-                                    <Text className="text-slate-500 dark:text-slate-400 mb-4 font-medium text-sm">
-                                        Enter your email address and we'll send you an OTP to reset your password.
-                                    </Text>
-                                    <View className="flex-row items-center border border-slate-200 dark:border-rose-950/60 bg-gray-50 dark:bg-[#1E1E1E] rounded-2xl h-14 px-4 overflow-hidden mb-6">
-                                        <Ionicons name="mail-outline" size={20} color={isDark ? "#D36B93" : "#666666"} />
-                                        <TextInput
-                                            placeholder="Enter your email"
-                                            placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
-                                            className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
-                                            value={forgotPasswordEmail}
-                                            onChangeText={setForgotPasswordEmail}
-                                            autoCapitalize="none"
-                                        />
-                                    </View>
-                                    <TouchableOpacity
-                                        className={`bg-[#481639] dark:bg-[#D36B93] rounded-2xl h-14 items-center justify-center flex-row shadow-rose-300 ${isSubmitting ? 'opacity-70' : ''}`}
-                                        onPress={handleForgotPassword}
-                                        disabled={isSubmitting}
-                                    >
-                                        {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Send OTP</Text>}
-                                    </TouchableOpacity>
-                                </View>
-                            ) : (
-                                <View>
-                                    <Text className="text-slate-500 dark:text-slate-400 mb-4 font-medium text-sm">
-                                        Enter the OTP sent to {forgotPasswordEmail} and choose a new password.
-                                    </Text>
-                                    <View className="flex-row items-center border border-slate-200 dark:border-rose-950/60 bg-gray-50 dark:bg-[#1E1E1E] rounded-2xl h-14 px-4 overflow-hidden mb-4">
-                                        <Ionicons name="keypad-outline" size={20} color={isDark ? "#D36B93" : "#666666"} />
-                                        <TextInput
-                                            placeholder="Enter OTP"
-                                            placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
-                                            className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
-                                            value={otp}
-                                            onChangeText={setOtp}
-                                            keyboardType="number-pad"
-                                        />
-                                    </View>
-                                    <View className="flex-row items-center border border-slate-200 dark:border-rose-950/60 bg-gray-50 dark:bg-[#1E1E1E] rounded-2xl h-14 px-4 overflow-hidden mb-6">
-                                        <Ionicons name="lock-closed-outline" size={20} color={isDark ? "#D36B93" : "#666666"} />
-                                        <TextInput
-                                            placeholder="New Password"
-                                            placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.3)" : "#94a3b8"}
-                                            className="flex-1 ml-3 text-slate-800 dark:text-white font-medium"
-                                            value={newPassword}
-                                            onChangeText={setNewPassword}
-                                            secureTextEntry={true}
-                                        />
-                                    </View>
-                                    <TouchableOpacity
-                                        className={`bg-[#481639] dark:bg-[#D36B93] rounded-2xl h-14 items-center justify-center flex-row shadow-rose-300 ${isSubmitting ? 'opacity-70' : ''}`}
-                                        onPress={handleResetPassword}
-                                        disabled={isSubmitting}
-                                    >
-                                        {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Reset Password</Text>}
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                        </View>
-                        </ScrollView>
-                    </KeyboardAvoidingView>
-                </Modal>
+                        </>
+                    ) : (
+                        <>
+                            <TextInput
+                                className="w-full bg-black/40 rounded-full px-6 py-4 text-white border border-white/10 mb-4"
+                                placeholder="Enter OTP"
+                                placeholderTextColor="#71717a"
+                                value={otp}
+                                onChangeText={setOtp}
+                                keyboardType="numeric"
+                            />
+                            <TextInput
+                                className="w-full bg-black/40 rounded-full px-6 py-4 text-white border border-white/10 mb-6"
+                                placeholder="New Password"
+                                placeholderTextColor="#71717a"
+                                value={newPassword}
+                                onChangeText={setNewPassword}
+                                secureTextEntry
+                            />
+                            <TouchableOpacity 
+                                onPress={handleResetPassword}
+                                disabled={isSubmitting}
+                                className="w-full bg-[#FF296D] rounded-full py-4 items-center justify-center"
+                            >
+                                {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Reset Password</Text>}
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
             </View>
-        )
-}
+        </Modal>
+    </View>
+  );
+};
 
-export default SigninForm
-
+export default SigninForm;
