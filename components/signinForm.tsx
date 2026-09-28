@@ -40,14 +40,6 @@ const SigninForm = () => {
         }, []);
 
         const handleGoogleLogin = async () => {
-          if (Constants.appOwnership === 'expo') {
-            Alert.alert(
-              'Notice', 
-              'Google Sign-In uses native modules that do not work inside Expo Go. This will work perfectly in your final APK build!'
-            );
-            return;
-          }
-
           try {
             setIsLoading(true);
             setErrorMessage('');
@@ -210,7 +202,7 @@ const SigninForm = () => {
         {/* Google & Apple Auth Row */}
         <View className="flex-row gap-x-3">
             <TouchableOpacity 
-                onPress={googleLogin}
+                onPress={handleGoogleLogin}
                 className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
             >
                 <Ionicons name="logo-google" size={18} color="white" />

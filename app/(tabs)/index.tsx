@@ -481,7 +481,7 @@ export default function Dashboard() {
         setRoomLoading(true);
       }
 
-      // Fast cached profile lookup (zero extra HTTP requests)
+      // Fast cached profile lookup
       try {
         const profile = await getMyProfileCached();
         if (profile?.id) setCurrentUserId(profile.id);
@@ -504,36 +504,30 @@ export default function Dashboard() {
         await AsyncStorage.setItem("cachedActiveRoom", JSON.stringify(room));
         await AsyncStorage.setItem("activeRoomId", room.id);
 
-        try {
-          const sends = await fetchCardSends(room.id);
-          const rawSends = sends?.sends || sends || [];
+        // ⚡ Fire ALL data fetches in parallel — no more waiting one-by-one
+        const [sendsResult, deckResult, historyResult, deflectResult] = await Promise.allSettled([
+          fetchCardSends(room.id),
+          fetchAvailableDeck(room.id),
+          fetchRoomHistory(room.id),
+          room.expiry_type === "30_DAYS" ? fetchDeflectCards(room.id) : Promise.resolve(null),
+        ]);
+
+        if (sendsResult.status === "fulfilled") {
+          const rawSends = sendsResult.value?.sends || sendsResult.value || [];
           setCardSends(rawSends.map(normalizeSendRecord).filter(Boolean));
-        } catch (e) {
-          // silently fail
         }
 
-        try {
-          const deck = await fetchAvailableDeck(room.id);
-          setDeckCards(Array.isArray(deck) ? deck : []);
-        } catch (e) {
-          // silently fail
+        if (deckResult.status === "fulfilled") {
+          setDeckCards(Array.isArray(deckResult.value) ? deckResult.value : []);
         }
 
-        try {
-          const historyData = await fetchRoomHistory(room.id);
-          setRoomHistoryData(Array.isArray(historyData) ? historyData : []);
-        } catch (e) {
-          // silently fail
+        if (historyResult.status === "fulfilled") {
+          setRoomHistoryData(Array.isArray(historyResult.value) ? historyResult.value : []);
         }
 
-        if (room.expiry_type === "30_DAYS") {
-          try {
-            const deflectRes = await fetchDeflectCards(room.id);
-            setDeflectCardsCount(deflectRes?.total || 0);
-            setDeflectCards(deflectRes?.deflect_cards || []);
-          } catch (e) {
-            // silently fail
-          }
+        if (room.expiry_type === "30_DAYS" && deflectResult.status === "fulfilled" && deflectResult.value) {
+          setDeflectCardsCount(deflectResult.value?.total || 0);
+          setDeflectCards(deflectResult.value?.deflect_cards || []);
         } else {
           setDeflectCardsCount(0);
           setDeflectCards([]);
@@ -796,7 +790,8 @@ export default function Dashboard() {
     if (isActioningRef.current) return;
     isActioningRef.current = true;
 
-    // Optimistic update
+    // Permanently dismiss so the popup never reopens
+    setDismissedCardIds((prev) => [...prev, sendId]);
     setSelectedReceivedCard(null);
     setCardSends((prev) =>
       prev.map((s) => (s.id === sendId ? { ...s, status: "IN_PROGRESS" } : s)),
@@ -817,7 +812,8 @@ export default function Dashboard() {
     if (isActioningRef.current) return;
     isActioningRef.current = true;
 
-    // Optimistic update
+    // Permanently dismiss so the popup never reopens
+    setDismissedCardIds((prev) => [...prev, sendId]);
     setSelectedReceivedCard(null);
     setCardSends((prev) =>
       prev.map((s) => (s.id === sendId ? { ...s, status: "REJECTED" } : s)),
@@ -848,7 +844,8 @@ export default function Dashboard() {
       : deflectCards[0];
     if (!deflectCardToUse) return;
 
-    // Optimistic update
+    // Permanently dismiss so the popup never reopens
+    setDismissedCardIds((prev) => [...prev, sendId]);
     setSelectedReceivedCard(null);
     setShowDeflectDropdown(false);
     setCardSends((prev) =>
@@ -867,20 +864,43 @@ export default function Dashboard() {
   };
 
   const handleCompleteCard = async (sendId: string) => {
-    // Optimistic update
-    setCardSends((prev) =>
-      prev.map((s) =>
-        s.id === sendId ? { ...s, status: "COMPLETED" } : s,
-      ),
-    );
+    if (isActioningRef.current) return;
+    isActioningRef.current = true;
+
+    // Check the actual current status of the card from state
+    const cardSend = cardSends.find((s) => s.id === sendId);
+    const currentStatus = cardSend?.status;
+
+    // Guard: cannot complete a card that's still SENT or not yet accepted
+    if (currentStatus === 'SENT' || currentStatus === 'REJECTED' || currentStatus === 'COMPLETED' || currentStatus === 'EXPIRED') {
+      isActioningRef.current = false;
+      return;
+    }
 
     try {
+      // If card is ACCEPTED (not yet IN_PROGRESS), we must first move it to IN_PROGRESS
+      if (currentStatus === 'ACCEPTED') {
+        await acceptCardSend(sendId);
+      }
+
+      // Optimistic update
+      setSelectedReceivedCard(null);
+      setCardSends((prev) =>
+        prev.map((s) => s.id === sendId ? { ...s, status: "COMPLETED" } : s),
+      );
+
       await completeCardSend(sendId);
-      setCustomAlert({ visible: true, title: "Challenge Completed!", message: "Well done! You have completed this dare." });
+      setCustomAlert({ visible: true, title: "Challenge Completed! 🎉", message: "Well done! You have completed this dare." });
       refreshCardSendsOnly();
     } catch (e: any) {
+      // Revert optimistic update on failure
+      setCardSends((prev) =>
+        prev.map((s) => s.id === sendId ? { ...s, status: currentStatus || "IN_PROGRESS" } : s),
+      );
       setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to complete card" });
       refreshCardSendsOnly();
+    } finally {
+      isActioningRef.current = false;
     }
   };
 
@@ -1466,7 +1486,7 @@ export default function Dashboard() {
                 </View>
               </View>
               )}
-                              <PendingDaresCarousel pendingChallenges={pendingChallenges} currentUserId={currentUserId} onPressCard={(send: any) => { if (send.status === "IN_PROGRESS" || send.status === "ACCEPTED") { handleCompleteCard(send.id); } else { setSelectedReceivedCard(send); } }} />
+                              <PendingDaresCarousel pendingChallenges={pendingChallenges} currentUserId={currentUserId} onPressCard={(send: any) => { if (send.status === "IN_PROGRESS") { handleCompleteCard(send.id); } else { setSelectedReceivedCard(send); } }} />
                 {/* Recent Moments */}
               {cardSends && cardSends.length > 0 && (
                 <View className="mb-8">

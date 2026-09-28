@@ -49,7 +49,10 @@ const getBundleImage = (bundleName: string, defaultUrl?: string | null) => {
   return require('../../assets/images/bundle_cozy.jpg');
 };
 
+import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+
 export default function StoreScreen() {
+  const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
   const router = useRouter();
   const userAvatar = useUserAvatar();
   const params = useLocalSearchParams();
@@ -120,7 +123,7 @@ export default function StoreScreen() {
 
   const startPaymentProcessing = async () => {
     if (!selectedBundle || !selectedPlan) {
-      Alert.alert('Error', 'Please select a valid bundle and plan before unlocking.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Please select a valid bundle and plan before unlocking.' });
       setPaymentStep('details');
       return;
     }
@@ -160,7 +163,7 @@ export default function StoreScreen() {
       }, 2500);
     } catch (e) {
       console.log('Failed to save mock purchase:', e);
-      Alert.alert('Transaction Failed', 'We could not complete your mock transaction. Please try again.');
+      setCustomAlert({ visible: true, title: 'Transaction Failed', message: 'We could not complete your mock transaction. Please try again.' });
       setPaymentStep('details');
     } finally {
       setBuying(false);
@@ -244,11 +247,15 @@ export default function StoreScreen() {
 
   const handleSelectBundle = (bundle: CardBundle) => {
     if (!isInRoom) {
-      Alert.alert(
-        'Room Required',
-        'You must create or join an active room with your partner before purchasing card bundles.',
-        [{ text: 'Go Home', onPress: () => router.push('/') }, { text: 'OK' }]
-      );
+      setCustomAlert({
+        visible: true,
+        title: 'Room Required',
+        message: 'You must create or join an active room with your partner before purchasing card bundles.',
+        confirmText: 'Go Home',
+        cancelText: 'Cancel',
+        onConfirm: () => router.push('/'),
+        onCancel: () => {}
+      });
       return;
     }
     setSelectedBundle(bundle);
@@ -270,11 +277,15 @@ export default function StoreScreen() {
 
   const handleOpenCheckout = (bundle: CardBundle, plan: BundlePlan) => {
     if (!isInRoom) {
-      Alert.alert(
-        'Room Required',
-        'You must create or join an active room with your partner before purchasing card bundles.',
-        [{ text: 'Go Home', onPress: () => router.push('/') }, { text: 'OK' }]
-      );
+      setCustomAlert({
+        visible: true,
+        title: 'Room Required',
+        message: 'You must create or join an active room with your partner before purchasing card bundles.',
+        confirmText: 'Go Home',
+        cancelText: 'Cancel',
+        onConfirm: () => router.push('/'),
+        onCancel: () => {}
+      });
       return;
     }
     setSelectedBundle(bundle);
@@ -286,7 +297,7 @@ export default function StoreScreen() {
 
   const handleBypassPayment = async () => {
     if (!selectedBundle || !selectedPlan) {
-      Alert.alert('Error', 'Please select a valid bundle and plan before unlocking.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Please select a valid bundle and plan before unlocking.' });
       setPaymentStep('details');
       return;
     }
@@ -309,7 +320,7 @@ export default function StoreScreen() {
       }, 2500);
     } catch (e) {
       console.log('Failed to save mock purchase:', e);
-      Alert.alert('Transaction Failed', 'We could not complete your mock transaction. Please try again.');
+      setCustomAlert({ visible: true, title: 'Transaction Failed', message: 'We could not complete your mock transaction. Please try again.' });
       setPaymentStep('details');
     } finally {
       setBuying(false);
@@ -681,7 +692,7 @@ export default function StoreScreen() {
                       className="bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg dark:shadow-none"
                       onPress={() => {
                         if (!cardName.trim() || cardNumber.length < 19 || cardExpiry.length < 5 || cardCVV.length < 3) {
-                          Alert.alert('Incomplete Details', 'Please enter valid credit card details.');
+                          setCustomAlert({ visible: true, title: 'Incomplete Details', message: 'Please enter valid credit card details.' });
                           return;
                         }
                         startPaymentProcessing();
@@ -737,7 +748,7 @@ export default function StoreScreen() {
                       className="bg-[#af2c3b] dark:bg-rose-600 rounded-2xl py-4 items-center shadow-lg dark:shadow-none"
                       onPress={() => {
                         if (!upiId.trim() || !upiId.includes('@')) {
-                          Alert.alert('Invalid UPI ID', 'Please enter a valid UPI address (e.g. name@bank).');
+                          setCustomAlert({ visible: true, title: 'Invalid UPI ID', message: 'Please enter a valid UPI address (e.g. name@bank).' });
                           return;
                         }
                         startPaymentProcessing();
@@ -799,6 +810,7 @@ export default function StoreScreen() {
           </View>
         </View>
       </Modal>
+      <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
     </View>
   );
 }

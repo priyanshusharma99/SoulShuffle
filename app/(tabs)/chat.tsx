@@ -11,7 +11,10 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ANIMATED_AVATARS } from '@/constants/avatars';
 
+import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+
 export default function Chat() {
+  const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
   const { openSidebar } = useSidebar();
   const userAvatar = useUserAvatar();
   const router = useRouter();
@@ -208,10 +211,10 @@ export default function Chat() {
                   className="bg-white dark:bg-[#121212] rounded-full py-4 items-center justify-center border border-rose-100 dark:border-rose-950/40 active:opacity-80"
                   onPress={() => {
                     if (!activeChallenge) {
-                      Alert.alert('No Challenge', 'There is no active challenge to accept yet.');
+                      setCustomAlert({ visible: true, title: 'No Challenge', message: 'There is no active challenge to accept yet.' });
                       return;
                     }
-                    Alert.alert('Dare Accepted', `${activeChallenge.title} is now active.`);
+                    setCustomAlert({ visible: true, title: 'Dare Accepted', message: `${activeChallenge.title} is now active.` });
                   }}
                 >
                   <Text className="text-[#b91c1c] dark:text-rose-400 font-bold text-[15px]">Accept Dare</Text>
@@ -286,6 +289,7 @@ export default function Chat() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
     </SafeAreaView>
   );
 }

@@ -14,7 +14,7 @@ const isExpoGo =
 // In Expo SDK 53+, importing expo-notifications statically on Android in Expo Go
 // throws an immediate fatal error during module evaluation. We load it lazily.
 let Notifications: any = null;
-if (Platform.OS !== 'web' && !(Platform.OS === 'android' && isExpoGo)) {
+if (Platform.OS !== 'web') {
   try {
     Notifications = require('expo-notifications');
   } catch (err) {
@@ -166,8 +166,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   // Register push token with backend
   const registerPushTokenWithBackend = useCallback(async () => {
     if (Platform.OS === 'web') return;
-    if (!Notifications || (Platform.OS === 'android' && isExpoGo)) {
-      console.log('[Notifications] Push notifications skipped (Expo Go / unsupported environment).');
+    if (!Notifications) {
+      console.log('[Notifications] Push notifications skipped (unsupported environment).');
       return;
     }
 

@@ -252,9 +252,8 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
           isAnimating.current = true;
           Animated.timing(currentPosition, {
               toValue: { x: SCREEN_WIDTH * 2, y: gestureState.dy + (gestureState.vy * 50) },
-              duration: 150,
+              duration: 250,
               easing: Easing.out(Easing.cubic),
-                useNativeDriver: false,
               useNativeDriver: false
             }).start(() => {
             setCurrentIndex(prev => (prev < d.length - 1 ? prev + 1 : 0));
@@ -267,9 +266,8 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
           isAnimating.current = true;
           Animated.timing(currentPosition, {
               toValue: { x: -SCREEN_WIDTH * 2, y: gestureState.dy + (gestureState.vy * 50) },
-              duration: 150,
+              duration: 250,
               easing: Easing.out(Easing.cubic),
-                useNativeDriver: false,
               useNativeDriver: false
             }).start(() => {
             setCurrentIndex(prev => (prev < d.length - 1 ? prev + 1 : 0));
@@ -281,7 +279,7 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
         } else {
           Animated.spring(currentPosition, {
             toValue: { x: 0, y: 0 },
-            friction: 6, tension: 40,
+            friction: 5,
             useNativeDriver: false
           }).start();
         }
@@ -460,7 +458,7 @@ export default function Dares() {
       });
     } else {
       setSearchOpen(true);
-      RNAnimated.timing(searchBarAnim, { toValue: 1, duration: 150, useNativeDriver: false }).start();
+      RNAnimated.timing(searchBarAnim, { toValue: 1, duration: 250, useNativeDriver: false }).start();
     }
   };
 
@@ -555,6 +553,22 @@ export default function Dares() {
       loadDares();
     }, [])
   );
+
+  // Listen for card selected from home page "Picked for You" section
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('openDareCard', ({ cardId }: { cardId: string }) => {
+      if (!cardId) return;
+      setDares(prev => {
+        const idx = prev.findIndex(d => d.id === cardId || (d as any).deck_card_id === cardId);
+        if (idx <= 0) return prev; // Already first or not found
+        const updated = [...prev];
+        const [card] = updated.splice(idx, 1);
+        updated.unshift(card);
+        return updated;
+      });
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     const setupSocket = async () => {
@@ -751,7 +765,7 @@ export default function Dares() {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image 
-              source={{ uri: userAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix' }} 
+              source={{ uri: userAvatar }} 
               style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
             />
           </TouchableOpacity>

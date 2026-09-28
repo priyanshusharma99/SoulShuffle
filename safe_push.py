@@ -7,7 +7,13 @@ clone_dir = os.path.join(scratch_dir, "SoulShuffleClone")
 source_dir = r"C:\My_Project\EleVora\app\SoulShuffle"
 
 if os.path.exists(clone_dir):
-    shutil.rmtree(clone_dir, ignore_errors=True)
+    try:
+        shutil.rmtree(clone_dir, ignore_errors=True)
+    except:
+        pass
+
+# Force remove using powershell if it exists
+subprocess.run(["powershell", "-Command", f"if (Test-Path '{clone_dir}') {{ Remove-Item '{clone_dir}' -Recurse -Force }}"], check=True)
 
 # Clone
 subprocess.run(["git", "clone", "https://github.com/priyanshusharma99/SoulShuffle.git", "SoulShuffleClone"], cwd=scratch_dir, check=True)
@@ -31,6 +37,6 @@ for root, dirs, files in os.walk(source_dir):
 
 # Add, commit, push
 subprocess.run(["git", "add", "."], cwd=clone_dir, check=True)
-subprocess.run(["git", "commit", "-m", "Update UI from local"], cwd=clone_dir)
+subprocess.run(["git", "commit", "-m", "Fix notifications, auth flow, and card action bugs. Restore dares UI."], cwd=clone_dir)
 subprocess.run(["git", "push", "origin", "main"], cwd=clone_dir, check=True)
 print("Pushed successfully!")

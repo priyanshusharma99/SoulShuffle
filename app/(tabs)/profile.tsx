@@ -138,10 +138,13 @@ const formatRoomActiveTime = (createdAt?: string | null) => {
   return `Room Active for ${minutes} ${minutes === 1 ? 'min' : 'mins'}`;
 };
 
+import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+
 export default function Profile() {
   const { openSidebar } = useSidebar();
   const { colorScheme, toggleTheme } = useThemeToggle();
   const isDark = colorScheme === 'dark';
+  const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
 
   const [userName, setUserName] = useState('User');
   const [partnerName, setPartnerName] = useState('Partner');
@@ -500,22 +503,21 @@ export default function Profile() {
   const handleCopyRoomCode = async () => {
     if (activeRoom?.code) {
       await Clipboard.setStringAsync(activeRoom.code);
-      Alert.alert("Copied!", "Room code copied to clipboard.");
+      setCustomAlert({ visible: true, title: "Copied!", message: "Room code copied to clipboard." });
     }
   };
 
   const handleLeaveRoom = () => {
-    Alert.alert(
-      "Leave Room",
-      "Are you sure you want to leave this room? You will lose access to all current challenges.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Leave",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const currentRoomId = activeRoom?.id;
+    setCustomAlert({
+      visible: true,
+      title: "Leave Room",
+      message: "Are you sure you want to leave this room? You will lose access to all current challenges.",
+      cancelText: "Cancel",
+      confirmText: "Leave",
+      onCancel: () => {},
+      onConfirm: async () => {
+        try {
+          const currentRoomId = activeRoom?.id;
               const currentRoomCode = activeRoom?.code;
 
               if (currentRoomCode) {
@@ -538,11 +540,8 @@ export default function Profile() {
             } catch (error) {
               console.error("API Error during leaveRoom:", error);
             }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+      }
+    });
   };
 
   return (
@@ -1136,6 +1135,7 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
+      <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
     </SafeAreaView>
   );
 }
