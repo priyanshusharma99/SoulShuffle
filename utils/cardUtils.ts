@@ -3,9 +3,13 @@
 
   // Handle both unflattened (cardOrSend is the card object) and flattened (cardOrSend is the send object)
   const imageField = cardOrSend.image_url || cardOrSend.image || ((cardOrSend.card || cardOrSend.cards) && ((cardOrSend.card?.image_url || cardOrSend.cards?.image_url) || (cardOrSend.card?.image || cardOrSend.cards?.image)));
+  const categoryImageField = cardOrSend.category_image || ((cardOrSend.card || cardOrSend.cards) && (cardOrSend.card?.category_image || cardOrSend.cards?.card_categories?.icon_url || cardOrSend.cards?.card_categories?.image_url)) || (cardOrSend.card_categories && (cardOrSend.card_categories.icon_url || cardOrSend.card_categories.image_url));
   
   if (imageField) {
     return { uri: imageField };
+  }
+  if (categoryImageField) {
+    return { uri: categoryImageField };
   }
 
   // Get category from either flattened or nested

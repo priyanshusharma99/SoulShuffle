@@ -21,7 +21,6 @@ import PendingDaresCarousel from "@/components/PendingDaresCarousel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getCardImage } from '@/utils/cardUtils';
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import {
@@ -185,15 +184,12 @@ const calculateStreak = (sends: any[]) => {
 };
 
 
-import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
-
 export default function Dashboard() {
   const { openSidebar } = useSidebar();
   const { unreadCount, registerPushTokenWithBackend } = useNotifications();
   const userAvatar = useUserAvatar();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
   const { width } = useWindowDimensions();
 
   // ── Room State ─────────────────────────────────────────
@@ -627,7 +623,11 @@ export default function Dashboard() {
       DeviceEventEmitter.emit("room:updated");
 
       if (payload?.left_by && payload.left_by !== currentUserId) {
-        setCustomAlert({ visible: true, title: "Room Closed", message: "Your partner has left the room. You can now create or join a new room." });
+        Alert.alert(
+          "Room Closed",
+          "Your partner has left the room. You can now create or join a new room.",
+          [{ text: "OK" }],
+        );
       }
     };
 
@@ -806,7 +806,10 @@ export default function Dashboard() {
       await acceptCardSend(sendId);
       refreshCardSendsOnly();
     } catch (e: any) {
-      setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to accept card" });
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to accept card",
+      );
       refreshCardSendsOnly();
     } finally {
       isActioningRef.current = false;
@@ -830,7 +833,10 @@ export default function Dashboard() {
       }
       refreshCardSendsOnly();
     } catch (e: any) {
-      setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to reject card" });
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to reject card",
+      );
       refreshCardSendsOnly();
     } finally {
       isActioningRef.current = false;
@@ -839,7 +845,10 @@ export default function Dashboard() {
 
   const handleDeflectCard = async (sendId: string, deflectCardId?: string) => {
     if (deflectCardsCount <= 0 || deflectCards.length === 0) {
-      setCustomAlert({ visible: true, title: "No Deflect Cards", message: "You do not have any deflect cards available." });
+      Alert.alert(
+        "No Deflect Cards",
+        "You do not have any deflect cards available.",
+      );
       return;
     }
 
@@ -861,7 +870,10 @@ export default function Dashboard() {
       await deflectCardSend(sendId, deflectCardToUse.id);
       refreshCardSendsOnly();
     } catch (e: any) {
-      setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to deflect card" });
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to deflect card",
+      );
       refreshCardSendsOnly();
     }
   };
@@ -876,10 +888,16 @@ export default function Dashboard() {
 
     try {
       await completeCardSend(sendId);
-      setCustomAlert({ visible: true, title: "Challenge Completed!", message: "Well done! You have completed this dare." });
+      Alert.alert(
+        "Challenge Completed!",
+        "Well done! You have completed this dare.",
+      );
       refreshCardSendsOnly();
     } catch (e: any) {
-      setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to complete card" });
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to complete card",
+      );
       refreshCardSendsOnly();
     }
   };
@@ -892,10 +910,16 @@ export default function Dashboard() {
 
     try {
       await confirmCardSend(sendId);
-      setCustomAlert({ visible: true, title: "Challenge Confirmed!", message: "Thank you! You have confirmed the challenge completion." });
+      Alert.alert(
+        "Challenge Confirmed!",
+        "Thank you! You have confirmed the challenge completion.",
+      );
       refreshCardSendsOnly();
     } catch (e: any) {
-      setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to confirm challenge" });
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to confirm challenge",
+      );
       refreshCardSendsOnly();
     }
   };
@@ -907,27 +931,28 @@ export default function Dashboard() {
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
     } catch {
-      setCustomAlert({ visible: true, title: "Copied!", message: `Room code: ${code}` });
+      Alert.alert("Copied!", `Room code: ${code}`);
     }
   };
 
   // ── Leave Room (Dashboard) ─────────────────────────────
   const handleLeaveRoom = () => {
-    setCustomAlert({
-      visible: true,
-      title: "Leave Room",
-      message: "Are you sure you want to leave this room? You will lose access to all current challenges.",
-      cancelText: "Cancel",
-      confirmText: "Leave",
-      onCancel: () => {},
-      onConfirm: async () => {
-        setIsLeavingRoom(true);
-        try {
-          const currentRoomId = activeRoom?.id;
-          const currentRoomCode = activeRoom?.code;
+    Alert.alert(
+      "Leave Room",
+      "Are you sure you want to leave this room? You will lose access to all current challenges.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: async () => {
+            setIsLeavingRoom(true);
+            try {
+              const currentRoomId = activeRoom?.id;
+              const currentRoomCode = activeRoom?.code;
 
-          // Immediately leave socket room
-          if (currentRoomCode) {
+              // Immediately leave socket room
+              if (currentRoomCode) {
                 GameSocket.leaveRoom(currentRoomCode);
               }
 
@@ -961,8 +986,10 @@ export default function Dashboard() {
               setIsLeavingRoom(false);
               setRoomLoading(false);
             }
-      }
-    });
+          },
+        },
+      ],
+    );
   };
 
   // ── Open Modal ─────────────────────────────────────────
@@ -1058,13 +1085,13 @@ export default function Dashboard() {
   return (
     <ErrorBoundary>
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: isDark ? '#0e0609' : '#FFFFFF' }}
+        className="flex-1 bg-[#0e0609]"
         edges={["top", "left", "right"]}
       >
         {/* Status bar configuration */}
         <StatusBar
-          barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor={isDark ? "#0e0609" : "#FFFFFF"}
+          barStyle="light-content"
+          backgroundColor="#0e0609"
         />
 
         {/* ═══════════════════════════════════════════════════════
@@ -1295,9 +1322,9 @@ export default function Dashboard() {
         </Modal>
 
         {/* ── 1. Top Header (Unified/Sticky) ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12, backgroundColor: isDark ? '#0e0609' : '#FFFFFF', zIndex: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12, backgroundColor: '#0e0609', zIndex: 10 }}>
           <TouchableOpacity onPress={openSidebar} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="menu-outline" size={28} color={isDark ? "#ffffff" : "#0e0609"} />
+            <Ionicons name="menu-outline" size={28} color="#ffffff" />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', position: 'absolute', left: 0, right: 0, zIndex: -1 }} pointerEvents="none">
             <Ionicons name="infinite" size={24} color="#ff2d55" style={{ transform: [{ rotate: '-15deg' }] }} />
@@ -1305,14 +1332,14 @@ export default function Dashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <TouchableOpacity onPress={() => navigateTo("/notifications")} style={{ position: "relative" }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="notifications-outline" size={24} color={isDark ? "#ffffff" : "#0e0609"} />
+              <Ionicons name="notifications-outline" size={24} color="#ffffff" />
               {unreadCount > 0 && (
-                <View style={{ position: "absolute", top: 0, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: "#ff2d55", borderWidth: 1.5, borderColor: isDark ? "#0e0609" : "#FFFFFF" }} />
+                <View style={{ position: "absolute", top: 0, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: "#ff2d55", borderWidth: 1.5, borderColor: "#0e0609" }} />
               )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigateTo("/profile")}>
+            <TouchableOpacity onPress={() => { if (activeRoom && activeRoom.status === "ACTIVE") { navigateTo("/profile"); } else { openRoomModal("create"); } }}>
               <Image
-                source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
+                source={{ uri: (activeRoom?.status === "ACTIVE" && partnerAvatar) || userAvatar || ANIMATED_AVATARS[0].url }}
                 style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, borderColor: "#ff2d55" }}
               />
             </TouchableOpacity>
@@ -1321,19 +1348,22 @@ export default function Dashboard() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 110 }}
-          style={{ flex: 1, backgroundColor: isDark ? "#0e0609" : "#FFFFFF" }}
+          style={{ flex: 1, backgroundColor: "#0e0609" }}
         >
               {/* Header / Greeting */}
               <View className="px-5 mt-6 mb-4 flex-row justify-between items-end">
                 <View style={{ flex: 1, marginRight: 16, overflow: "hidden" }}>
-                  <Text className="text-slate-500 dark:text-gray-400 text-sm font-medium mb-1">
+                  <Text className="text-gray-400 text-sm font-medium mb-1">
                       {getGreetingTime()}
                     </Text>
-                  <Text className="text-slate-900 dark:text-white" style={{ fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={{ color: "white", fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }} numberOfLines={1} ellipsizeMode="tail">
                     {userName}{activeRoom && partnerName && partnerName !== "Partner" ? ` & ${partnerName}` : ''} 💕
                   </Text>
                 </View>
-                
+                <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+                  <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif', color: '#fbcfe8', fontSize: 13, fontStyle: 'italic' }}>Same team</Text>
+                  <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif', color: '#fbcfe8', fontSize: 11, fontStyle: 'italic', paddingRight: 4 }}>Always ♡</Text>
+                </View>
               </View>
 
                 
@@ -1341,20 +1371,34 @@ export default function Dashboard() {
 
               {/* Today's Dare (Hero) */}
               <View className="px-5 mb-8">
-                <View className="w-full h-64 rounded-[32px] overflow-hidden relative bg-[#1a0c10] border border-rose-950/30">
+                <View className="w-full h-64 rounded-[32px] overflow-hidden relative bg-[#1a0c10]">
                   <Image source={require('@/assets/images/couple_beach_sunset.jpg')} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  <View className="absolute inset-0 bg-black/40" />
                   
+                  <View className="absolute top-5 left-5 bg-black/50 px-3 py-1.5 rounded-full flex-row items-center">
+                    <Text className="text-[#facc15] text-xs mr-1">⚡</Text>
+                    <Text className="text-white text-xs font-bold tracking-widest">TODAY'S DARE</Text>
+                  </View>
+                  
+                  <View className="absolute top-5 right-5 w-8 h-8 rounded-full bg-black/40 items-center justify-center">
+                    <Ionicons name="heart-outline" size={16} color="white" />
+                  </View>
+
+                  <View className="absolute top-1/2 -mt-4 left-5">
+                    <Text className="text-white text-3xl font-black leading-tight">
+                      A new side{'\n'}of you
+                    </Text>
+                    <Ionicons name="heart-outline" size={14} color="#fbcfe8" style={{ position: 'absolute', right: -20, top: '40%' }} />
+                  </View>
+
                   <View className="absolute bottom-5 left-5 right-5 flex-row justify-between items-end">
-                    <TouchableOpacity 
-                      style={{ backgroundColor: '#FF3B6E', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24, flexDirection: 'row', alignItems: 'center' }}
-                      onPress={() => router.push('/dares')}
-                    >
-                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14, marginRight: 8 }}>Start Dare</Text>
+                    <TouchableOpacity className="bg-[#ff2d55] px-5 py-3 rounded-full flex-row items-center" onPress={() => router.push('/dares')}>
+                      <Text className="text-white font-bold text-[14px] mr-2">Start Dare</Text>
                       <Ionicons name="arrow-forward" size={16} color="white" />
                     </TouchableOpacity>
-                    <View style={{ alignItems: 'flex-end', justifyContent: 'flex-end', paddingBottom: 4 }}>
-                      <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive', color: isDark ? '#ffb3c6' : '#333', fontSize: 18, fontStyle: 'italic', textShadowColor: isDark ? 'transparent' : 'rgba(255,255,255,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3, marginBottom: 2 }}>Small dares</Text>
-                      <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive', color: isDark ? '#ffb3c6' : '#FF296D', fontSize: 14, fontStyle: 'italic', textShadowColor: isDark ? 'transparent' : 'rgba(255,255,255,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>Big connections ♡</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif', color: '#fbcfe8', fontSize: 14, fontStyle: 'italic' }}>Small dares</Text>
+                      <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif', color: '#fbcfe8', fontSize: 11, fontStyle: 'italic' }}>Big connections ♡</Text>
                     </View>
                   </View>
                 </View>
@@ -1363,7 +1407,7 @@ export default function Dashboard() {
               {/* Continue Together / Couple Room Connect */}
               {!activeRoom ? (
                 <View className="px-5 mb-8">
-                  <View className="bg-white dark:bg-[#241318] p-6 rounded-[32px] border border-rose-100 dark:border-rose-950/30 shadow-sm overflow-hidden relative">
+                  <View className="bg-[#241318] p-6 rounded-[32px] border border-rose-950/30 overflow-hidden relative">
                     <View className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-900/10" />
                     <View className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-rose-900/10" />
                     
@@ -1376,10 +1420,10 @@ export default function Dashboard() {
                       </Text>
                     </View>
 
-                    <Text className="text-slate-900 dark:text-white text-[26px] font-black leading-tight tracking-tight mb-2">
+                    <Text className="text-white text-[26px] font-black leading-tight tracking-tight mb-2">
                       Connect with{'\n'}Your Partner
                     </Text>
-                    <Text className="text-slate-500 dark:text-slate-400 text-[13px] font-medium leading-5 mb-6">
+                    <Text className="text-slate-400 text-[13px] font-medium leading-5 mb-6">
                       Create or join a private room to start playing together.
                     </Text>
 
@@ -1404,14 +1448,14 @@ export default function Dashboard() {
                 </View>
               ) : activeRoom.status === 'WAITING' ? (
                 <View className="px-5 mb-8">
-                  <View className="bg-white dark:bg-[#1a0c10] rounded-[32px] p-6 border border-rose-100 dark:border-rose-950/40 relative overflow-hidden">
+                  <View className="bg-[#1a0c10] rounded-[32px] p-6 border border-rose-950/40 relative overflow-hidden">
                     <View className="absolute -top-4 -right-4 opacity-10">
                       <Ionicons name="time" size={100} color="#f43f5e" />
                     </View>
-                    <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+                    <Text className="text-xl font-black text-white tracking-tight mb-2">
                       Waiting for Partner...
                     </Text>
-                    <Text className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 leading-5">
+                    <Text className="text-sm font-medium text-slate-400 mb-6 leading-5">
                       Share the room code below with your partner so they can join your Love Room.
                     </Text>
 
@@ -1423,7 +1467,7 @@ export default function Dashboard() {
                       <TouchableOpacity onPress={async () => {
                         if (activeRoom?.code) {
                           await Clipboard.setStringAsync(activeRoom.code);
-                          setCustomAlert({ visible: true, title: "Copied!", message: "Room code copied to clipboard." });
+                          Alert.alert("Copied!", "Room code copied to clipboard.");
                         }
                       }} className="bg-rose-900/40 px-4 py-2 rounded-full flex-row items-center">
                         <Ionicons name="copy-outline" size={16} color="#fda4af" />
@@ -1440,26 +1484,26 @@ export default function Dashboard() {
               ) : (
                             <View className="px-5 mb-8">
                 <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-slate-900 dark:text-white text-lg font-bold">Continue Together</Text>
+                  <Text className="text-white text-lg font-bold">Continue Together</Text>
                   <TouchableOpacity className="flex-row items-center" onPress={() => navigateTo("/(tabs)/dares")}>
                     <Text className="text-[#ff2d55] text-[13px] font-bold mr-1">See all</Text>
                     <Ionicons name="chevron-forward" size={12} color="#ff2d55" />
                   </TouchableOpacity>
                 </View>
                 
-                <View className="bg-white dark:bg-[#180d12] p-4 rounded-3xl flex-row items-center border border-rose-50 dark:border-rose-950/30 shadow-sm">
+                <View className="bg-[#180d12] p-4 rounded-3xl flex-row items-center border border-rose-950/30">
                   <Image source={require('@/assets/images/couple_cafe_morning.jpg')} style={{ width: 60, height: 60, borderRadius: 16 }} />
                   <View className="flex-1 ml-4 justify-center">
-                    <Text className="text-slate-900 dark:text-white font-bold text-[14px] mb-1" numberOfLines={1}>{roomDuration}-Day Connection Journey</Text>
-                    <Text className="text-slate-500 dark:text-gray-400 text-[11px] mb-2">Day {currentDay} of {roomDuration}</Text>
+                    <Text className="text-white font-bold text-[14px] mb-1" numberOfLines={1}>{roomDuration}-Day Connection Journey</Text>
+                    <Text className="text-gray-400 text-[11px] mb-2">Day {currentDay} of {roomDuration}</Text>
                     <View className="flex-row items-center w-full">
-                      <View className="flex-1 h-1.5 bg-rose-100 dark:bg-[#2a1720] rounded-full overflow-hidden flex-row">
+                      <View className="flex-1 h-1.5 bg-[#2a1720] rounded-full overflow-hidden flex-row">
                         <View className="h-full bg-[#ff2d55]" style={{ width: `${progressPercent}%` }} />
                       </View>
-                      <Text className="text-slate-500 dark:text-gray-400 text-[10px] ml-2">{actualPercent}%</Text>
+                      <Text className="text-gray-400 text-[10px] ml-2">{actualPercent}%</Text>
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => navigateTo("/(tabs)/dares")} className="bg-[#111111] dark:bg-[#3b1723] px-4 py-2.5 rounded-full flex-row items-center ml-2">
+                  <TouchableOpacity onPress={() => navigateTo("/(tabs)/dares")} className="bg-[#3b1723] px-4 py-2.5 rounded-full flex-row items-center ml-2">
                     <Text className="text-white font-bold text-[12px] mr-1.5">Continue</Text>
                     <Ionicons name="arrow-forward" size={12} color="white" />
                   </TouchableOpacity>
@@ -1471,7 +1515,7 @@ export default function Dashboard() {
               {cardSends && cardSends.length > 0 && (
                 <View className="mb-8">
                   <View className="flex-row items-center justify-between px-5 mb-4">
-                    <Text className="text-slate-900 dark:text-white text-lg font-bold">Recent Moments</Text>
+                    <Text className="text-white text-lg font-bold">Recent Moments</Text>
                     <TouchableOpacity className="flex-row items-center" onPress={() => router.push('/history')}>
                       <Text className="text-[#ff2d55] text-[13px] font-bold mr-1">See all</Text>
                       <Ionicons name="chevron-forward" size={12} color="#ff2d55" />
@@ -1538,7 +1582,7 @@ export default function Dashboard() {
                 return (
                   <View className="mb-4">
                     <View className="flex-row items-center justify-between px-5 mb-4">
-                      <Text className="text-slate-900 dark:text-white text-lg font-bold">Picked for You 💕</Text>
+                      <Text className="text-white text-lg font-bold">Picked for You 💕</Text>
                       <TouchableOpacity className="flex-row items-center" onPress={() => router.push('/(tabs)/dares')}>
                         <Text className="text-[#ff2d55] text-[13px] font-bold mr-1">See all</Text>
                         <Ionicons name="chevron-forward" size={12} color="#ff2d55" />
@@ -1621,7 +1665,7 @@ export default function Dashboard() {
           }}
         >
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.85)", justifyContent: "center", alignItems: "center" }}>
-            <View style={{ width: '88%', maxHeight: '85%', backgroundColor: isDark ? '#130508' : '#FFFFFF', borderRadius: 32, padding: 16, borderColor: isDark ? '#3a131a' : '#E5E7EB', borderWidth: 1 }}>
+            <View style={{ width: '88%', maxHeight: '85%', backgroundColor: '#130508', borderRadius: 32, padding: 16, borderColor: '#3a131a', borderWidth: 1 }}>
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
               {/* Image Section */}
               {selectedReceivedCard && (
@@ -1652,26 +1696,25 @@ export default function Dashboard() {
                 <Text style={{ color: '#ff2d55', fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 6, textTransform: 'uppercase' }}>
                   {selectedReceivedCard?.card?.category || 'GENERAL'}
                 </Text>
-                <Text style={{ color: isDark ? 'white' : '#111827', fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>
+                <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>
                   {selectedReceivedCard?.card?.title || 'Unknown Dare'}
                 </Text>
-                <Text style={{ color: isDark ? '#A09CA3' : '#6B7280', fontSize: 14, lineHeight: 20, marginBottom: 20 }}>
+                <Text style={{ color: '#A09CA3', fontSize: 14, lineHeight: 20, marginBottom: 20 }}>
                   {selectedReceivedCard?.card?.description || 'No description provided.'}
                 </Text>
 
                 {/* Timer Row */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isDark ? '#1d090d' : '#FFF1F2', borderRadius: 16, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: isDark ? '#331219' : '#FFE4E6' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1d090d', borderRadius: 16, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: '#331219' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ color: isDark ? '#a19ca3' : '#9F1239', fontSize: 13, fontWeight: '600' }}>Time left to decide</Text>
+                    <Ionicons name="time-outline" size={18} color="#a19ca3" />
+                    <Text style={{ color: '#a19ca3', fontSize: 13, fontWeight: '600', marginLeft: 6 }}>Time left to decide</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#361118' : '#FFE4E6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#361118', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                    <Ionicons name="timer-outline" size={14} color="#ff2d55" />
                     {getTargetDateStr(selectedReceivedCard) ? (
                       <CountdownTimer targetDate={getTargetDateStr(selectedReceivedCard)} />
                     ) : (
-                      <>
-                        <Ionicons name="timer-outline" size={14} color="#ff2d55" />
-                        <Text style={{ color: '#ff2d55', fontSize: 12, fontWeight: 'bold', marginLeft: 4 }}>23h 59m</Text>
-                      </>
+                      <Text style={{ color: '#ff2d55', fontSize: 12, fontWeight: 'bold', marginLeft: 4 }}>23h 59m</Text>
                     )}
                   </View>
                 </View>
@@ -1700,35 +1743,35 @@ export default function Dashboard() {
                 {/* Deflect (Only 30_DAYS) */}
                 {activeRoom?.expiry_type === "30_DAYS" && (
                   <TouchableOpacity 
-                    style={{ backgroundColor: isDark ? '#210d11' : '#FFF7ED', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#3d1620' : '#FFEDD5' }}
+                    style={{ backgroundColor: '#210d11', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#3d1620' }}
                     onPress={() => {
                       if (deflectCardsCount > 0) {
                         setShowDeflectDropdown(!showDeflectDropdown);
                       } else {
-                        setCustomAlert({ visible: true, title: "No Deflect Cards", message: "You do not have any deflect cards available." });
+                        Alert.alert("No Deflect Cards", "You do not have any deflect cards available.");
                       }
                     }}
                   >
-                    <Ionicons name="return-up-back" size={18} color={isDark ? "#ff8fab" : "#C2410C"} style={{ position: 'absolute', left: 16 }} />
-                    <Text style={{ color: isDark ? '#ff8fab' : '#C2410C', fontSize: 14, fontWeight: 'bold' }}>Deflect Card ({deflectCardsCount} left)</Text>
-                    <Ionicons name="chevron-down" size={18} color={isDark ? "#ff8fab" : "#C2410C"} style={{ position: 'absolute', right: 16 }} />
+                    <Ionicons name="return-up-back" size={18} color="#ff8fab" style={{ position: 'absolute', left: 16 }} />
+                    <Text style={{ color: '#ff8fab', fontSize: 14, fontWeight: 'bold' }}>Deflect Card ({deflectCardsCount} left)</Text>
+                    <Ionicons name="chevron-down" size={18} color="#ff8fab" style={{ position: 'absolute', right: 16 }} />
                   </TouchableOpacity>
                 )}
 
                 {/* Deflect Dropdown (if toggled) */}
                 {showDeflectDropdown && activeRoom?.expiry_type === "30_DAYS" && deflectCards.length > 0 && (
-                  <View style={{ backgroundColor: isDark ? '#2a1217' : '#F9FAFB', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#4a1b26' : '#E5E7EB' }}>
-                    <Text style={{ color: isDark ? '#ff8fab' : '#C2410C', fontSize: 12, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>SELECT A CARD TO SEND BACK</Text>
+                  <View style={{ backgroundColor: '#2a1217', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#4a1b26' }}>
+                    <Text style={{ color: '#ff8fab', fontSize: 12, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>SELECT A CARD TO SEND BACK</Text>
                     {deflectCards.map((dc: any) => (
                       <TouchableOpacity
                         key={dc.id}
-                        style={{ backgroundColor: isDark ? '#3d1a22' : '#FFF7ED', borderRadius: 12, padding: 12, marginBottom: 8 }}
+                        style={{ backgroundColor: '#3d1a22', borderRadius: 12, padding: 12, marginBottom: 8 }}
                         onPress={() => {
                           if (selectedReceivedCard) handleDeflectCard(selectedReceivedCard.id, dc.id);
                         }}
                       >
-                        <Text style={{ color: isDark ? 'white' : '#111827', fontSize: 14, fontWeight: 'bold' }}>{(dc.cards || dc.card)?.name || 'Power Card'}</Text>
-                        <Text style={{ color: isDark ? '#ffb3c6' : '#EA580C', fontSize: 11, marginTop: 4 }}>{(dc.cards || dc.card)?.power_description}</Text>
+                        <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>{(dc.cards || dc.card)?.name || 'Power Card'}</Text>
+                        <Text style={{ color: '#ffb3c6', fontSize: 11, marginTop: 4 }}>{(dc.cards || dc.card)?.power_description}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1736,12 +1779,12 @@ export default function Dashboard() {
 
                 {/* Reject */}
                 <TouchableOpacity 
-                  style={{ backgroundColor: isDark ? '#1d090d' : '#F3F4F6', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: isDark ? '#331219' : '#E5E7EB' }}
+                  style={{ backgroundColor: '#1d090d', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#331219' }}
                   onPress={() => selectedReceivedCard && handleRejectCard(selectedReceivedCard.id, selectedReceivedCard.room_id || activeRoom?.id || "")}
                 >
-                  <Ionicons name="ban-outline" size={18} color={isDark ? "#ffb3c6" : "#4B5563"} style={{ position: 'absolute', left: 16 }} />
-                  <Text style={{ color: isDark ? '#ffb3c6' : '#4B5563', fontSize: 14, fontWeight: 'bold' }}>Reject (Penalty: 1 Card)</Text>
-                  <Ionicons name="chevron-forward" size={18} color={isDark ? "#ffb3c6" : "#4B5563"} style={{ position: 'absolute', right: 16 }} />
+                  <Ionicons name="ban-outline" size={18} color="#ffb3c6" style={{ position: 'absolute', left: 16 }} />
+                  <Text style={{ color: '#ffb3c6', fontSize: 14, fontWeight: 'bold' }}>Reject (Penalty: 1 Card)</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#ffb3c6" style={{ position: 'absolute', right: 16 }} />
                 </TouchableOpacity>
 
                 {/* Decide Later */}
@@ -1752,7 +1795,7 @@ export default function Dashboard() {
                     setSelectedReceivedCard(null);
                   }}
                 >
-                  <Text style={{ color: isDark ? '#88848a' : '#6B7280', fontSize: 12, fontWeight: '600' }}>Decide Later &gt;</Text>
+                  <Text style={{ color: '#88848a', fontSize: 12, fontWeight: '600' }}>Decide Later &gt;</Text>
                 </TouchableOpacity>
               </View>
               </ScrollView>
@@ -1812,7 +1855,6 @@ export default function Dashboard() {
             </View>
           </View>
         </Modal>
-        <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
         </SafeAreaView>
       </ErrorBoundary>
     );

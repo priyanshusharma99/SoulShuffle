@@ -1,5 +1,5 @@
 import { Tabs, useRouter, useSegments, usePathname } from 'expo-router';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GameSocket from '@/services/socketService';
 import { getActiveRoom } from '@/services/roomService';
@@ -34,11 +34,11 @@ type BottomTabBarProps = {
 };
 
 const TABS = [
-  { name: 'index',     label: 'Home',      icon: 'heart-outline',     activeIcon: 'heart'     },
-  { name: 'dares',     label: 'Dares',     icon: 'copy-outline',      activeIcon: 'copy'      },
-  { name: 'coin-toss', label: 'Coin Toss', icon: 'aperture-outline',  activeIcon: 'aperture'  },
-  { name: 'history',   label: 'History',   icon: 'hourglass-outline', activeIcon: 'hourglass' },
-  { name: 'store',     label: 'Store',     icon: 'cart-outline',      activeIcon: 'cart'      },
+  { name: 'index',     label: 'Home',    icon: 'home-outline',            activeIcon: 'home'            },
+  { name: 'dares',     label: 'Dares',   icon: 'compass-outline',         activeIcon: 'compass'         },
+  { name: 'coin-toss', label: 'Games',   icon: 'game-controller-outline', activeIcon: 'game-controller' },
+  { name: 'history',   label: 'Journey', icon: 'time-outline',            activeIcon: 'time'            },
+  { name: 'store',     label: 'Store',   icon: 'bag-outline',             activeIcon: 'bag'             },
 ];
 
 // ─── Tab Button Item ──────────────────────────────────────────────────────────
@@ -58,11 +58,7 @@ function TabItem({
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    width.value = withSpring(focused ? 110 : 46, {
-      damping: 18,
-      stiffness: 150,
-      mass: 0.8,
-    });
+    width.value = withSpring(focused ? 110 : 46, { damping: 18, stiffness: 150, mass: 0.8 });
     textOpacity.value = withTiming(focused ? 1 : 0, { duration: 150 });
   }, [focused]);
 
@@ -84,12 +80,9 @@ function TabItem({
     transform: [{ translateX: withSpring(focused ? 0 : -6) }],
   }));
 
-  // Define tab item colors dynamically
-  // Light mode (on a black bar): active has light pink bg, rose text.
-  // Dark mode (on a rose-charcoal bar): active has bright rose bg, white text.
   const activeBg = isDark ? '#e11d48' : '#ffe4e6';
   const activeColor = isDark ? '#ffffff' : '#f43f5e';
-  const inactiveColor = 'rgba(255, 255, 255, 0.45)'; // Always light white on dark bar containers
+  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.7)';
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
@@ -118,7 +111,7 @@ function TabItem({
   );
 }
 
-// ─── Custom Floating Tab Bar ──────────────────────────────────────────────────
+// ✨ Custom Floating Tab Bar ✨
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
@@ -128,14 +121,13 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     : Math.max(16, insets.bottom + 8);
 
   return (
-    <View style={[styles.barContainer, { bottom: bottomMargin }]}>
+    <View style={[styles.barContainer, { bottom: bottomMargin }]} pointerEvents="box-none">
       <View
         style={[
           styles.tabBar,
           {
-            // Light mode: solid black bar. Dark mode: slightly lighter rose-charcoal to avoid blending.
-            backgroundColor: isDark ? '#261216' : '#14080B',
-            borderColor: isDark ? '#4A232A' : '#221115',
+            backgroundColor: isDark ? '#261216' : '#FFFFFF',
+            borderColor: isDark ? '#4A232A' : '#F1E8EC',
             shadowColor: '#000',
           },
         ]}
@@ -173,44 +165,37 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   barContainer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
+    left: 20,
+    right: 20,
+    alignSelf: 'center',
+    zIndex: 100, // Ensure it floats on top of everything!
   },
   tabBar: {
     flexDirection: 'row',
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1.5,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    justifyContent: 'space-around',
     width: '100%',
-    maxWidth: 380,
-    elevation: 12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 30,
+    borderWidth: 1,
   },
   tabItem: {
-    height: 46,
-    borderRadius: 23,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    gap: 6,
-    overflow: 'hidden',
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    height: 42,
   },
   labelText: {
     fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontWeight: 'bold',
+    marginLeft: 6,
   },
 });
+
 
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function TabLayout() {

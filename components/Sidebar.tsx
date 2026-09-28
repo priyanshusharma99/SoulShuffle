@@ -12,6 +12,55 @@ import api from '@/services/api';
 
 import { DEFAULT_AVATAR } from '@/hooks/use-user-avatar';
 
+
+const MenuItem = ({ icon, label, onPress, isActive = false, isLogout = false, isDark = true }: { icon: any, label: string, onPress: () => void, isActive?: boolean, isLogout?: boolean, isDark?: boolean }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginBottom: 8,
+      borderRadius: 16,
+      backgroundColor: isActive
+        ? (isDark ? '#3c101c' : '#ffe4e6')
+        : isLogout
+          ? (isDark ? '#3c101c' : '#fff0f0')
+          : 'transparent',
+    }}
+  >
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: isActive || isLogout
+          ? 'transparent'
+          : (isDark ? '#2d141d' : '#f3e8ee'),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+      }}>
+        <Ionicons name={icon} size={18} color={isLogout ? '#ef4444' : isActive ? '#f43f5e' : (isDark ? '#fbcfe8' : '#be123c')} />
+      </View>
+      <Text style={{
+        color: isLogout ? '#ef4444' : isActive ? (isDark ? '#fff' : '#be123c') : (isDark ? '#fbcfe8' : '#3f1f2b'),
+        fontSize: 16,
+        fontWeight: isActive ? '700' : '500',
+      }}>
+        {label}
+      </Text>
+    </View>
+    <Ionicons
+      name="chevron-forward"
+      size={16}
+      color={isLogout ? '#ef4444' : isActive ? '#f43f5e' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)')}
+    />
+  </TouchableOpacity>
+);
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { isOpen, closeSidebar } = useSidebar();
@@ -24,7 +73,7 @@ export default function Sidebar() {
   const [connectionString, setConnectionString] = useState('');
   const [userAvatar, setUserAvatar] = useState<string>(DEFAULT_AVATAR);
 
-  // Load names & avatar from cache on open — instant, no API call
+  // Load names & avatar from cache on open â€” instant, no API call
   useEffect(() => {
     if (!isOpen) return;
     const loadNamesAndStats = async () => {
@@ -174,43 +223,7 @@ export default function Sidebar() {
     );
   }
 
-  const MenuItem = ({ icon, label, path, isActive = false, isLogout = false }: { icon: any, label: string, path?: string, isActive?: boolean, isLogout?: boolean }) => (
-    <TouchableOpacity
-      onPress={() => isLogout ? handleLogout() : navigateTo(path!)}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        marginBottom: 8,
-        borderRadius: 16,
-        backgroundColor: isActive || isLogout ? '#3c101c' : 'transparent',
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{
-          width: 32,
-          height: 32,
-          borderRadius: 10,
-          backgroundColor: isActive || isLogout ? 'transparent' : '#2d141d',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <Ionicons name={icon} size={16} color={isLogout ? "#e55f75" : isActive ? "white" : "#ffb3c6"} />
-        </View>
-        <Text style={{
-          color: isLogout ? "#e55f75" : "white",
-          fontWeight: '700',
-          fontSize: 14,
-          marginLeft: 14,
-        }}>
-          {label}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={14} color={isLogout ? "#e55f75" : "white"} />
-    </TouchableOpacity>
-  );
+  
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}>
@@ -222,7 +235,12 @@ export default function Sidebar() {
         />
 
         {/* Menu Panel */}
-        <View style={{ width: '82%', height: '100%', backgroundColor: '#130508', borderTopRightRadius: 40, borderBottomRightRadius: 40, paddingTop: 40, zIndex: 1001 }}>
+        <View style={{
+          width: '82%', height: '100%',
+          backgroundColor: isDark ? '#130508' : '#FFFFFF',
+          borderTopRightRadius: 40, borderBottomRightRadius: 40,
+          paddingTop: 40, zIndex: 1001,
+        }}>
           <View style={{ paddingHorizontal: 20, paddingBottom: 16, flex: 1 }}>
 
             {/* Avatar Section */}
@@ -234,31 +252,28 @@ export default function Sidebar() {
               />
             </View>
 
-            <Text style={{ fontSize: 22, fontWeight: '900', color: 'white', letterSpacing: -0.5 }}>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: isDark ? '#ffffff' : '#1a0a0f', letterSpacing: -0.5, marginBottom: 20 }}>
               {userName}
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: '#888', marginTop: 4, marginBottom: 16 }}>
-              Same team, Always ♡
-            </Text>
             
-            <View style={{ height: 1, backgroundColor: '#2a141a', marginBottom: 16 }} />
+            <View style={{ height: 1, backgroundColor: isDark ? '#2a141a' : '#f0dde5', marginBottom: 24 }} />
 
             {/* Menu Links */}
-            <View style={{ flex: 1 }}>
-              <MenuItem icon="home" label="Home" path="/" isActive={pathname === '/' || pathname === ''} />
-              <MenuItem icon="trophy" label="Challenges" path="/dares" isActive={pathname === '/dares'} />
-              <MenuItem icon="time" label="History" path="/history" isActive={pathname === '/history'} />
-              <MenuItem icon="cart" label="Store" path="/store" isActive={pathname === '/store'} />
-              <MenuItem icon="pricetag" label="Coin Toss" path="/coin-toss" isActive={pathname === '/coin-toss'} />
-              <MenuItem icon="settings" label="Settings" path="/profile" isActive={pathname === '/profile'} />
-              <MenuItem icon="log-out-outline" label="Log Out" isLogout={true} />
+            <View style={{ flex: 1, paddingTop: 8 }}>
+              <MenuItem isDark={isDark} icon="home" label="Home" onPress={() => navigateTo("/")} isActive={pathname === '/' || pathname === ''} />
+              <MenuItem isDark={isDark} icon="trophy" label="Challenges" onPress={() => navigateTo("/dares")} isActive={pathname === '/dares'} />
+              <MenuItem isDark={isDark} icon="time" label="History" onPress={() => navigateTo("/history")} isActive={pathname === '/history'} />
+              <MenuItem isDark={isDark} icon="cart" label="Store" onPress={() => navigateTo("/store")} isActive={pathname === '/store'} />
+              <MenuItem isDark={isDark} icon="pricetag" label="Coin Toss" onPress={() => navigateTo("/coin-toss")} isActive={pathname === '/coin-toss'} />
+              <MenuItem isDark={isDark} icon="settings" label="Settings" onPress={() => navigateTo("/profile")} isActive={pathname === '/profile'} />
+              <MenuItem isDark={isDark} icon="log-out-outline" label="Log Out" onPress={handleLogout} isLogout={true} />
             </View>
           </View>
 
           {/* Footer */}
           <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8 }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 2, color: '#666' }}>SOUL SHUFFLE</Text>
-            <Text style={{ fontSize: 9, fontWeight: '600', color: '#555', marginTop: 4 }}>v 1.1.1</Text>
+            <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 2, color: isDark ? '#555' : '#c0a0b0' }}>SOUL SHUFFLE</Text>
+            <Text style={{ fontSize: 9, fontWeight: '600', color: isDark ? '#444' : '#c0a0b0', marginTop: 4 }}>v 1.1.1</Text>
           </View>
         </View>
       </View>
@@ -276,3 +291,4 @@ export default function Sidebar() {
     </View>
   );
 }
+

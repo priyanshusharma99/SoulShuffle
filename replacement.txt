@@ -1,0 +1,153 @@
+﻿function TabItem({
+  tab,
+  focused,
+  isDark,
+  onPress,
+}: {
+  tab: (typeof TABS)[0];
+  focused: boolean;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const width = useSharedValue(focused ? 110 : 46);
+  const textOpacity = useSharedValue(focused ? 1 : 0);
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    width.value = withSpring(focused ? 110 : 46, { damping: 18, stiffness: 150, mass: 0.8 });
+    textOpacity.value = withTiming(focused ? 1 : 0, { duration: 150 });
+  }, [focused]);
+
+  const handlePress = () => {
+    scale.value = withSpring(0.9, { damping: 10, stiffness: 300 }, () => {
+      scale.value = withSpring(1, { damping: 12, stiffness: 240 });
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  const containerStyle = useAnimatedStyle(() => ({
+    width: width.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+    transform: [{ translateX: withSpring(focused ? 0 : -6) }],
+  }));
+
+  const activeBg = isDark ? '#e11d48' : '#ffe4e6';
+  const activeColor = isDark ? '#ffffff' : '#f43f5e';
+  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.7)';
+
+  return (
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
+      <Animated.View
+        style={[
+          styles.tabItem,
+          { backgroundColor: focused ? activeBg : 'transparent' },
+          containerStyle,
+        ]}
+      >
+        <Ionicons
+          size={18}
+          name={(focused ? tab.activeIcon : tab.icon) as any}
+          color={focused ? activeColor : inactiveColor}
+        />
+        {focused && (
+          <Animated.Text
+            style={[styles.labelText, { color: activeColor }, textStyle]}
+            numberOfLines={1}
+          >
+            {tab.label}
+          </Animated.Text>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// ✨ Custom Floating Tab Bar ✨
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+  const isDark = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
+
+  const bottomMargin = Platform.OS === 'ios'
+    ? Math.max(24, insets.bottom)
+    : Math.max(16, insets.bottom + 8);
+
+  return (
+    <View style={[styles.barContainer, { bottom: bottomMargin }]} pointerEvents="box-none">
+      <View
+        style={[
+          styles.tabBar,
+          {
+            backgroundColor: isDark ? '#261216' : '#FFFFFF',
+            borderColor: isDark ? '#4A232A' : '#F1E8EC',
+            shadowColor: '#000',
+          },
+        ]}
+      >
+        {TABS.map((tab) => {
+          const route = state.routes.find((r: any) => r.name === tab.name);
+          if (!route) return null;
+          const focused = state.index === state.routes.findIndex((r: any) => r.name === tab.name);
+
+          return (
+            <TabItem
+              key={tab.name}
+              tab={tab}
+              focused={focused}
+              isDark={isDark}
+              onPress={() => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(tab.name);
+                }
+              }}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  barContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    alignSelf: 'center',
+    zIndex: 100, // Ensure it floats on top of everything!
+  },
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 30,
+    borderWidth: 1,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    height: 42,
+  },
+  labelText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+});

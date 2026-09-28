@@ -1,0 +1,428 @@
+--- old_dares2.tsx
++++ app/(tabs)/dares.tsx
+@@ -1,4 +1,5 @@
+ import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation, interpolateColor } from 'react-native-reanimated';
++import { LinearGradient } from 'expo-linear-gradient';
+ import React, { useState, useEffect, useCallback } from 'react';
+ import { View, Easing, Text, ScrollView, Dimensions, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter, Animated as RNAnimated } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+@@ -72,12 +73,14 @@
+   id: string | number;
+   stars: number;
+   isPaid: boolean;
++  categoryImage?: string;
+ };
+ 
+ // Helper to map card structure from Supabase
+ const mapCardToDare = (card: any): Dare => {
+-  const rawCategory = card.category_name || card.card_categories?.name || 'GENERAL';
++  const rawCategory = card.category_name || card.card_categories?.name || card.card?.card_categories?.name || card.category || 'GENERAL';
+   const cleanCategory = rawCategory.split('_')[0].toUpperCase();
++  const categoryImage = card.category_image_url || card.card_categories?.icon_url || card.card_categories?.image_url || card.category_image || card.card?.card_categories?.icon_url || card.card?.card_categories?.image_url || card.card?.category_image_url || null;
+ 
+   const difficulty = (card.attributes?.difficulty || 'MEDIUM').toUpperCase();
+   const time = card.attributes?.time || '24 hrs';
+@@ -106,8 +109,9 @@
+     time,
+     image,
+     description,
+-    isPaid: false
+-  };
++      isPaid: false,
++      categoryImage
++    };
+ };
+ 
+ 
+@@ -176,253 +180,32 @@
+ };
+ 
+ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
+-  const [currentIndex, setCurrentIndex] = React.useState(0);
+-  
+-  const { Animated, PanResponder } = require('react-native');
+-  // We store a separate Animated.ValueXY for EVERY card ID so they don't share position.
+-  // This completely eliminates the 1-frame flash when swapping cards!
+-  const positionCache = React.useRef<{ [key: string]: any }>({});
+-  const getPosition = (id: string | number) => {
+-    if (!positionCache.current[id]) {
+-      positionCache.current[id] = new Animated.ValueXY();
+-    }
+-    return positionCache.current[id];
+-  };
+-
+-  // Reset index when data changes
+-  React.useEffect(() => {
+-    setCurrentIndex(0);
+-  }, [data?.length, data?.[0]?.id]);
+-
+-  const latestIndex = React.useRef(currentIndex);
+-  const latestData = React.useRef(data);
+-
+-  React.useEffect(() => {
+-    latestIndex.current = currentIndex;
+-    latestData.current = data;
+-  }, [currentIndex, data]);
+-
+-  const isAnimating = React.useRef(false);
+-
+-  const panResponder = React.useRef(
+-    PanResponder.create({
+-      onStartShouldSetPanResponder: () => false,
+-      onStartShouldSetPanResponderCapture: () => false,
+-      onMoveShouldSetPanResponder: (evt: any, gestureState: any) => {
+-        const d = latestData.current;
+-        if (isAnimating.current || !d || d.length === 0) return false;
+-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+-      },
+-      onMoveShouldSetPanResponderCapture: (evt: any, gestureState: any) => {
+-        const d = latestData.current;
+-        if (isAnimating.current || !d || d.length === 0) return false;
+-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+-      },
+-      onPanResponderGrant: () => {
+-        const d = latestData.current;
+-        const idx = latestIndex.current;
+-        if (!isAnimating.current && d && d[idx]) {
+-          const currentPosition = getPosition(d[idx].id);
+-          currentPosition.setOffset({
+-            x: (currentPosition.x as any)._value,
+-            y: (currentPosition.y as any)._value
+-          });
+-          currentPosition.setValue({ x: 0, y: 0 });
+-        }
+-      },
+-      onPanResponderMove: (evt: any, gestureState: any) => {
+-        const d = latestData.current;
+-        const idx = latestIndex.current;
+-        if (isAnimating.current || !d || d.length === 0) return;
+-        const currentPosition = getPosition(d[idx].id);
+-        currentPosition.setValue({ x: gestureState.dx, y: gestureState.dy });
+-      },
+-      onPanResponderRelease: (evt: any, gestureState: any) => {
+-        const d = latestData.current;
+-        const idx = latestIndex.current;
+-        if (isAnimating.current || !d || d.length === 0) return;
+-        
+-        const currentPosition = getPosition(d[idx].id);
+-        currentPosition.flattenOffset();
+-
+-        const isSwipeRight = gestureState.dx > 100 || (gestureState.dx > 20 && gestureState.vx > 0.5);
+-        const isSwipeLeft = gestureState.dx < -100 || (gestureState.dx < -20 && gestureState.vx < -0.5);
+-
+-        if (isSwipeRight) {
+-          isAnimating.current = true;
+-          Animated.timing(currentPosition, {
+-              toValue: { x: SCREEN_WIDTH * 2, y: gestureState.dy + (gestureState.vy * 50) },
+-              duration: 250,
+-              easing: Easing.out(Easing.cubic),
+-              useNativeDriver: false
+-            }).start(() => {
+-            setCurrentIndex(prev => (prev < d.length - 1 ? prev + 1 : 0));
+-              setTimeout(() => {
+-                currentPosition.setValue({ x: 0, y: 0 });
+-                isAnimating.current = false;
+-              }, 50);
+-            });
+-        } else if (isSwipeLeft) {
+-          isAnimating.current = true;
+-          Animated.timing(currentPosition, {
+-              toValue: { x: -SCREEN_WIDTH * 2, y: gestureState.dy + (gestureState.vy * 50) },
+-              duration: 250,
+-              easing: Easing.out(Easing.cubic),
+-              useNativeDriver: false
+-            }).start(() => {
+-            setCurrentIndex(prev => (prev < d.length - 1 ? prev + 1 : 0));
+-              setTimeout(() => {
+-                currentPosition.setValue({ x: 0, y: 0 });
+-                isAnimating.current = false;
+-              }, 50);
+-            });
+-        } else {
+-          Animated.spring(currentPosition, {
+-            toValue: { x: 0, y: 0 },
+-            friction: 5,
+-            useNativeDriver: false
+-          }).start();
+-        }
+-      }
+-    })
+-  ).current;
+-
+-  if (!data || data.length === 0) return null;
+-
+-  const renderCards = () => {
+-    const cardsToRender = [];
+-    const count = Math.min(data.length, 3);
+-    for (let offset = 0; offset < count; offset++) {
+-      const idx = (currentIndex + offset) % data.length;
+-      cardsToRender.push({ item: data[idx], offset, originalIndex: idx });
+-    }
++    const { width } = Dimensions.get('window');
++    const cardWidth = Math.min(width, 450) * 0.85;
+ 
+     if (!data || data.length === 0) return null;
+-    const frontCard = data[currentIndex];
+-    if (!frontCard) return null;
+-    const frontPosition = getPosition(frontCard.id);
+-
+-    return cardsToRender.map(({ item, offset, originalIndex }) => {
+-      const isFront = offset === 0;
+-      const isSecond = offset === 1;
+-      const isThird = offset === 2;
+-
+-      let animatedStyle: any = {};
+-      let panHandlers = {};
+-
+-      if (isFront) {
+-        const itemPosition = getPosition(item.id);
+-        const rotate = itemPosition.x.interpolate({
+-          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+-          outputRange: ['-8deg', '0deg', '8deg'],
+-          extrapolate: 'clamp'
+-        });
+-        animatedStyle = {
+-          transform: [
+-            { translateX: itemPosition.x },
+-            { translateY: itemPosition.y },
+-            { scale: 1 },
+-            { rotate }
+-          ],
+-          zIndex: 3,
+-          elevation: 3
+-        };
+-        if (isFront) {
+-          panHandlers = panResponder.panHandlers;
+-        }
+-      } else if (isSecond) {
+-        const scale = frontPosition.x.interpolate({
+-          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+-          outputRange: [1, 0.94, 1],
+-          extrapolate: 'clamp'
+-        });
+-        const rotate = frontPosition.x.interpolate({
+-          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+-          outputRange: ['0deg', '-6deg', '0deg'],
+-          extrapolate: 'clamp'
+-        });
+-        const translateX = frontPosition.x.interpolate({
+-          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+-          outputRange: [0, -25, 0],
+-          extrapolate: 'clamp'
+-        });
+-        const translateY = frontPosition.x.interpolate({
+-          inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+-          outputRange: [0, -10, 0],
+-          extrapolate: 'clamp'
+-        });
+-        animatedStyle = {
+-          transform: [{ translateX }, { translateY }, { scale }, { rotate }],
+-          zIndex: 2,
+-          elevation: 2
+-        };
+-      } else if (isThird) {
+-        animatedStyle = {
+-          transform: [{ translateX: 25 }, { translateY: -5 }, { scale: 0.88 }, { rotate: '6deg' }],
+-          zIndex: 1,
+-          elevation: 1
+-        };
+-      }
+-
+-      return (
+-        <Animated.View
+-          key={item.id || originalIndex}
+-          style={[
+-            { position: 'absolute', width: ITEM_WIDTH, height: ITEM_HEIGHT },
+-            animatedStyle
+-          ]}
+-          {...panHandlers}
+-        >
+-          <CarouselItemUI item={item} isDark={isDark} onSelectDare={onSelectDare} />
+-        </Animated.View>
+-      );
+-    }).reverse();
+-  };
+-
+-  const renderPagination = () => {
+-    const totalDots = Math.min(data.length, 5);
+-    if (totalDots <= 1) return null;
+ 
+     return (
+-      <View className="flex-row justify-center items-center mt-6 h-4">
+-        {Array.from({ length: totalDots }).map((_, i) => {
+-          const activeIndex = currentIndex % totalDots;
+-          const isActive = activeIndex === i;
+-          return (
+-            <TouchableOpacity 
+-              key={i} 
+-              activeOpacity={0.7}
+-              onPress={() => {
+-                if (data && data[currentIndex]) {
+-                  getPosition(data[currentIndex].id).setValue({ x: 0, y: 0 });
+-                }
+-                setCurrentIndex(i);
+-              }}
+-              style={{ 
+-                height: 8, 
+-                width: isActive ? 24 : 8, 
+-                borderRadius: 4, 
+-                backgroundColor: isActive ? '#FF296D' : (isDark ? '#3D3442' : '#D9D9D9'),
+-                marginHorizontal: 4,
+-                opacity: isActive ? 1 : 0.6
+-              }} 
+-            />
+-          );
+-        })}
+-      </View>
++      <ScrollView 
++        horizontal 
++        showsHorizontalScrollIndicator={false}
++        snapToInterval={cardWidth + 16}
++        decelerationRate="fast"
++        contentContainerStyle={{ paddingHorizontal: 24 }}
++      >
++        {data.map((item: any, index: number) => (
++          <View 
++            key={item.id || index}
++            style={{ width: cardWidth, height: 400, marginRight: 16 }}
++          >
++            <CarouselItemUI item={item} isDark={isDark} onSelectDare={onSelectDare} />
++          </View>
++        ))}
++      </ScrollView>
+     );
+   };
+ 
+-  return (
+-    <View style={{ width: '100%', alignItems: 'center' }}>
+-      <View style={{ width: ITEM_WIDTH, height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
+-        {renderCards()}
+-      </View>
+-      {renderPagination()}
+-    </View>
+-  );
+-};
+-
++  // Reset index when data changes
+ export default function Dares() {
+   const { openSidebar } = useSidebar();
+   const userAvatar = useUserAvatar();
+@@ -446,6 +229,7 @@
+   const [refreshing, setRefreshing] = useState(false);
+   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+   const [searchQuery, setSearchQuery] = useState<string>('');
++  const [focusCardId, setFocusCardId] = useState<string | null>(null);
+   const [searchOpen, setSearchOpen] = useState<boolean>(false);
+   const searchBarAnim = React.useRef(new RNAnimated.Value(0)).current;
+ 
+@@ -464,17 +248,24 @@
+ 
+   // Compute search-filtered deck: matching cards float to the TOP of the deck
+   const getFilteredDares = (baseDares: any[]) => {
+-    if (!searchQuery.trim()) return baseDares;
++    let result = baseDares;
++    if (focusCardId) {
++      const match = result.filter(d => d.id === focusCardId || d.deck_card_id === focusCardId || d.card_id === focusCardId);
++      const restArr = result.filter(d => d.id !== focusCardId && d.deck_card_id !== focusCardId && d.card_id !== focusCardId);
++      result = [...match, ...restArr];
++    }
++    
++    if (!searchQuery.trim()) return result;
+     const q = searchQuery.trim().toLowerCase();
+-    const matching = baseDares.filter(d =>
++    const matching = result.filter(d =>
+       (d.title || d.name || '').toLowerCase().includes(q) ||
+       (d.category || '').toLowerCase().includes(q)
+     );
+-    const rest = baseDares.filter(d =>
++    const nonMatching = result.filter(d =>
+       !(d.title || d.name || '').toLowerCase().includes(q) &&
+       !(d.category || '').toLowerCase().includes(q)
+     );
+-    return [...matching, ...rest];
++    return [...matching, ...nonMatching];
+   };
+ 
+   const getFallbackCards = () => [
+@@ -520,7 +311,11 @@
+         const [fetched, fetchedLimits] = await Promise.all([
+           fetchAvailableDeck(activeRoom.id),
+           fetchSendLimits(activeRoom.id)
+-        ]);
++          ]);
++          
++          if (fetched && fetched.length > 0) {
++            
++          }
+         
+         const mapped = fetched.map(mapCardToDare);
+         setDares(mapped);
+@@ -585,6 +380,12 @@
+     };
+ 
+     const clearSub = DeviceEventEmitter.addListener('app:clearRoom', handleRoomLeft);
++    const openCardSub = DeviceEventEmitter.addListener('openDareCard', (data) => {
++      if (data && data.cardId) {
++        setFocusCardId(data.cardId);
++        setSelectedCategory('ALL');
++      }
++    });
+ 
+     GameSocket.on('partner_joined', handlePartnerJoined);
+     GameSocket.on('partner_left', handleRoomLeft);
+@@ -593,6 +394,7 @@
+ 
+     return () => {
+       clearSub.remove();
++      openCardSub.remove();
+       GameSocket.off('partner_joined', handlePartnerJoined);
+       GameSocket.off('partner_left', handleRoomLeft);
+       GameSocket.off('room_left', handleRoomLeft);
+@@ -859,19 +661,39 @@
+             const catMap = new Map();
+             dares.forEach(d => {
+               const c = d.category || 'GENERAL';
+-              if (!catMap.has(c)) catMap.set(c, { id: c, count: 1 });
+-              else catMap.get(c).count++;
++              if (!catMap.has(c)) {
++                catMap.set(c, { id: c, count: 1, imageUri: d.categoryImage });
++              } else {
++                const existing = catMap.get(c);
++                existing.count++;
++                if (!existing.imageUri && d.categoryImage) existing.imageUri = d.categoryImage;
++              }
+             });
+ 
+             const dynamicCategories = Array.from(catMap.values()).map(cat => {
+               let color = '#3A86FF';
+-              let image = require('@/assets/images/bundle_cozy.jpg');
++              let image = cat.imageUri ? { uri: cat.imageUri } : require('@/assets/images/bundle_cozy.jpg');
+               const nameLower = cat.id.toLowerCase();
+-              if(nameLower.includes('romanc')) { color = '#FF296D'; image = require('@/assets/images/bundle_romantic.jpg'); }
+-              else if(nameLower.includes('spic')) { color = '#D90429'; image = require('@/assets/images/bundle_spicy.jpg'); }
+-              else if(nameLower.includes('fun')) { color = '#9D4EDD'; image = require('@/assets/images/bundle_cozy.jpg'); }
+-              else if(nameLower.includes('deep')) { color = '#3A86FF'; image = require('@/assets/images/sunset_picnic.jpeg'); }
+-              else if(nameLower.includes('penalt')) { color = '#FF9F1C'; image = require('@/assets/images/bundle_spicy.jpg'); }
++              if(nameLower.includes('romanc')) { 
++                color = '#FF296D'; 
++                if (!cat.imageUri) image = require('@/assets/images/bundle_romantic.jpg'); 
++              }
++              else if(nameLower.includes('spic')) { 
++                color = '#D90429'; 
++                if (!cat.imageUri) image = require('@/assets/images/bundle_spicy.jpg'); 
++              }
++              else if(nameLower.includes('fun')) { 
++                color = '#9D4EDD'; 
++                if (!cat.imageUri) image = require('@/assets/images/bundle_cozy.jpg'); 
++              }
++              else if(nameLower.includes('deep')) { 
++                color = '#3A86FF'; 
++                if (!cat.imageUri) image = require('@/assets/images/sunset_picnic.jpeg'); 
++              }
++              else if(nameLower.includes('penalt')) { 
++                color = '#FF9F1C'; 
++                if (!cat.imageUri) image = require('@/assets/images/bundle_spicy.jpg'); 
++              }
+               
+               return {
+                 id: cat.id,

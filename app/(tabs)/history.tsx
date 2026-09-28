@@ -641,7 +641,7 @@ const calculateStats = (currentRoomHistory: SentChallenge[], staticTotal: number
         </View>
         <TouchableOpacity onPress={() => router.push('/profile')} activeOpacity={0.7} className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-950/40 items-center justify-center border border-rose-200 dark:border-rose-950/30 p-0.5">
           <Image
-            source={{ uri: userAvatar }}
+            source={{ uri: userAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix' }}
             className="w-6 h-6"
             resizeMode="contain"
           />

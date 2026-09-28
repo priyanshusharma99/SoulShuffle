@@ -37,7 +37,7 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   if (!timeLeft) return null;
 
   return (
-    <View className="flex-row items-center bg-rose-100/80 dark:bg-rose-950/40 px-2 py-1 rounded-md">
+    <View className="flex-row items-center">
       <Ionicons name="timer-outline" size={14} color="#e11d48" />
       <Text className="text-rose-600 dark:text-rose-400 font-bold text-[11px] ml-1 tracking-wider">{timeLeft}</Text>
     </View>

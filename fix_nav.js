@@ -1,20 +1,11 @@
+
 const fs = require('fs');
+let layout = fs.readFileSync('app/(tabs)/_layout.tsx', 'utf8');
+layout = layout.replace(/router\.replace\('\/'\)/g, 'router.navigate(\'/\')');
+fs.writeFileSync('app/(tabs)/_layout.tsx', layout);
 
-let content = fs.readFileSync('app/(tabs)/_layout.tsx', 'utf-8');
+let sidebar = fs.readFileSync('components/Sidebar.tsx', 'utf8');
+sidebar = sidebar.replace(/router\.replace\('\/'\)/g, 'router.navigate(\'/\')');
+fs.writeFileSync('components/Sidebar.tsx', sidebar);
+console.log('Switched to router.navigate');
 
-content = content.replace("import { CommonActions } from '@react-navigation/native';\n", "");
-content = content.replace("import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';\n", "");
-
-content = content.replace("({ state, descriptors, navigation }: BottomTabBarProps)", "({ state, descriptors, navigation }: any)");
-
-const replaceBlock = 
-avigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'index' }],
-        })
-      );;
-content = content.replace(replaceBlock, outer.replace('/'););
-
-fs.writeFileSync('app/(tabs)/_layout.tsx', content, 'utf-8');
-console.log('Fixed imports in _layout.tsx');
