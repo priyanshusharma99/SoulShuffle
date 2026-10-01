@@ -429,6 +429,7 @@ export default function Dares() {
   const router = useRouter();
   const [selectedDare, setSelectedDare] = useState<Dare | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const isSendingRef = React.useRef(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [room, setRoom] = useState<Room | null>(null);
@@ -651,6 +652,8 @@ export default function Dares() {
 
   const handleSendChallenge = async () => {
     if (!selectedDare) return;
+    if (isSendingRef.current) return;
+    isSendingRef.current = true;
 
     const activeRoom = room || await getActiveRoom();
     if (!activeRoom) {

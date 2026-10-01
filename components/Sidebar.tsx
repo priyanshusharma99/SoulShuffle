@@ -192,6 +192,17 @@ export default function Sidebar() {
                 console.log('[LOGOUT] Google sign out error (ignoring):', googleErr);
               }
 
+              console.log('[LOGOUT] Step 1.5: Unregistering Push Token from backend...');
+              try {
+                const currentPushToken = await AsyncStorage.getItem('expoPushToken');
+                if (currentPushToken) {
+                  await api.post('/notifications/unregister-push-token', { pushToken: currentPushToken });
+                  console.log('[LOGOUT] Push token unregistered');
+                }
+              } catch (tokenErr) {
+                console.log('[LOGOUT] Push token unregister error (ignoring):', tokenErr);
+              }
+
               console.log('[LOGOUT] Step 2: Clearing ALL AsyncStorage data...');
               await logout();
               const tokenCheck = await AsyncStorage.getItem('accessToken');
@@ -273,7 +284,7 @@ export default function Sidebar() {
           {/* Footer */}
           <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8 }}>
             <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 2, color: isDark ? '#555' : '#c0a0b0' }}>SOUL SHUFFLE</Text>
-            <Text style={{ fontSize: 9, fontWeight: '600', color: isDark ? '#444' : '#c0a0b0', marginTop: 4 }}>v 1.1.1</Text>
+            <Text style={{ fontSize: 9, fontWeight: '600', color: isDark ? '#444' : '#c0a0b0', marginTop: 4 }}>v 1.0.2</Text>
           </View>
         </View>
       </View>

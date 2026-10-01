@@ -2,7 +2,7 @@
   "expo": {
     "name": "SoulShuffle",
     "slug": "soulshuffle-app",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "soulshuffle",
@@ -15,7 +15,8 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      }
+      },
+      "buildNumber": "2"
     },
     "splash": {
       "image": "./assets/images/icon.png",
@@ -23,7 +24,7 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
