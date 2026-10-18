@@ -40,6 +40,7 @@ import {
   Room,
   ExpiryType,
   fetchRoomHistory,
+  updateChallengeInCache,
 } from "@/services/roomService";
 import { fetchAvailableDeck } from "@/services/cardService";
 import GameSocket from "@/services/socketService";
@@ -945,6 +946,7 @@ export default function Dashboard() {
       AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
+    updateChallengeInCache(sendId, { status: "IN_PROGRESS", accepted_at: new Date().toISOString() }, activeRoom?.id).catch(() => {});
 
     try {
       await acceptCardSend(sendId);
@@ -970,9 +972,10 @@ export default function Dashboard() {
       AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
+    const targetRoomId = roomId || activeRoom?.id || "";
+    updateChallengeInCache(sendId, { status: "REJECTED" }, targetRoomId).catch(() => {});
 
     try {
-      const targetRoomId = roomId || activeRoom?.id || "";
       await rejectCardSend(sendId, targetRoomId);
       if (activeRoom) {
         GameSocket.sendGameEvent(activeRoom.code, "CARD_REJECTED", { sendId });
@@ -1007,6 +1010,7 @@ export default function Dashboard() {
       AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
+    updateChallengeInCache(sendId, { status: "DEFLECTED", deflected_at: new Date().toISOString() }, activeRoom?.id).catch(() => {});
     setDeflectCardsCount((prev) => Math.max(0, prev - 1));
     setDeflectCards((prev) => prev.filter((c) => c.id !== deflectCardToUse.id));
 
@@ -1047,6 +1051,7 @@ export default function Dashboard() {
         AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
         return updated;
       });
+      updateChallengeInCache(sendId, { status: "COMPLETED", completed_at: new Date().toISOString() }, activeRoom?.id).catch(() => {});
 
       await completeCardSend(sendId);
       setCustomAlert({ visible: true, title: "Challenge Completed! 🎉", message: "Well done! You have completed this dare." });
@@ -1059,6 +1064,7 @@ export default function Dashboard() {
         AsyncStorage.setItem("cachedCardSends", JSON.stringify(reverted)).catch(() => {});
         return reverted;
       });
+      updateChallengeInCache(sendId, { status: currentStatus || "IN_PROGRESS" }, activeRoom?.id).catch(() => {});
       setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to complete card" });
       refreshCardSendsOnly();
     } finally {
@@ -1071,6 +1077,7 @@ export default function Dashboard() {
     setCardSends((prev) =>
       prev.map((s) => (s.id === sendId ? { ...s, status: "COMPLETED" } : s)),
     );
+    updateChallengeInCache(sendId, { status: "COMPLETED" }, activeRoom?.id).catch(() => {});
 
     try {
       await confirmCardSend(sendId);

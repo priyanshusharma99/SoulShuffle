@@ -1,6 +1,7 @@
 import api from './api';
 import { getMyProfile, getMyProfileCached } from './authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 
 // ── Types ────────────────────────────────────────────────
 export type ExpiryType = '7_DAYS' | '30_DAYS' | '1_YEAR';
@@ -243,4 +244,87 @@ export const triggerCoinFlipApi = async (chosenSide: 'HEADS' | 'TAILS', reason: 
   });
   return response.data.data;
 };
+
+// ── INSTANT HISTORY CACHE SYNC ──────────────────────────
+export const addSentChallengeToCache = async (challenge: SentChallenge, roomId?: string) => {
+  try {
+    let targetRoomId = roomId || challenge.room_id;
+    if (!targetRoomId) {
+      const cachedRoomRaw = await AsyncStorage.getItem('cachedActiveRoom');
+      if (cachedRoomRaw) {
+        try { targetRoomId = JSON.parse(cachedRoomRaw)?.id; } catch (e) {}
+      }
+    }
+
+    const keys = targetRoomId
+      ? [`cached_active_room_history_${targetRoomId}`, 'cachedRoomHistory']
+      : ['cachedRoomHistory'];
+
+    for (const key of keys) {
+      const raw = await AsyncStorage.getItem(key);
+      let list: SentChallenge[] = [];
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) list = parsed;
+        } catch (e) {}
+      }
+      const exists = list.some((item) => String(item.id) === String(challenge.id));
+      if (!exists) {
+        const updated = [challenge, ...list];
+        await AsyncStorage.setItem(key, JSON.stringify(updated));
+      }
+    }
+
+    DeviceEventEmitter.emit('app:refreshHistory');
+  } catch (err) {
+    console.log('[addSentChallengeToCache] error:', err);
+  }
+};
+
+export const updateChallengeInCache = async (
+  sendId: string,
+  updates: Partial<SentChallenge>,
+  roomId?: string
+) => {
+  try {
+    let targetRoomId = roomId;
+    if (!targetRoomId) {
+      const cachedRoomRaw = await AsyncStorage.getItem('cachedActiveRoom');
+      if (cachedRoomRaw) {
+        try { targetRoomId = JSON.parse(cachedRoomRaw)?.id; } catch (e) {}
+      }
+    }
+
+    const keys = targetRoomId
+      ? [`cached_active_room_history_${targetRoomId}`, 'cachedRoomHistory']
+      : ['cachedRoomHistory'];
+
+    for (const key of keys) {
+      const raw = await AsyncStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const list: SentChallenge[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          let found = false;
+          const updated = list.map((item) => {
+            if (String(item.id) === String(sendId) || String(item.card_id) === String(sendId)) {
+              found = true;
+              return { ...item, ...updates };
+            }
+            return item;
+          });
+          if (found) {
+            await AsyncStorage.setItem(key, JSON.stringify(updated));
+          }
+        }
+      } catch (e) {}
+    }
+
+    DeviceEventEmitter.emit('app:refreshHistory');
+  } catch (err) {
+    console.log('[updateChallengeInCache] error:', err);
+  }
+};
+
 

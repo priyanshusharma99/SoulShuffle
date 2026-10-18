@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getActiveRoom, sendChallenge, ChallengePayload, Room } from '@/services/roomService';
+import { getActiveRoom, sendChallenge, ChallengePayload, Room, SentChallenge, addSentChallengeToCache } from '@/services/roomService';
 import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { fetchCards, fetchAvailableDeck, fetchSendLimits, SendLimits } from '@/services/cardService';
@@ -857,7 +857,37 @@ export default function Dares() {
     }
 
     try {
-      await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
+      const sendResult = await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
+
+      // ✅ Instantly sync into history cache so Journey tab renders on frame 1 (0ms)
+      const isHost = activeRoom.host_id === (room?.host_id || activeRoom.host_id);
+      const partnerName = isHost
+        ? (activeRoom.partner_name || activeRoom.partner?.first_name || 'Partner')
+        : (activeRoom.host_name || activeRoom.host?.first_name || 'Partner');
+      const partnerAvatar = isHost
+        ? (activeRoom.partner_avatar || activeRoom.partner?.avatar_url)
+        : (activeRoom.host_avatar || activeRoom.host?.avatar_url);
+
+      const newHistoryItem: SentChallenge = {
+        id: sendResult?.send?.id || targetDare.id,
+        room_id: activeRoom.id,
+        room_code: activeRoom.code,
+        room_status: activeRoom.status || 'ACTIVE',
+        partner_name: partnerName,
+        partner_avatar: partnerAvatar || null,
+        is_sent_by_me: true,
+        card_id: String(targetDare.id),
+        status: 'SENT',
+        sent_at: new Date().toISOString(),
+        title: targetDare.title,
+        description: targetDare.description || '',
+        category: targetDare.category || 'Dare',
+        difficulty: targetDare.difficulty || 'Medium',
+        time: targetDare.time || '15 mins',
+        image: targetDare.image,
+        message: currentNote || '',
+      };
+      addSentChallengeToCache(newHistoryItem, activeRoom.id).catch(() => {});
 
       // ✅ Success — now alert and emit socket event
       setCustomAlert({
@@ -869,6 +899,7 @@ export default function Dares() {
       GameSocket.sendGameEvent(activeRoom.code, 'CHALLENGE_SENT', {
         challenge: { ...targetDare, message: currentNote }
       });
+      DeviceEventEmitter.emit('app:refreshHistory');
 
       // Sync fresh limits from backend
       try {

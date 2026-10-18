@@ -8,10 +8,11 @@ import {
   StatusBar,
   RefreshControl,
   Platform,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { fetchRoomHistory, getActiveRoom, SentChallenge } from '@/services/roomService';
 import { getMyProfileCached } from '@/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -236,31 +237,52 @@ export default function History() {
   const loadHistory = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     try {
-      // 1. Get current user ID
+      // 1. Instantly check memory or AsyncStorage for active room and current user
       const profile = await getMyProfileCached();
       const currentUserId = profile?.id || null;
       if (currentUserId) {
         setMyUserId(currentUserId);
       }
 
-      // 2. Resolve Active Room ID first
+      // Fast resolve room from cache without blocking
       let activeRoom: any = null;
-      try {
-        activeRoom = await getActiveRoom();
-      } catch (e) {
-        // network or 404
-      }
-
-      if (!activeRoom) {
+      const cachedRoomRaw = await AsyncStorage.getItem('cachedActiveRoom');
+      if (cachedRoomRaw) {
         try {
-          const cachedRoomRaw = await AsyncStorage.getItem('cachedActiveRoom');
-          if (cachedRoomRaw) {
-            activeRoom = JSON.parse(cachedRoomRaw);
-          }
+          activeRoom = JSON.parse(cachedRoomRaw);
         } catch (e) {}
       }
+      let activeRoomId = activeRoom?.id || memoryCachedRoomInfo?.id || null;
 
-      const activeRoomId = activeRoom?.id || null;
+      // 2. Frame-1 Instant Display: load cached history immediately without waiting for any network call
+      if (!showRefreshing) {
+        let cached = activeRoomId ? await AsyncStorage.getItem(`cached_active_room_history_${activeRoomId}`) : null;
+        if (!cached) {
+          cached = await AsyncStorage.getItem('cachedRoomHistory');
+        }
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              memoryCachedHistory = parsed;
+              setChallengeHistory(parsed);
+              calculateStats(parsed);
+              setLoading(false);
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 3. Parallel fetch of fresh room & fresh history (non-blocking)
+      const [freshRoom, freshHistoryRaw] = await Promise.all([
+        getActiveRoom().catch(() => activeRoom),
+        activeRoomId ? fetchRoomHistory(activeRoomId).catch(() => null) : Promise.resolve(null)
+      ]);
+
+      if (freshRoom) {
+        activeRoom = freshRoom;
+        activeRoomId = freshRoom.id;
+      }
 
       if (!activeRoomId) {
         memoryCachedHistory = [];
@@ -298,25 +320,6 @@ export default function History() {
 
       const cacheKey = `cached_active_room_history_${activeRoomId}`;
 
-      // Resolve Static Deck Total
-      let staticTotal = 0;
-      const staticTotalKey = `cached_static_total_${activeRoomId}`;
-      try {
-        const storedTotal = await AsyncStorage.getItem(staticTotalKey);
-        if (storedTotal && parseInt(storedTotal, 10) > 0) {
-          staticTotal = parseInt(storedTotal, 10);
-        } else {
-          const { fetchUserDeck } = require('@/services/cardService');
-          const cards = await fetchUserDeck();
-          staticTotal = cards?.length || 0;
-          if (staticTotal > 0) {
-            await AsyncStorage.setItem(staticTotalKey, staticTotal.toString());
-          }
-        }
-      } catch (e) {
-        console.log('Error resolving static total', e);
-      }
-
       const enrichItem = (item: SentChallenge): SentChallenge => {
         return {
           ...item,
@@ -334,33 +337,10 @@ export default function History() {
         };
       };
 
-      // Read instant cache
-      if (!showRefreshing) {
-        const cached = await AsyncStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed)) {
-              const enriched = parsed.map(enrichItem);
-              memoryCachedHistory = enriched;
-              setChallengeHistory(enriched);
-              calculateStats(enriched, staticTotal);
-            }
-          } catch (e) {
-            console.log('Cache parse error:', e);
-          }
-        }
-      }
-
-      // Fetch fresh history
-      let freshHistory: SentChallenge[] = [];
-      let fetchFailed = false;
-      try {
-        freshHistory = await fetchRoomHistory(activeRoomId);
-      } catch (err) {
-        console.log('Fetch room history API error:', err);
-        fetchFailed = true;
-      }
+      // 4. If fresh history was fetched in parallel, use it directly (no double request)
+      let freshHistory = freshHistoryRaw !== null
+        ? freshHistoryRaw
+        : await fetchRoomHistory(activeRoomId).catch(() => []);
 
       if (!Array.isArray(freshHistory) || freshHistory.length === 0) {
         if (activeRoom?.game_state?.challenge_history) {
@@ -381,17 +361,12 @@ export default function History() {
 
       const enriched = currentRoomOnly.map(enrichItem);
 
-      setChallengeHistory((prevHistory) => {
-        if (fetchFailed && prevHistory && prevHistory.length > 0) {
-          return prevHistory;
-        }
+      if (enriched.length > 0 || (freshHistoryRaw !== null && freshHistoryRaw.length === 0)) {
         memoryCachedHistory = enriched;
-        calculateStats(enriched, staticTotal);
-        return enriched;
-      });
-
-      if (enriched.length > 0 && !fetchFailed) {
-        await AsyncStorage.setItem(cacheKey, JSON.stringify(enriched));
+        setChallengeHistory(enriched);
+        calculateStats(enriched);
+        AsyncStorage.setItem(cacheKey, JSON.stringify(enriched)).catch(() => {});
+        AsyncStorage.setItem('cachedRoomHistory', JSON.stringify(enriched)).catch(() => {});
       }
     } catch (error) {
       console.log('Failed to load history for active room:', error);
@@ -401,16 +376,38 @@ export default function History() {
     }
   }, []);
 
-  useEffect(() => {
-    loadHistory();
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory(false);
+    }, [loadHistory])
+  );
 
-    const handleEvent = () => loadHistory(false);
-    GameSocket.on('game_event', handleEvent);
-    GameSocket.on('partner_joined', handleEvent);
+  useEffect(() => {
+    loadHistory(false);
+
+    const handleRefresh = () => loadHistory(false);
+
+    GameSocket.on('card_received', handleRefresh);
+    GameSocket.on('card_accepted', handleRefresh);
+    GameSocket.on('card_deflected', handleRefresh);
+    GameSocket.on('card_completed_by_receiver', handleRefresh);
+    GameSocket.on('card_confirmed', handleRefresh);
+    GameSocket.on('card_rejected', handleRefresh);
+    GameSocket.on('game_event', handleRefresh);
+    GameSocket.on('partner_joined', handleRefresh);
+
+    const sub = DeviceEventEmitter.addListener('app:refreshHistory', handleRefresh);
 
     return () => {
-      GameSocket.off('game_event', handleEvent);
-      GameSocket.off('partner_joined', handleEvent);
+      GameSocket.off('card_received', handleRefresh);
+      GameSocket.off('card_accepted', handleRefresh);
+      GameSocket.off('card_deflected', handleRefresh);
+      GameSocket.off('card_completed_by_receiver', handleRefresh);
+      GameSocket.off('card_confirmed', handleRefresh);
+      GameSocket.off('card_rejected', handleRefresh);
+      GameSocket.off('game_event', handleRefresh);
+      GameSocket.off('partner_joined', handleRefresh);
+      sub.remove();
     };
   }, [loadHistory]);
 

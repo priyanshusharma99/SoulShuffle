@@ -330,12 +330,29 @@ export default function TabLayout() {
       }
     };
 
+    const handleCardEvent = () => {
+      DeviceEventEmitter.emit('app:refreshHistory');
+      DeviceEventEmitter.emit('app:refreshDashboard');
+    };
+
     GameSocket.on('game_event', handleGameEvent);
     GameSocket.on('coin_flip_result', (data: any) => handleGameEvent({ eventType: 'COIN_FLIP_RESULT', data }));
+    GameSocket.on('card_received', handleCardEvent);
+    GameSocket.on('card_accepted', handleCardEvent);
+    GameSocket.on('card_deflected', handleCardEvent);
+    GameSocket.on('card_completed_by_receiver', handleCardEvent);
+    GameSocket.on('card_confirmed', handleCardEvent);
+    GameSocket.on('card_rejected', handleCardEvent);
 
     return () => {
       GameSocket.off('game_event', handleGameEvent);
       GameSocket.off('coin_flip_result', handleGameEvent);
+      GameSocket.off('card_received', handleCardEvent);
+      GameSocket.off('card_accepted', handleCardEvent);
+      GameSocket.off('card_deflected', handleCardEvent);
+      GameSocket.off('card_completed_by_receiver', handleCardEvent);
+      GameSocket.off('card_confirmed', handleCardEvent);
+      GameSocket.off('card_rejected', handleCardEvent);
     };
   }, [router]);
 
