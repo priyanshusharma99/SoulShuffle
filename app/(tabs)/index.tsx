@@ -1501,17 +1501,69 @@ export default function Dashboard() {
                     {cardSends.slice(0, 5).map((send: any) => {
                       const isSentByMe = send.sender_id === currentUserId;
                       const partnerFirstName = partnerName.split(' ')[0] || 'Partner';
-                      const badgeText = isSentByMe ? `SENT TO ${partnerFirstName.toUpperCase()}` : 'RECEIVED';
-                      const badgeColor = isSentByMe ? 'rgba(59, 130, 246, 0.9)' : 'rgba(16, 185, 129, 0.9)'; // Blue for Sent, Green for Received
+                      const rawStatus = (send.status || '').toUpperCase();
+
+                      let badgeText = isSentByMe ? `SENT TO ${partnerFirstName.toUpperCase()}` : 'RECEIVED';
+                      let badgeColor = isSentByMe ? 'rgba(59, 130, 246, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+                      let badgeIcon: any = isSentByMe ? 'paper-plane' : 'mail';
+
+                      if (rawStatus === 'COMPLETED' || rawStatus === 'CONFIRMED') {
+                        badgeText = 'COMPLETED';
+                        badgeColor = 'rgba(16, 185, 129, 0.95)';
+                        badgeIcon = 'checkmark-circle';
+                      } else if (rawStatus === 'COMPLETED_BY_RECEIVER') {
+                        badgeText = isSentByMe ? 'NEEDS CONFIRM' : 'DONE';
+                        badgeColor = 'rgba(139, 92, 246, 0.95)';
+                        badgeIcon = 'checkbox';
+                      } else if (rawStatus === 'ACCEPTED' || rawStatus === 'ACTIVE' || rawStatus === 'IN_PROGRESS') {
+                        badgeText = 'ACCEPTED';
+                        badgeColor = 'rgba(245, 158, 11, 0.95)';
+                        badgeIcon = 'flame';
+                      } else if (rawStatus === 'DEFLECTED') {
+                        badgeText = 'DEFLECTED';
+                        badgeColor = 'rgba(99, 102, 241, 0.95)';
+                        badgeIcon = 'shield-checkmark';
+                      } else if (rawStatus === 'REJECTED' || rawStatus === 'DECLINED') {
+                        badgeText = 'REJECTED';
+                        badgeColor = 'rgba(239, 68, 68, 0.95)';
+                        badgeIcon = 'close-circle';
+                      } else if (rawStatus === 'EXPIRED') {
+                        badgeText = 'EXPIRED';
+                        badgeColor = 'rgba(107, 114, 128, 0.95)';
+                        badgeIcon = 'time';
+                      }
 
                       return (
-                      <View key={send.id} style={{ width: 130, height: 180, borderRadius: 24, overflow: 'hidden' }}>
+                      <TouchableOpacity 
+                        key={send.id} 
+                        onPress={() => router.push('/history')} 
+                        activeOpacity={0.85} 
+                        style={{ width: 130, height: 180, borderRadius: 24, overflow: 'hidden' }}
+                      >
                         <Image source={getCardImage(send)} style={{ width: '100%', height: '100%' }} />
                         <View className="absolute inset-0 bg-black/20" />
                         <View className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
                         
-                        {/* Status Badge */}
-                        <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, backgroundColor: badgeColor, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 }}>
+                        {/* Actual Status Badge */}
+                        <View style={{ 
+                          position: 'absolute', 
+                          top: 8, 
+                          right: 8, 
+                          zIndex: 10, 
+                          backgroundColor: badgeColor, 
+                          paddingHorizontal: 7, 
+                          paddingVertical: 3.5, 
+                          borderRadius: 8,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 3,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 4,
+                          elevation: 3
+                        }}>
+                          <Ionicons name={badgeIcon} size={9} color="white" />
                           <Text style={{ color: 'white', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 }}>{badgeText}</Text>
                         </View>
 
@@ -1521,7 +1573,7 @@ export default function Dashboard() {
                             {new Date(send.created_at).toLocaleDateString()}
                           </Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     )})}
                   </ScrollView>
                 </View>

@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "551403569770",
-    "project_id": "soulshuffle-75ff1",
-    "storage_bucket": "soulshuffle-75ff1.firebasestorage.app"
+    "project_number": "649494442566",
+    "project_id": "soulshuffle-edcd1",
+    "storage_bucket": "soulshuffle-edcd1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:551403569770:android:7017649c0be15e3b550013",
+        "mobilesdk_app_id": "1:649494442566:android:0d8796c9d3ea06687fd047",
         "android_client_info": {
           "package_name": "com.soulshuffle.CoupleGame"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "649494442566-0vk9j59ml0n84pcbci464v0l3or2ktmm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.soulshuffle.CoupleGame",
+            "certificate_hash": "8f22243e8ad3e606a45619fc58ea2d395a833f0e"
+          }
+        },
+        {
+          "client_id": "649494442566-4p1lnmhgpuht1eko9kvl26h887dpqdlv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBG9vS3rJY0THfe-UHJShG7A8VuMEdURQU"
+          "current_key": "AIzaSyBDm640F1gQYsqxcmnWQIjIlHk0o5EniD4"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "649494442566-4p1lnmhgpuht1eko9kvl26h887dpqdlv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

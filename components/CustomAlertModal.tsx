@@ -7,6 +7,7 @@ export interface AlertConfig {
   visible: boolean;
   title: string;
   message: string;
+  type?: string;
   onConfirm?: () => void;
   onCancel?: () => void;
   confirmText?: string;

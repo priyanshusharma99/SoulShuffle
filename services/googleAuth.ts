@@ -9,8 +9,8 @@ export const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
   (Constants as any).executionEnvironment === 'storeClient';
 
-export const GOOGLE_WEB_CLIENT_ID = '950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com';
-export const GOOGLE_IOS_CLIENT_ID = '950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '649494442566-4p1lnmhgpuht1eko9kvl26h887dpqdlv.apps.googleusercontent.com';
+export const GOOGLE_IOS_CLIENT_ID = '649494442566-020e8g4qi89fbrgip7vvvvns26khppuf.apps.googleusercontent.com';
 
 /**
  * Triggers Google Sign-In safely.
@@ -68,7 +68,8 @@ export const promptGoogleSignIn = async (): Promise<boolean> => {
     const idToken = userInfo?.data?.idToken || userInfo?.idToken;
 
     if (!idToken) {
-      throw new Error('Google Sign-In failed: No ID Token returned');
+      console.log('[GoogleAuth] No ID token returned (user dismissed or cancelled).');
+      return false;
     }
 
     await googleLogin(idToken);
@@ -77,14 +78,20 @@ export const promptGoogleSignIn = async (): Promise<boolean> => {
   } catch (error: any) {
     console.log('[GoogleAuth] Sign-in error:', error);
 
-    // Safely check for cancellation without assuming statusCodes is present
+    const errorMsg = (error?.message || '').toLowerCase();
+    const errorCode = String(error?.code || '');
+
+    // Gracefully handle user cancellation, back button, or dismissal with zero alerts
     if (
       (statusCodes && error?.code === statusCodes.SIGN_IN_CANCELLED) ||
-      error?.code === '12501' ||
-      error?.message?.includes?.('canceled') ||
-      error?.message?.includes?.('cancelled')
+      errorCode === '12501' ||
+      errorCode === 'SIGN_IN_CANCELLED' ||
+      errorCode === 'ERR_REQUEST_CANCELED' ||
+      errorMsg.includes('cancel') ||
+      errorMsg.includes('dismiss') ||
+      errorMsg.includes('no id token')
     ) {
-      // User cancelled, gracefully return false
+      console.log('[GoogleAuth] User cancelled or dismissed Google Sign-In.');
       return false;
     }
 
@@ -94,9 +101,9 @@ export const promptGoogleSignIn = async (): Promise<boolean> => {
 
     if (
       (statusCodes && error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) ||
-      error?.code === '12500'
+      errorCode === '12500'
     ) {
-      Alert.alert('Error', 'Google Play Services is not available or outdated on this device.');
+      Alert.alert('Play Services Unavailable', 'Google Play Services is not available or outdated on this device.');
       return false;
     }
 

@@ -1,13 +1,14 @@
-import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Alert } from 'react-native'
+import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { signUp, appleLogin } from '../services/authService'
+import { signUp, signIn, appleLogin } from '../services/authService'
 import { promptGoogleSignIn } from '../services/googleAuth'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal'
 
 const SignupForm = () => {
     const [name, setName] = useState('')
@@ -16,6 +17,7 @@ const SignupForm = () => {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errorMessage, setErrorMessage] = useState('')
+    const [alertConfig, setAlertConfig] = useState<AlertConfig>({ visible: false, title: '', message: '' })
     const router = useRouter()
     const colorScheme = useColorScheme()
     const isDark = colorScheme === 'dark'
@@ -26,8 +28,9 @@ const SignupForm = () => {
             setErrorMessage('');
             const success = await promptGoogleSignIn();
             if (success) {
+                await AsyncStorage.setItem('rememberMe', 'true');
                 // @ts-ignore
-                router.replace('/(tabs)');
+                router.replace('/questionnaire');
             }
         } catch (error: any) {
             setErrorMessage(error?.message || "Google Sign-In failed");
@@ -41,7 +44,11 @@ const SignupForm = () => {
             setIsLoading(true);
             setErrorMessage('');
             if (Platform.OS !== 'ios') {
-                Alert.alert("Apple Sign-In", "Apple Sign-In is only supported on iOS devices.");
+                setAlertConfig({
+                    visible: true,
+                    title: "Apple Sign-In",
+                    message: "Apple Sign-In is only supported on iOS devices.",
+                });
                 setIsLoading(false);
                 return;
             }
@@ -56,7 +63,7 @@ const SignupForm = () => {
                 await appleLogin(idToken);
                 await AsyncStorage.setItem('rememberMe', 'true');
                 // @ts-ignore
-                router.replace('/(tabs)');
+                router.replace('/questionnaire');
             } else {
                 throw new Error("Apple Sign-In failed: No Identity Token returned");
             }
@@ -66,7 +73,11 @@ const SignupForm = () => {
             } else {
                 console.log('Apple Sign-In Error:', error);
                 const message = error?.response?.data?.message || error?.message || "Apple Sign-In failed";
-                Alert.alert("Sign Up Failed", message);
+                setAlertConfig({
+                    visible: true,
+                    title: "Sign Up Failed",
+                    message,
+                });
             }
         } finally {
             setIsLoading(false);
@@ -74,8 +85,16 @@ const SignupForm = () => {
     };
 
     const handleSignUp = async () => {
-        if (!name || !email || !password) {
+        const trimmedName = name.trim();
+        const trimmedEmail = email.trim();
+
+        if (!trimmedName || !trimmedEmail || !password) {
             setErrorMessage("Please fill all fields.");
+            return;
+        }
+
+        if (password.length < 6) {
+            setErrorMessage("Password must be at least 6 characters.");
             return;
         }
 
@@ -83,15 +102,34 @@ const SignupForm = () => {
         setErrorMessage('');
 
         try {
-            await signUp(name, email, password);
+            await signUp(trimmedName, trimmedEmail, password);
+            await AsyncStorage.setItem('rememberMe', 'true');
             // @ts-ignore
-            router.replace('/(tabs)');
+            router.replace('/questionnaire');
         } catch (error: any) {
-            setErrorMessage(error?.response?.data?.message || "Failed to sign up.");
+            const status = error?.response?.status;
+            const message = error?.response?.data?.message || error?.message || "Failed to sign up.";
+
+            // If account was already created (e.g. from previous attempt), try logging in automatically
+            if (status === 409 || message.toLowerCase().includes('already in use')) {
+                try {
+                    await signIn(trimmedEmail, password);
+                    await AsyncStorage.setItem('rememberMe', 'true');
+                    // @ts-ignore
+                    router.replace('/questionnaire');
+                    return;
+                } catch {
+                    setErrorMessage("Email is already in use. Please sign in with your password.");
+                }
+            } else {
+                setErrorMessage(message);
+            }
         } finally {
             setIsLoading(false);
         }
     }
+
+
 
 return (
     <View className="w-full gap-y-3.5 px-6 mt-1">
@@ -182,6 +220,8 @@ return (
                 <Text className="text-white font-bold text-[16px] tracking-wide">Sign Up</Text>
             )}
         </TouchableOpacity>
+
+        <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))} />
     </View>
   );
 };

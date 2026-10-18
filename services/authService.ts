@@ -6,6 +6,7 @@ const saveTokens = async (accessToken: string, refreshToken: string) => {
   setMemoryToken(accessToken);
   await AsyncStorage.setItem('accessToken', accessToken);
   await AsyncStorage.setItem('refreshToken', refreshToken);
+  await AsyncStorage.setItem('rememberMe', 'true');
 
   // Sync push token to backend for the authenticated user
   try {

@@ -1,14 +1,13 @@
-import { Text, View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator } from 'react-native'
+import { Text, View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Keyboard } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React, { useState, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { signIn, forgotPassword, resetPassword, googleLogin, appleLogin } from '../services/authService'
+import { signIn, forgotPassword, resetPassword, appleLogin } from '../services/authService'
 import { promptGoogleSignIn } from '../services/googleAuth'
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import * as AppleAuthentication from 'expo-apple-authentication'
-import Constants from 'expo-constants'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal'
 
 const SigninForm = () => {
         const [email, setEmail] = useState('')
@@ -16,6 +15,7 @@ const SigninForm = () => {
         const [showPassword, setShowPassword] = useState(false)
         const [isLoading, setIsLoading] = useState(false)
         const [errorMessage, setErrorMessage] = useState('')
+        const [alertConfig, setAlertConfig] = useState<AlertConfig>({ visible: false, title: '', message: '' })
         const router = useRouter()
         const colorScheme = useColorScheme()
         const isDark = colorScheme === 'dark'
@@ -50,8 +50,60 @@ const SigninForm = () => {
               router.replace('/(tabs)');
             }
           } catch (error: any) {
-            const message = error?.message || "Google Sign-In failed";
+            const message = error?.message || 'Google Sign-In failed';
+            setAlertConfig({
+              visible: true,
+              title: 'Login Failed',
+              message,
+            });
             setErrorMessage(message);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        const handleAppleLogin = async () => {
+          try {
+            setIsLoading(true);
+            setErrorMessage('');
+            const AppleAuthentication = require('expo-apple-authentication');
+            const isAvailable = await AppleAuthentication.isAvailableAsync();
+            if (!isAvailable) {
+              setAlertConfig({
+                visible: true,
+                title: 'Apple Sign-In',
+                message: 'Apple Sign-In is only supported on Apple devices (iOS).',
+              });
+              return;
+            }
+
+            const credential = await AppleAuthentication.signInAsync({
+              requestedScopes: [
+                AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                AppleAuthentication.AppleAuthenticationScope.EMAIL,
+              ],
+            });
+
+            if (credential.identityToken) {
+              await appleLogin(credential.identityToken);
+              await AsyncStorage.setItem('rememberMe', 'true');
+              // @ts-ignore
+              router.replace('/(tabs)');
+            }
+          } catch (error: any) {
+            if (error.code === 'ERR_REQUEST_CANCELED' || error.message?.includes('canceled') || error.message?.includes('cancelled')) {
+              // User canceled Apple sign-in flow - smoothly do nothing
+              return;
+            } else {
+              console.log('Apple Sign-In Error:', error);
+              const message = error?.response?.data?.message || error?.message || 'Apple Sign-In failed';
+              setAlertConfig({
+                visible: true,
+                title: 'Login Failed',
+                message,
+              });
+              setErrorMessage(message);
+            }
           } finally {
             setIsLoading(false);
           }
@@ -82,50 +134,11 @@ const SigninForm = () => {
                 if (Platform.OS === 'web') {
                     setErrorMessage(message);
                 } else {
-                    Alert.alert("Login Failed", message);
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
-
-
-        const handleAppleLogin = async () => {
-            try {
-                setIsLoading(true);
-                setErrorMessage('');
-                
-                if (Platform.OS !== 'ios') {
-                    Alert.alert("Apple Sign-In", "Apple Sign-In is only supported on iOS devices.");
-                    setIsLoading(false);
-                    return;
-                }
-                
-                const credential = await AppleAuthentication.signInAsync({
-                    requestedScopes: [
-                        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-                        AppleAuthentication.AppleAuthenticationScope.EMAIL,
-                    ],
-                });
-                
-                const idToken = credential.identityToken;
-                
-                if (idToken) {
-                    await appleLogin(idToken);
-                    await AsyncStorage.setItem('rememberMe', 'true');
-                    // @ts-ignore
-                    router.replace('/(tabs)');
-                } else {
-                    throw new Error("Apple Sign-In failed: No Identity Token returned");
-                }
-            } catch (error: any) {
-                if (error.code === 'ERR_REQUEST_CANCELED') {
-                    // User canceled the sign-in flow
-                } else {
-                    console.log('Apple Sign-In Error:', error);
-                    const message = error?.response?.data?.message || error?.message || "Apple Sign-In failed";
-                    Alert.alert("Login Failed", message);
+                    setAlertConfig({
+                        visible: true,
+                        title: 'Sign In Failed',
+                        message,
+                    });
                 }
             } finally {
                 setIsLoading(false);
@@ -133,37 +146,76 @@ const SigninForm = () => {
         }
 
         const handleForgotPassword = async () => {
-            if (!forgotPasswordEmail) {
-                Alert.alert("Error", "Please enter your email");
+            if (!forgotPasswordEmail.trim()) {
+                setAlertConfig({
+                    visible: true,
+                    title: "Email Required",
+                    message: "Please enter your email address to receive an OTP code.",
+                    type: "warning",
+                });
                 return;
             }
             try {
                 setIsSubmitting(true);
-                await forgotPassword(forgotPasswordEmail);
+                await forgotPassword(forgotPasswordEmail.trim());
                 setForgotPasswordStep(2);
-                Alert.alert("Success", "OTP sent to your email");
+                setAlertConfig({
+                    visible: true,
+                    title: "OTP Dispatched",
+                    message: `We've sent a 6-digit recovery code to ${forgotPasswordEmail.trim()}. Please check your inbox or spam folder.`,
+                    type: "info",
+                });
             } catch (error: any) {
-                Alert.alert("Error", error?.response?.data?.message || "Failed to send OTP");
+                setAlertConfig({
+                    visible: true,
+                    title: "Reset Request Failed",
+                    message: error?.response?.data?.message || "Failed to send recovery OTP. Please try again later.",
+                    type: "error",
+                });
             } finally {
                 setIsSubmitting(false);
             }
         }
 
         const handleResetPassword = async () => {
-            if (!otp || !newPassword) {
-                Alert.alert("Error", "Please enter OTP and new password");
+            if (!otp.trim() || !newPassword) {
+                setAlertConfig({
+                    visible: true,
+                    title: "Missing Information",
+                    message: "Please enter both the 6-digit OTP and your new password.",
+                    type: "warning",
+                });
+                return;
+            }
+            if (newPassword.length < 6) {
+                setAlertConfig({
+                    visible: true,
+                    title: "Password Too Short",
+                    message: "Your new password must be at least 6 characters long.",
+                    type: "warning",
+                });
                 return;
             }
             try {
                 setIsSubmitting(true);
-                await resetPassword(forgotPasswordEmail, otp, newPassword);
+                await resetPassword(forgotPasswordEmail.trim(), otp.trim(), newPassword);
                 setForgotPasswordModalVisible(false);
                 setForgotPasswordStep(1);
                 setOtp('');
                 setNewPassword('');
-                Alert.alert("Success", "Password reset successfully! You can now log in.");
+                setAlertConfig({
+                    visible: true,
+                    title: "Password Reset Complete",
+                    message: "Your password has been reset successfully! You can now sign in with your new credentials.",
+                    type: "success",
+                });
             } catch (error: any) {
-                Alert.alert("Error", error?.response?.data?.message || "Failed to reset password");
+                setAlertConfig({
+                    visible: true,
+                    title: "Reset Failed",
+                    message: error?.response?.data?.message || "Invalid or expired OTP code. Please try again.",
+                    type: "error",
+                });
             } finally {
                 setIsSubmitting(false);
             }
@@ -254,70 +306,165 @@ const SigninForm = () => {
 
         {/* Modal preserved */}
         <Modal
-            animationType="slide"
+            animationType="fade"
             transparent={true}
             visible={forgotPasswordModalVisible}
             onRequestClose={() => setForgotPasswordModalVisible(false)}
+            statusBarTranslucent={true}
         >
-            <View className="flex-1 justify-end bg-black/60">
-                <View className="bg-[#1A1418] rounded-t-3xl p-6 pb-12">
-                    <View className="flex-row justify-between items-center mb-6">
-                        <Text className="text-white text-xl font-bold">Reset Password</Text>
-                        <TouchableOpacity onPress={() => setForgotPasswordModalVisible(false)}>
-                            <Ionicons name="close" size={24} color="white" />
-                        </TouchableOpacity>
-                    </View>
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                style={{ flex: 1 }}
+            >
+                <View 
+                    style={{ 
+                        flex: 1, 
+                        backgroundColor: 'rgba(0,0,0,0.75)', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        paddingHorizontal: 20
+                    }}
+                >
+                    <TouchableOpacity 
+                        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                        activeOpacity={1} 
+                        onPress={() => {
+                            Keyboard.dismiss();
+                            setForgotPasswordModalVisible(false);
+                        }} 
+                    />
+                    <View 
+                        style={{
+                            width: '100%',
+                            maxWidth: 380,
+                            backgroundColor: '#1C151B',
+                            borderRadius: 28,
+                            padding: 24,
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.12)',
+                            shadowColor: '#FF296D',
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 24,
+                            elevation: 25,
+                            zIndex: 10
+                        }}
+                    >
+                        <View className="flex-row justify-between items-center mb-5">
+                            <View>
+                                <Text className="text-white text-xl font-bold tracking-tight">Reset Password</Text>
+                                <Text className="text-white/50 text-xs mt-0.5">
+                                    {forgotPasswordStep === 1 ? 'Step 1 of 2: Request OTP' : 'Step 2 of 2: Verify & Reset'}
+                                </Text>
+                            </View>
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    Keyboard.dismiss();
+                                    setForgotPasswordModalVisible(false);
+                                }}
+                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                className="w-8 h-8 rounded-full bg-white/10 items-center justify-center"
+                            >
+                                <Ionicons name="close" size={20} color="white" />
+                            </TouchableOpacity>
+                        </View>
 
-                    {forgotPasswordStep === 1 ? (
-                        <>
-                            <Text className="text-white/70 mb-4">Enter your email address to receive an OTP.</Text>
-                            <TextInput
-                                className="w-full bg-black/40 rounded-full px-6 py-4 text-white border border-white/10 mb-4"
-                                placeholder="Email Address"
-                                placeholderTextColor="#71717a"
-                                value={forgotPasswordEmail}
-                                onChangeText={setForgotPasswordEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
-                            <TouchableOpacity 
-                                onPress={handleForgotPassword}
-                                disabled={isSubmitting}
-                                className="w-full bg-[#FF296D] rounded-full py-4 items-center justify-center"
+                        {forgotPasswordStep === 1 ? (
+                            <ScrollView 
+                                keyboardShouldPersistTaps="handled" 
+                                bounces={false}
+                                showsVerticalScrollIndicator={false}
                             >
-                                {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Send OTP</Text>}
-                            </TouchableOpacity>
-                        </>
-                    ) : (
-                        <>
-                            <TextInput
-                                className="w-full bg-black/40 rounded-full px-6 py-4 text-white border border-white/10 mb-4"
-                                placeholder="Enter OTP"
-                                placeholderTextColor="#71717a"
-                                value={otp}
-                                onChangeText={setOtp}
-                                keyboardType="numeric"
-                            />
-                            <TextInput
-                                className="w-full bg-black/40 rounded-full px-6 py-4 text-white border border-white/10 mb-6"
-                                placeholder="New Password"
-                                placeholderTextColor="#71717a"
-                                value={newPassword}
-                                onChangeText={setNewPassword}
-                                secureTextEntry
-                            />
-                            <TouchableOpacity 
-                                onPress={handleResetPassword}
-                                disabled={isSubmitting}
-                                className="w-full bg-[#FF296D] rounded-full py-4 items-center justify-center"
+                                <Text className="text-white/70 mb-4 text-xs leading-5">
+                                    Enter your registered email address and we will send you a 6-digit verification code.
+                                </Text>
+                                <View className="relative mb-5">
+                                    <Ionicons name="mail-outline" size={18} color="#FF296D" style={{ position: 'absolute', top: 16, left: 18, zIndex: 1 }} />
+                                    <TextInput
+                                        className="w-full bg-black/50 rounded-full pl-12 pr-6 py-3.5 text-white border border-white/10 text-sm"
+                                        placeholder="Email Address"
+                                        placeholderTextColor="#71717a"
+                                        value={forgotPasswordEmail}
+                                        onChangeText={setForgotPasswordEmail}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        returnKeyType="done"
+                                        onSubmitEditing={handleForgotPassword}
+                                    />
+                                </View>
+                                <TouchableOpacity 
+                                    onPress={handleForgotPassword}
+                                    disabled={isSubmitting}
+                                    className="w-full bg-[#FF296D] rounded-full py-4 items-center justify-center shadow-lg shadow-rose-500/30"
+                                >
+                                    {isSubmitting ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text className="text-white font-bold text-sm tracking-wide">Send OTP Code</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </ScrollView>
+                        ) : (
+                            <ScrollView 
+                                keyboardShouldPersistTaps="handled" 
+                                bounces={false}
+                                showsVerticalScrollIndicator={false}
                             >
-                                {isSubmitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Reset Password</Text>}
-                            </TouchableOpacity>
-                        </>
-                    )}
+                                <Text className="text-white/70 mb-4 text-xs leading-5">
+                                    Enter the 6-digit code sent to <Text className="text-white font-semibold">{forgotPasswordEmail}</Text> along with your new password.
+                                </Text>
+                                <View className="relative mb-3.5">
+                                    <Ionicons name="key-outline" size={18} color="#FF296D" style={{ position: 'absolute', top: 16, left: 18, zIndex: 1 }} />
+                                    <TextInput
+                                        className="w-full bg-black/50 rounded-full pl-12 pr-6 py-3.5 text-white border border-white/10 text-sm"
+                                        placeholder="6-Digit OTP Code"
+                                        placeholderTextColor="#71717a"
+                                        value={otp}
+                                        onChangeText={setOtp}
+                                        keyboardType="numeric"
+                                        maxLength={6}
+                                    />
+                                </View>
+                                <View className="relative mb-5">
+                                    <Ionicons name="lock-closed-outline" size={18} color="#FF296D" style={{ position: 'absolute', top: 16, left: 18, zIndex: 1 }} />
+                                    <TextInput
+                                        className="w-full bg-black/50 rounded-full pl-12 pr-6 py-3.5 text-white border border-white/10 text-sm"
+                                        placeholder="New Password (min 6 chars)"
+                                        placeholderTextColor="#71717a"
+                                        value={newPassword}
+                                        onChangeText={setNewPassword}
+                                        secureTextEntry
+                                        returnKeyType="done"
+                                        onSubmitEditing={handleResetPassword}
+                                    />
+                                </View>
+                                <TouchableOpacity 
+                                    onPress={handleResetPassword}
+                                    disabled={isSubmitting}
+                                    className="w-full bg-[#FF296D] rounded-full py-4 items-center justify-center shadow-lg shadow-rose-500/30"
+                                >
+                                    {isSubmitting ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text className="text-white font-bold text-sm tracking-wide">Reset Password</Text>
+                                    )}
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    onPress={() => setForgotPasswordStep(1)}
+                                    className="w-full py-3 items-center justify-center mt-1"
+                                >
+                                    <Text className="text-white/50 text-xs">Didn't receive code? Change Email</Text>
+                                </TouchableOpacity>
+                            </ScrollView>
+                        )}
+                    </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
+
+        <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))} />
     </View>
   );
 };

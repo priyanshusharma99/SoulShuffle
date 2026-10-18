@@ -76,6 +76,8 @@ export default function CoinToss() {
   const selectedStakeRef = useRef(selectedStake);
   const lastProcessedEventIdRef = useRef<string>('');
   const lastProcessedTimestampRef = useRef<number>(0);
+  const lastSyncRef = useRef<number>(0); // throttle: only sync room every 15s on tab focus
+
 
   // Load cached history on mount & on demand
   const loadLocalHistory = useCallback(async (roomId?: string) => {
@@ -287,7 +289,15 @@ export default function CoinToss() {
   useFocusEffect(
     useCallback(() => {
       isScreenFocusedRef.current = true;
-      syncRoomAndSocket();
+
+      // ─── Throttle: only run expensive network sync once every 15s ───
+      const now = Date.now();
+      if (now - lastSyncRef.current > 15000) {
+        lastSyncRef.current = now;
+        syncRoomAndSocket();
+      }
+
+      // Local reads are instant — always run these
       loadLocalHistory();
 
       // Check if there is a pending coin toss received while user was on another screen

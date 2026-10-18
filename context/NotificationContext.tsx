@@ -80,7 +80,6 @@ const setupAndroidChannel = async () => {
         importance: Notifications?.AndroidImportance?.MAX ?? 5,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#e11d48',
-        sound: 'default',
         enableVibrate: true,
         showBadge: true,
         lockscreenVisibility: Notifications?.AndroidNotificationVisibility?.PUBLIC ?? 1,
@@ -100,6 +99,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(false);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const listenerRegistered = useRef(false);
+  const lastRegisteredTokenRef = useRef<string | null>(null);
+  const isRegisteringTokenRef = useRef(false);
 
   // Fetch unread count from REST API
   const fetchUnreadCount = useCallback(async () => {
@@ -171,6 +172,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       return;
     }
 
+    if (isRegisteringTokenRef.current) return;
+    isRegisteringTokenRef.current = true;
+
     try {
       // 1. Ensure Android Channel is registered
       await setupAndroidChannel();
@@ -220,14 +224,17 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         if (pushToken) {
           await AsyncStorage.setItem('expoPushToken', pushToken);
 
-          // 4. Send token to backend if user is logged in
-          const accessToken = await AsyncStorage.getItem('accessToken');
-          if (accessToken) {
-            try {
-              await api.post('/notifications/register-push-token', { pushToken });
-              console.log('[Notifications] Push token successfully registered on backend');
-            } catch (apiErr) {
-              console.warn('[Notifications] Failed to send push token to backend:', apiErr);
+          // 4. Send token to backend if user is logged in (skip if already registered)
+          if (lastRegisteredTokenRef.current !== pushToken) {
+            const accessToken = await AsyncStorage.getItem('accessToken');
+            if (accessToken) {
+              try {
+                await api.post('/notifications/register-push-token', { pushToken });
+                lastRegisteredTokenRef.current = pushToken;
+                console.log('[Notifications] Push token successfully registered on backend');
+              } catch (apiErr) {
+                console.warn('[Notifications] Failed to send push token to backend:', apiErr);
+              }
             }
           }
         }
@@ -236,6 +243,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       }
     } catch (err) {
       console.warn('[Notifications] registerPushTokenWithBackend error:', err);
+    } finally {
+      isRegisteringTokenRef.current = false;
     }
   }, []);
 
@@ -319,7 +328,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                 title: notification.title || 'SoulShuffle',
                 body: notification.body || 'You received a new card update!',
                 data: notification.data || {},
-                sound: 'default',
+                sound: Platform.OS === 'ios' ? 'default' : undefined,
                 badge: 1,
               },
               trigger: null, // Display immediately in system tray

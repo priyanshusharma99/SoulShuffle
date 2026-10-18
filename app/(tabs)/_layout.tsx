@@ -42,7 +42,7 @@ const TABS = [
 ];
 
 // ─── Tab Button Item ──────────────────────────────────────────────────────────
-function TabItem({
+const TabItem = React.memo(function TabItem({
   tab,
   focused,
   isDark,
@@ -66,7 +66,7 @@ function TabItem({
     scale.value = withSpring(0.9, { damping: 10, stiffness: 300 }, () => {
       scale.value = withSpring(1, { damping: 12, stiffness: 240 });
     });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onPress();
   };
 
@@ -109,7 +109,7 @@ function TabItem({
       </Animated.View>
     </TouchableOpacity>
   );
-}
+});
 
 // ✨ Custom Floating Tab Bar ✨
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
@@ -327,23 +327,16 @@ export default function TabLayout() {
     };
   }, [router]);
 
-  // ── Logout handler: resets root Stack to login screen ──
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('app:logout', () => {
-      console.log('[TABS LAYOUT] app:logout resetting root stack to index');
-        setTimeout(() => {
-           while (router.canGoBack()) { router.back(); }
-           router.replace('/');
-        }, 100);
-      });
-    return () => sub.remove();
-  }, [router]);
 
   return (
     <View style={{ flex: 1 }}>
       <Tabs
         tabBar={(props) => <CustomTabBar {...props} />}
-        screenOptions={{ headerShown: false }}
+        screenOptions={{
+          headerShown: false,
+          freezeOnBlur: true,
+          lazy: true,
+        }}
       >
         {TABS.map((tab) => (
           <Tabs.Screen key={tab.name} name={tab.name} options={{ title: tab.label }} />

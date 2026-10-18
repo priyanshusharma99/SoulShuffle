@@ -1,7 +1,7 @@
 import { useSidebar } from '@/context/SidebarContext';
 import { useThemeToggle } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect, router } from 'expo-router';
 import { Image, ScrollView, Alert, StatusBar, Text, TextInput, TouchableOpacity, View, ActivityIndicator, DeviceEventEmitter, Modal } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolateColor } from 'react-native-reanimated';
@@ -445,10 +445,15 @@ export default function Profile() {
     };
   }, [loadProfileAndRoom, activeRoom]);
 
-  // Reload dynamically whenever screen comes into focus
+  // Reload dynamically whenever screen comes into focus (throttled to avoid freezing tab switch)
+  const lastProfileFetchRef = useRef<number>(0);
   useFocusEffect(
     useCallback(() => {
-      loadProfileAndRoom();
+      const now = Date.now();
+      if (now - lastProfileFetchRef.current > 15000) {
+        lastProfileFetchRef.current = now;
+        loadProfileAndRoom();
+      }
     }, [loadProfileAndRoom])
   );
 
@@ -619,9 +624,9 @@ export default function Profile() {
                 <Text className="text-3xl font-black text-[#af2c3b] dark:text-white mt-8 tracking-tight text-center">
                   {userName} & {partnerName || 'Partner'}
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">
+                {/* <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">
                   {roomActiveTimeText}
-                </Text>
+                </Text> */}
               </View>
             );
           }
@@ -657,9 +662,9 @@ export default function Profile() {
               <Text className="text-3xl font-black text-[#af2c3b] dark:text-white mt-6 tracking-tight">
                 {userName}
               </Text>
-              <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">
+              {/* <Text className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">
                 {roomActiveTimeText}
-              </Text>
+              </Text> */}
             </View>
           );
         })()}

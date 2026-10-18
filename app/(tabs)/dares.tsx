@@ -435,6 +435,7 @@ export default function Dares() {
   const [room, setRoom] = useState<Room | null>(null);
   const [note, setNote] = useState<string>('');
   const [limits, setLimits] = useState<SendLimits | null>(null);
+  const lastDaresFetchRef = React.useRef<number>(0);
 
   useEffect(() => {
     if (selectedDare) {
@@ -527,6 +528,7 @@ export default function Dares() {
         setDares(mapped);
         setLimits(fetchedLimits);
 
+        lastDaresFetchRef.current = Date.now();
         AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
           cachedDares: mapped,
           cachedLimits: fetchedLimits,
@@ -551,7 +553,11 @@ export default function Dares() {
 
   useFocusEffect(
     useCallback(() => {
-      loadDares();
+      const now = Date.now();
+      if (now - lastDaresFetchRef.current > 15000) {
+        lastDaresFetchRef.current = now;
+        loadDares(true);
+      }
     }, [])
   );
 
@@ -667,10 +673,12 @@ export default function Dares() {
 
     // ── Hard limit guard (double-check even if button was enabled) ──
     if (limits && limits.can_send === false) {
-      const msg = limits.daily_remaining <= 0
-        ? `Daily limit reached (${limits.daily_limit} cards/day). Come back tomorrow!`
-        : `You already have ${limits.active_count} active card(s) pending. Wait for your partner to respond before sending more.`;
-      Alert.alert('Send Limit Reached', msg);
+      const isBlocked = limits.active_remaining <= 0;
+      const title = isBlocked ? 'Waiting for Partner' : 'Daily Limit Reached';
+      const msg = isBlocked
+        ? 'You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.'
+        : `Daily limit reached (${limits.daily_limit} cards/day). Resets tomorrow!`;
+      Alert.alert(title, msg);
       return;
     }
 
@@ -1045,7 +1053,9 @@ export default function Dares() {
               ) : (
                 <>
                   <Text style={{ color: 'white', fontWeight: '800', fontSize: 16, marginRight: 8 }}>
-                    {limits?.can_send === false ? 'Send Limit Reached' : 'Send Challenge'}
+                    {limits?.can_send === false
+                      ? (limits?.active_remaining <= 0 ? 'Waiting for Partner' : 'Daily Limit Reached')
+                      : 'Send Challenge'}
                   </Text>
                   {limits?.can_send !== false && <Ionicons name="send" size={16} color="white" />}
                 </>
@@ -1053,10 +1063,20 @@ export default function Dares() {
             </TouchableOpacity>
 
             {limits && (
-              <View style={{ alignItems: 'center', marginTop: 12 }}>
-                <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600' }}>
-                  {limits.active_remaining} active limits • {limits.daily_remaining} daily remaining
-                </Text>
+              <View style={{ alignItems: 'center', marginTop: 12, paddingHorizontal: 16 }}>
+                {limits.active_remaining <= 0 ? (
+                  <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 18 }}>
+                    You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.
+                  </Text>
+                ) : limits.daily_remaining <= 0 ? (
+                  <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
+                    Daily limit reached (0 remaining). Resets tomorrow!
+                  </Text>
+                ) : (
+                  <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
+                    {limits.daily_remaining} {limits.daily_remaining === 1 ? 'card' : 'cards'} remaining to send today
+                  </Text>
+                )}
               </View>
             )}
           </View>
