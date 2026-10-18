@@ -12,6 +12,7 @@ import { fetchCards, fetchAvailableDeck, fetchSendLimits, SendLimits } from '@/s
 import { useSidebar } from '@/context/SidebarContext';
 import { fetchStoreBundles, CardBundle } from '@/services/storeService';
 import { useUserAvatar } from '@/hooks/use-user-avatar';
+import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 
 const sunsetPicnic = require('@/assets/images/sunset_picnic.jpeg');
 
@@ -423,6 +424,11 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
   );
 };
 
+// In-memory cache for instant zero-latency tab switching without loading flicker
+let memoryCachedDares: Dare[] = [];
+let memoryCachedLimits: any = null;
+let memoryCachedRoom: any = null;
+
 export default function Dares() {
   const { openSidebar } = useSidebar();
   const userAvatar = useUserAvatar();
@@ -432,9 +438,10 @@ export default function Dares() {
   const isSendingRef = React.useRef(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [room, setRoom] = useState<Room | null>(null);
+  const [room, setRoom] = useState<Room | null>(memoryCachedRoom);
   const [note, setNote] = useState<string>('');
-  const [limits, setLimits] = useState<SendLimits | null>(null);
+  const [limits, setLimits] = useState<SendLimits | null>(memoryCachedLimits);
+  const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
   const lastDaresFetchRef = React.useRef<number>(0);
 
   useEffect(() => {
@@ -443,8 +450,8 @@ export default function Dares() {
     }
   }, [selectedDare]);
 
-  const [dares, setDares] = useState<Dare[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dares, setDares] = useState<Dare[]>(memoryCachedDares);
+  const [loading, setLoading] = useState(memoryCachedDares.length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -504,6 +511,9 @@ export default function Dares() {
           if (cachedData) {
             const { cachedDares, cachedLimits, roomId } = JSON.parse(cachedData);
             if (cachedDares && cachedDares.length > 0) {
+              memoryCachedDares = cachedDares;
+              if (cachedLimits) memoryCachedLimits = cachedLimits;
+              if (roomId) memoryCachedRoom = { id: roomId, code: '', status: 'ACTIVE' };
               setDares(cachedDares);
               if (cachedLimits) setLimits(cachedLimits);
               if (roomId) setRoom({ id: roomId, code: '', status: 'ACTIVE' } as any);
@@ -517,6 +527,7 @@ export default function Dares() {
 
       const activeRoom = await getActiveRoom();
       setRoom(activeRoom);
+      memoryCachedRoom = activeRoom;
       
       if (activeRoom && activeRoom.status === 'ACTIVE') {
         const [fetched, fetchedLimits] = await Promise.all([
@@ -525,6 +536,8 @@ export default function Dares() {
         ]);
         
         const mapped = fetched.map(mapCardToDare);
+        memoryCachedDares = mapped;
+        memoryCachedLimits = fetchedLimits;
         setDares(mapped);
         setLimits(fetchedLimits);
 
@@ -535,6 +548,8 @@ export default function Dares() {
           roomId: activeRoom.id
         })).catch(() => {});
       } else {
+        memoryCachedDares = [];
+        memoryCachedLimits = null;
         setDares([]);
         setLimits(null);
         AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
@@ -593,6 +608,9 @@ export default function Dares() {
     };
 
     const handleRoomLeft = () => {
+      memoryCachedDares = [];
+      memoryCachedLimits = null;
+      memoryCachedRoom = null;
       setRoom(null);
       setDares([]);
       setLimits(null);
@@ -663,11 +681,11 @@ export default function Dares() {
 
     const activeRoom = room || await getActiveRoom();
     if (!activeRoom) {
-      Alert.alert('No Room Found', 'Create or join a room before sending a challenge.');
+      setCustomAlert({ visible: true, title: 'No Room Found', message: 'Create or join a room before sending a challenge.' });
       return;
     }
     if (activeRoom.status !== 'ACTIVE') {
-      Alert.alert('Partner Not Connected', 'Your partner needs to join the room before you can send a challenge.');
+      setCustomAlert({ visible: true, title: 'Partner Not Connected', message: 'Your partner needs to join the room before you can send a challenge.' });
       return;
     }
 
@@ -678,7 +696,7 @@ export default function Dares() {
       const msg = isBlocked
         ? 'You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.'
         : `Daily limit reached (${limits.daily_limit} cards/day). Resets tomorrow!`;
-      Alert.alert(title, msg);
+      setCustomAlert({ visible: true, title, message: msg });
       return;
     }
 
@@ -711,7 +729,12 @@ export default function Dares() {
       await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
 
       // ✅ Success — now alert and emit socket event
-      Alert.alert('Challenge Sent! 🎯', `"${targetDare.title}" was sent to your partner!`);
+      setCustomAlert({
+        visible: true,
+        title: 'Challenge Sent! 🎯',
+        message: `"${targetDare.title}" was sent to your partner!`,
+        confirmText: 'Awesome!'
+      });
       GameSocket.sendGameEvent(activeRoom.code, 'CHALLENGE_SENT', {
         challenge: { ...targetDare, message: currentNote }
       });
@@ -736,7 +759,7 @@ export default function Dares() {
       if (backupLimits) setLimits(backupLimits);
 
       const errMsg = error?.response?.data?.message || error?.message || 'Failed to send card.';
-      Alert.alert('Could Not Send', errMsg);
+      setCustomAlert({ visible: true, title: 'Could Not Send', message: errMsg });
 
       // Restore cache
       AsyncStorage.getItem(CACHE_KEY).then(cached => {
@@ -1082,6 +1105,7 @@ export default function Dares() {
           </View>
         </View>
       </Modal>
+      <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
     </SafeAreaView>
   );
 }

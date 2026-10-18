@@ -50,6 +50,17 @@ interface ChallengeStatusDetail {
   isIncomplete: boolean;
 }
 
+// Module-level in-memory cache for instant zero-latency tab switching
+let memoryCachedHistory: SentChallenge[] = [];
+let memoryCachedStats = { completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 };
+let memoryCachedRoomInfo: {
+  id: string;
+  code: string;
+  partnerName: string;
+  partnerAvatar: string | null;
+  status: string;
+} | null = null;
+
 export default function History() {
   const { openSidebar } = useSidebar();
   const userAvatar = useUserAvatar();
@@ -57,21 +68,15 @@ export default function History() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [challengeHistory, setChallengeHistory] = useState<SentChallenge[]>([]);
-  const [stats, setStats] = useState({ completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 });
+  const [challengeHistory, setChallengeHistory] = useState<SentChallenge[]>(memoryCachedHistory);
+  const [stats, setStats] = useState(memoryCachedStats);
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
   const [expandedCategory, setExpandedCategory] = useState<FilterType | null>(null);
   const [savedDareIds, setSavedDareIds] = useState<string[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [activeRoomInfo, setActiveRoomInfo] = useState<{
-    id: string;
-    code: string;
-    partnerName: string;
-    partnerAvatar: string | null;
-    status: string;
-  } | null>(null);
+  const [loading, setLoading] = useState(memoryCachedHistory.length === 0);
+  const [activeRoomInfo, setActiveRoomInfo] = useState(memoryCachedRoomInfo);
 
   // Load saved dare IDs from local storage
   useEffect(() => {
@@ -223,7 +228,9 @@ export default function History() {
       }
     }
 
-    setStats({ completionRate, currentStreak, daresMastered, totalCards: total });
+    const statsObj = { completionRate, currentStreak, daresMastered, totalCards: total };
+    memoryCachedStats = statsObj;
+    setStats(statsObj);
   };
 
   const loadHistory = useCallback(async (showRefreshing = false) => {
@@ -256,6 +263,9 @@ export default function History() {
       const activeRoomId = activeRoom?.id || null;
 
       if (!activeRoomId) {
+        memoryCachedHistory = [];
+        memoryCachedRoomInfo = null;
+        memoryCachedStats = { completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 };
         setChallengeHistory([]);
         setActiveRoomInfo(null);
         setStats({ completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 });
@@ -283,6 +293,7 @@ export default function History() {
         status: activeRoom.status || 'ACTIVE',
       };
 
+      memoryCachedRoomInfo = currentRoomData;
       setActiveRoomInfo(currentRoomData);
 
       const cacheKey = `cached_active_room_history_${activeRoomId}`;
@@ -331,6 +342,7 @@ export default function History() {
             const parsed = JSON.parse(cached);
             if (Array.isArray(parsed)) {
               const enriched = parsed.map(enrichItem);
+              memoryCachedHistory = enriched;
               setChallengeHistory(enriched);
               calculateStats(enriched, staticTotal);
             }
@@ -373,6 +385,7 @@ export default function History() {
         if (fetchFailed && prevHistory && prevHistory.length > 0) {
           return prevHistory;
         }
+        memoryCachedHistory = enriched;
         calculateStats(enriched, staticTotal);
         return enriched;
       });

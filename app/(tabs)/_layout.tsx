@@ -42,79 +42,99 @@ const TABS = [
 ];
 
 // ─── Tab Button Item ──────────────────────────────────────────────────────────
-const TabItem = React.memo(function TabItem({
-  tab,
-  focused,
-  isDark,
-  onPress,
-}: {
-  tab: (typeof TABS)[0];
-  focused: boolean;
-  isDark: boolean;
-  onPress: () => void;
-}) {
-  const width = useSharedValue(focused ? 110 : 46);
-  const textOpacity = useSharedValue(focused ? 1 : 0);
-  const scale = useSharedValue(1);
+const TabItem = React.memo(
+  function TabItem({
+    tab,
+    routeKey,
+    focused,
+    isDark,
+    onPressTab,
+  }: {
+    tab: (typeof TABS)[0];
+    routeKey: string;
+    focused: boolean;
+    isDark: boolean;
+    onPressTab: (name: string, routeKey: string, focused: boolean) => void;
+  }) {
+    const width = useSharedValue(focused ? 110 : 46);
+    const textOpacity = useSharedValue(focused ? 1 : 0);
+    const scale = useSharedValue(1);
 
-  useEffect(() => {
-    width.value = withSpring(focused ? 110 : 46, { damping: 18, stiffness: 150, mass: 0.8 });
-    textOpacity.value = withTiming(focused ? 1 : 0, { duration: 150 });
-  }, [focused]);
+    useEffect(() => {
+      width.value = withSpring(focused ? 110 : 46, { damping: 18, stiffness: 150, mass: 0.8 });
+      textOpacity.value = withTiming(focused ? 1 : 0, { duration: 150 });
+    }, [focused]);
 
-  const handlePress = () => {
-    scale.value = withSpring(0.9, { damping: 10, stiffness: 300 }, () => {
-      scale.value = withSpring(1, { damping: 12, stiffness: 240 });
-    });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    onPress();
-  };
+    const handlePress = () => {
+      scale.value = withSpring(0.9, { damping: 10, stiffness: 300 }, () => {
+        scale.value = withSpring(1, { damping: 12, stiffness: 240 });
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      onPressTab(tab.name, routeKey, focused);
+    };
 
-  const containerStyle = useAnimatedStyle(() => ({
-    width: width.value,
-    transform: [{ scale: scale.value }],
-  }));
+    const containerStyle = useAnimatedStyle(() => ({
+      width: width.value,
+      transform: [{ scale: scale.value }],
+    }));
 
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-    transform: [{ translateX: withSpring(focused ? 0 : -6) }],
-  }));
+    const textStyle = useAnimatedStyle(() => ({
+      opacity: textOpacity.value,
+      transform: [{ translateX: withSpring(focused ? 0 : -6) }],
+    }));
 
-  const activeBg = isDark ? '#e11d48' : '#ffe4e6';
-  const activeColor = isDark ? '#ffffff' : '#f43f5e';
-  const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.7)';
+    const activeBg = isDark ? '#e11d48' : '#ffe4e6';
+    const activeColor = isDark ? '#ffffff' : '#f43f5e';
+    const inactiveColor = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.7)';
 
-  return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
-      <Animated.View
-        style={[
-          styles.tabItem,
-          { backgroundColor: focused ? activeBg : 'transparent' },
-          containerStyle,
-        ]}
-      >
-        <Ionicons
-          size={18}
-          name={(focused ? tab.activeIcon : tab.icon) as any}
-          color={focused ? activeColor : inactiveColor}
-        />
-        {focused && (
-          <Animated.Text
-            style={[styles.labelText, { color: activeColor }, textStyle]}
-            numberOfLines={1}
-          >
-            {tab.label}
-          </Animated.Text>
-        )}
-      </Animated.View>
-    </TouchableOpacity>
-  );
-});
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.95}>
+        <Animated.View
+          style={[
+            styles.tabItem,
+            { backgroundColor: focused ? activeBg : 'transparent' },
+            containerStyle,
+          ]}
+        >
+          <Ionicons
+            size={18}
+            name={(focused ? tab.activeIcon : tab.icon) as any}
+            color={focused ? activeColor : inactiveColor}
+          />
+          {focused && (
+            <Animated.Text
+              style={[styles.labelText, { color: activeColor }, textStyle]}
+              numberOfLines={1}
+            >
+              {tab.label}
+            </Animated.Text>
+          )}
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  },
+  (prev, next) =>
+    prev.focused === next.focused &&
+    prev.isDark === next.isDark &&
+    prev.tab.name === next.tab.name &&
+    prev.routeKey === next.routeKey
+);
 
 // ✨ Custom Floating Tab Bar ✨
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
+
+  const handleTabPress = useCallback((name: string, routeKey: string, focused: boolean) => {
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: routeKey,
+      canPreventDefault: true,
+    });
+    if (!focused && !event.defaultPrevented) {
+      navigation.navigate(name);
+    }
+  }, [navigation]);
 
   const bottomMargin = Platform.OS === 'ios'
     ? Math.max(24, insets.bottom)
@@ -141,18 +161,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             <TabItem
               key={tab.name}
               tab={tab}
+              routeKey={route.key}
               focused={focused}
               isDark={isDark}
-              onPress={() => {
-                const event = navigation.emit({
-                  type: 'tabPress',
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-                if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(tab.name);
-                }
-              }}
+              onPressTab={handleTabPress}
             />
           );
         })}

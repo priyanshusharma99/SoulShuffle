@@ -1,3 +1,7 @@
+import { enableFreeze } from 'react-native-screens';
+
+// Activate native screen freezing across tabs so blurred tabs consume 0% CPU
+enableFreeze(true);
 
 import { Stack, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

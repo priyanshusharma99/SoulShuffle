@@ -187,6 +187,13 @@ const calculateStreak = (sends: any[]) => {
 
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 
+// Module-level in-memory cache for instant zero-latency tab switching
+let memoryDashboardRoom: Room | null = null;
+let memoryDashboardCardSends: any[] = [];
+let memoryDashboardDeckCards: any[] = [];
+let memoryDashboardUserName = "";
+let memoryDashboardRoomHistory: any[] = [];
+
 export default function Dashboard() {
   const { openSidebar } = useSidebar();
   const { unreadCount, registerPushTokenWithBackend } = useNotifications();
@@ -197,8 +204,8 @@ export default function Dashboard() {
   const { width } = useWindowDimensions();
 
   // ── Room State ─────────────────────────────────────────
-  const [activeRoom, setActiveRoom] = useState<Room | null>(null);
-  const [roomLoading, setRoomLoading] = useState(true);
+  const [activeRoom, setActiveRoom] = useState<Room | null>(memoryDashboardRoom);
+  const [roomLoading, setRoomLoading] = useState(!memoryDashboardRoom);
   const [localPendingChallenges, setLocalPendingChallenges] = useState<any[]>(
     [],
   );
@@ -210,15 +217,15 @@ export default function Dashboard() {
   const [actionError, setActionError] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
-  const [cardSends, setCardSends] = useState<any[]>([]);
-  const [deckCards, setDeckCards] = useState<any[]>([]);
+  const [cardSends, setCardSends] = useState<any[]>(memoryDashboardCardSends);
+  const [deckCards, setDeckCards] = useState<any[]>(memoryDashboardDeckCards);
 
   // ── Modals & UI State ──
   const [penaltyGiftModalVisible, setPenaltyGiftModalVisible] = useState(false);
   const [penaltyGiftCard, setPenaltyGiftCard] = useState<any>(null);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState(memoryDashboardUserName);
   const [partnerName, setPartnerName] = useState("Partner");
   const [partnerAvatar, setPartnerAvatar] = useState<string | null>(
     ANIMATED_AVATARS[1].url,
@@ -231,12 +238,14 @@ export default function Dashboard() {
       try {
         const cached = await getMyProfileCached();
         if (cached?.firstName) {
+          memoryDashboardUserName = cached.firstName;
           setUserName(cached.firstName);
         }
         const cachedRoomStr = await AsyncStorage.getItem("cachedActiveRoom");
         if (cachedRoomStr) {
           const cachedRoom = JSON.parse(cachedRoomStr);
           if (cachedRoom && cachedRoom.id) {
+            memoryDashboardRoom = cachedRoom;
             setActiveRoom(cachedRoom);
             setRoomLoading(false);
           }
@@ -257,7 +266,7 @@ export default function Dashboard() {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(() =>
     getDailyCouplePhotoIndex(),
   );
-  const [roomHistoryData, setRoomHistoryData] = useState<any[]>([]);
+  const [roomHistoryData, setRoomHistoryData] = useState<any[]>(memoryDashboardRoomHistory);
   const [heroHeartFilled, setHeroHeartFilled] = useState(false);
   const [likedMoments, setLikedMoments] = useState<Record<string, boolean>>({});
 
@@ -499,6 +508,7 @@ export default function Dashboard() {
       }
 
       setActiveRoom(room);
+      memoryDashboardRoom = room;
 
       if (room) {
         await AsyncStorage.setItem("cachedActiveRoom", JSON.stringify(room));
@@ -514,15 +524,21 @@ export default function Dashboard() {
 
         if (sendsResult.status === "fulfilled") {
           const rawSends = sendsResult.value?.sends || sendsResult.value || [];
-          setCardSends(rawSends.map(normalizeSendRecord).filter(Boolean));
+          const normalized = rawSends.map(normalizeSendRecord).filter(Boolean);
+          memoryDashboardCardSends = normalized;
+          setCardSends(normalized);
         }
 
         if (deckResult.status === "fulfilled") {
-          setDeckCards(Array.isArray(deckResult.value) ? deckResult.value : []);
+          const deck = Array.isArray(deckResult.value) ? deckResult.value : [];
+          memoryDashboardDeckCards = deck;
+          setDeckCards(deck);
         }
 
         if (historyResult.status === "fulfilled") {
-          setRoomHistoryData(Array.isArray(historyResult.value) ? historyResult.value : []);
+          const history = Array.isArray(historyResult.value) ? historyResult.value : [];
+          memoryDashboardRoomHistory = history;
+          setRoomHistoryData(history);
         }
 
         if (room.expiry_type === "30_DAYS" && deflectResult.status === "fulfilled" && deflectResult.value) {
@@ -534,6 +550,10 @@ export default function Dashboard() {
         }
       } else {
         // Explicitly no room from server
+        memoryDashboardRoom = null;
+        memoryDashboardCardSends = [];
+        memoryDashboardDeckCards = [];
+        memoryDashboardRoomHistory = [];
         await AsyncStorage.removeItem("cachedActiveRoom");
         await AsyncStorage.removeItem("activeRoomId");
         setCardSends([]);
@@ -557,6 +577,10 @@ export default function Dashboard() {
     });
     const clearRoomSub = DeviceEventEmitter.addListener("app:clearRoom", () => {
       // Immediately reset all room state so UI shows 'No Room' card right away
+      memoryDashboardRoom = null;
+      memoryDashboardCardSends = [];
+      memoryDashboardDeckCards = [];
+      memoryDashboardRoomHistory = [];
       setActiveRoom(null);
       setCardSends([]);
       setDeflectCardsCount(0);
