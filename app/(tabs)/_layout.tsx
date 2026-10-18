@@ -330,9 +330,9 @@ export default function TabLayout() {
       }
     };
 
-    const handleCardEvent = () => {
-      DeviceEventEmitter.emit('app:refreshHistory');
-      DeviceEventEmitter.emit('app:refreshDashboard');
+    const handleCardEvent = (data?: any) => {
+      DeviceEventEmitter.emit('app:refreshHistory', data);
+      DeviceEventEmitter.emit('app:refreshDashboard', data);
     };
 
     GameSocket.on('game_event', handleGameEvent);

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getActiveRoom, sendChallenge, ChallengePayload, Room, SentChallenge, addSentChallengeToCache } from '@/services/roomService';
+import { getActiveRoom, sendChallenge, ChallengePayload, Room, SentChallenge } from '@/services/roomService';
 import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { fetchCards, fetchAvailableDeck, fetchSendLimits, SendLimits } from '@/services/cardService';
@@ -857,37 +857,62 @@ export default function Dares() {
     }
 
     try {
-      const sendResult = await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
+      const sentData = await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
 
-      // ✅ Instantly sync into history cache so Journey tab renders on frame 1 (0ms)
-      const isHost = activeRoom.host_id === (room?.host_id || activeRoom.host_id);
-      const partnerName = isHost
-        ? (activeRoom.partner_name || activeRoom.partner?.first_name || 'Partner')
-        : (activeRoom.host_name || activeRoom.host?.first_name || 'Partner');
-      const partnerAvatar = isHost
-        ? (activeRoom.partner_avatar || activeRoom.partner?.avatar_url)
-        : (activeRoom.host_avatar || activeRoom.host?.avatar_url);
-
-      const newHistoryItem: SentChallenge = {
-        id: sendResult?.send?.id || targetDare.id,
-        room_id: activeRoom.id,
-        room_code: activeRoom.code,
-        room_status: activeRoom.status || 'ACTIVE',
-        partner_name: partnerName,
-        partner_avatar: partnerAvatar || null,
-        is_sent_by_me: true,
+      // Create rich history item
+      const newHistoryCard: SentChallenge = {
+        id: sentData?.id || String(Date.now()),
         card_id: String(targetDare.id),
-        status: 'SENT',
-        sent_at: new Date().toISOString(),
         title: targetDare.title,
         description: targetDare.description || '',
         category: targetDare.category || 'Dare',
         difficulty: targetDare.difficulty || 'Medium',
-        time: targetDare.time || '15 mins',
-        image: targetDare.image,
+        time: targetDare.time || 'Today',
+        image: targetDare.image || null,
         message: currentNote || '',
+        room_id: activeRoom.id,
+        room_code: activeRoom.code || 'GAME',
+        room_status: activeRoom.status || 'ACTIVE',
+        sender_id: sentData?.sender_id || activeRoom.host_id,
+        receiver_id: sentData?.receiver_id || activeRoom.partner_id,
+        is_sent_by_me: true,
+        status: 'SENT',
+        sent_at: sentData?.sent_at || new Date().toISOString(),
       };
-      addSentChallengeToCache(newHistoryItem, activeRoom.id).catch(() => {});
+
+      // Optimistically write to all history & sends caches immediately
+      try {
+        const histKey = `cached_active_room_history_${activeRoom.id}`;
+        const [rawHist, rawRoomHist, rawSends] = await AsyncStorage.multiGet([
+          histKey,
+          'cachedRoomHistory',
+          'cachedCardSends'
+        ]);
+        const parseList = (str: string | null | undefined): any[] => {
+          if (!str) return [];
+          try {
+            const p = JSON.parse(str);
+            return Array.isArray(p) ? p : [];
+          } catch {
+            return [];
+          }
+        };
+        const hList = parseList(rawHist ? rawHist[1] : null);
+        const rhList = parseList(rawRoomHist ? rawRoomHist[1] : null);
+        const sList = parseList(rawSends ? rawSends[1] : null);
+
+        const updatedH = [newHistoryCard, ...hList.filter((x: any) => String(x.id) !== String(newHistoryCard.id))];
+        const updatedRH = [newHistoryCard, ...rhList.filter((x: any) => String(x.id) !== String(newHistoryCard.id))];
+        const updatedS = [newHistoryCard, ...sList.filter((x: any) => String(x.id) !== String(newHistoryCard.id))];
+
+        await AsyncStorage.multiSet([
+          [histKey, JSON.stringify(updatedH)],
+          ['cachedRoomHistory', JSON.stringify(updatedRH)],
+          ['cachedCardSends', JSON.stringify(updatedS)]
+        ]);
+      } catch (e) {
+        console.log('Error updating history cache on send:', e);
+      }
 
       // ✅ Success — now alert and emit socket event
       setCustomAlert({
@@ -899,7 +924,8 @@ export default function Dares() {
       GameSocket.sendGameEvent(activeRoom.code, 'CHALLENGE_SENT', {
         challenge: { ...targetDare, message: currentNote }
       });
-      DeviceEventEmitter.emit('app:refreshHistory');
+      DeviceEventEmitter.emit('app:refreshHistory', newHistoryCard);
+      DeviceEventEmitter.emit('app:refreshDashboard');
 
       // Sync fresh limits from backend
       try {

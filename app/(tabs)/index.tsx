@@ -40,7 +40,6 @@ import {
   Room,
   ExpiryType,
   fetchRoomHistory,
-  updateChallengeInCache,
 } from "@/services/roomService";
 import { fetchAvailableDeck } from "@/services/cardService";
 import GameSocket from "@/services/socketService";
@@ -932,7 +931,34 @@ export default function Dashboard() {
   // ── Card Game Engine Handlers (Fast Local & Non-blocking Sync) ──
   const isActioningRef = useRef(false);
 
-  // -- Card Game Engine Handlers (Fast Local & Non-blocking Sync) --
+
+  const syncActionToHistoryCache = async (sendId: string, status: string) => {
+    try {
+      DeviceEventEmitter.emit('app:refreshHistory', { id: sendId, status });
+      const roomId = activeRoom?.id;
+      const keys = ['cachedRoomHistory'];
+      if (roomId) keys.push(`cached_active_room_history_${roomId}`);
+      const raw = await AsyncStorage.multiGet(keys);
+      const updates: [string, string][] = [];
+      raw.forEach(([k, val]) => {
+        if (val) {
+          try {
+            const list = JSON.parse(val);
+            if (Array.isArray(list)) {
+              const updated = list.map((item: any) =>
+                String(item.id) === String(sendId) ? { ...item, status } : item
+              );
+              updates.push([k, JSON.stringify(updated)]);
+            }
+          } catch {}
+        }
+      });
+      if (updates.length > 0) {
+        await AsyncStorage.multiSet(updates);
+      }
+    } catch {}
+  };
+
   const handleAcceptCard = async (sendId: string) => {
     if (isActioningRef.current) return;
     isActioningRef.current = true;
@@ -946,7 +972,7 @@ export default function Dashboard() {
       AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
-    updateChallengeInCache(sendId, { status: "IN_PROGRESS", accepted_at: new Date().toISOString() }, activeRoom?.id).catch(() => {});
+    syncActionToHistoryCache(sendId, "IN_PROGRESS");
 
     try {
       await acceptCardSend(sendId);
@@ -972,10 +998,10 @@ export default function Dashboard() {
       AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
-    const targetRoomId = roomId || activeRoom?.id || "";
-    updateChallengeInCache(sendId, { status: "REJECTED" }, targetRoomId).catch(() => {});
+    syncActionToHistoryCache(sendId, "REJECTED");
 
     try {
+      const targetRoomId = roomId || activeRoom?.id || "";
       await rejectCardSend(sendId, targetRoomId);
       if (activeRoom) {
         GameSocket.sendGameEvent(activeRoom.code, "CARD_REJECTED", { sendId });
@@ -1010,9 +1036,9 @@ export default function Dashboard() {
       AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
-    updateChallengeInCache(sendId, { status: "DEFLECTED", deflected_at: new Date().toISOString() }, activeRoom?.id).catch(() => {});
     setDeflectCardsCount((prev) => Math.max(0, prev - 1));
     setDeflectCards((prev) => prev.filter((c) => c.id !== deflectCardToUse.id));
+    syncActionToHistoryCache(sendId, "DEFLECTED");
 
     try {
       await deflectCardSend(sendId, deflectCardToUse.id);
@@ -1051,7 +1077,7 @@ export default function Dashboard() {
         AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
         return updated;
       });
-      updateChallengeInCache(sendId, { status: "COMPLETED", completed_at: new Date().toISOString() }, activeRoom?.id).catch(() => {});
+      syncActionToHistoryCache(sendId, "COMPLETED");
 
       await completeCardSend(sendId);
       setCustomAlert({ visible: true, title: "Challenge Completed! 🎉", message: "Well done! You have completed this dare." });
@@ -1064,7 +1090,7 @@ export default function Dashboard() {
         AsyncStorage.setItem("cachedCardSends", JSON.stringify(reverted)).catch(() => {});
         return reverted;
       });
-      updateChallengeInCache(sendId, { status: currentStatus || "IN_PROGRESS" }, activeRoom?.id).catch(() => {});
+      syncActionToHistoryCache(sendId, currentStatus || "IN_PROGRESS");
       setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to complete card" });
       refreshCardSendsOnly();
     } finally {
@@ -1077,7 +1103,6 @@ export default function Dashboard() {
     setCardSends((prev) =>
       prev.map((s) => (s.id === sendId ? { ...s, status: "COMPLETED" } : s)),
     );
-    updateChallengeInCache(sendId, { status: "COMPLETED" }, activeRoom?.id).catch(() => {});
 
     try {
       await confirmCardSend(sendId);

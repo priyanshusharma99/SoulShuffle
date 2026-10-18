@@ -61,6 +61,7 @@ let memoryCachedRoomInfo: {
   partnerAvatar: string | null;
   status: string;
 } | null = null;
+let memoryCachedUserId: string | null = null;
 
 export default function History() {
   const { openSidebar } = useSidebar();
@@ -74,7 +75,7 @@ export default function History() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
   const [expandedCategory, setExpandedCategory] = useState<FilterType | null>(null);
   const [savedDareIds, setSavedDareIds] = useState<string[]>([]);
-  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(memoryCachedUserId);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(memoryCachedHistory.length === 0);
   const [activeRoomInfo, setActiveRoomInfo] = useState(memoryCachedRoomInfo);
@@ -234,55 +235,105 @@ export default function History() {
     setStats(statsObj);
   };
 
+  const enrichItem = useCallback((item: any, currentRoomData?: any, currentUserId?: string | null): SentChallenge => {
+    const cardObj = item.cards || item.card || {};
+    const catObj = cardObj.card_categories || {};
+    const title = item.title || cardObj.name || cardObj.title || 'Dare';
+    const description = item.description || cardObj.power_description || cardObj.description || '';
+    const category = item.category || (typeof catObj === 'string' ? catObj : catObj.name) || cardObj.category || 'Dare';
+    const difficulty = item.difficulty || cardObj.attributes?.difficulty || cardObj.difficulty || 'Medium';
+    const time = item.time || cardObj.attributes?.time || cardObj.time || cardObj.timeRequirement || 'Today';
+    const image = item.image || cardObj.image_url || cardObj.imageUrl || null;
+    const status = (item.status || 'SENT').toUpperCase();
+    const sent_at = item.sent_at || item.created_at || (item as any).createdAt || new Date().toISOString();
+    const isSentByMe = item.is_sent_by_me ?? (currentUserId ? item.sender_id === currentUserId : (myUserId ? item.sender_id === myUserId : true));
+
+    const roomCode = item.room_code || currentRoomData?.code || memoryCachedRoomInfo?.code || 'GAME';
+    const partnerName = item.partner_name || currentRoomData?.partnerName || memoryCachedRoomInfo?.partnerName || 'Partner';
+    const partnerAvatar = item.partner_avatar || currentRoomData?.partnerAvatar || memoryCachedRoomInfo?.partnerAvatar || null;
+    const roomStatus = item.room_status || currentRoomData?.status || memoryCachedRoomInfo?.status || 'ACTIVE';
+    const roomId = item.room_id || currentRoomData?.id || memoryCachedRoomInfo?.id || '';
+
+    return {
+      id: item.id || item.send_id || item.card_id || String(Date.now()),
+      card_id: item.card_id || cardObj.id || undefined,
+      title,
+      description,
+      category,
+      difficulty,
+      time,
+      image,
+      message: item.message || '',
+      room_id: roomId,
+      room_code: roomCode,
+      partner_name: partnerName,
+      partner_avatar: partnerAvatar,
+      room_status: roomStatus,
+      sender_id: item.sender_id,
+      receiver_id: item.receiver_id,
+      sender_name: item.sender_name,
+      receiver_name: item.receiver_name,
+      sender_avatar: item.sender_avatar,
+      receiver_avatar: item.receiver_avatar,
+      is_sent_by_me: isSentByMe,
+      status,
+      sent_at,
+      accepted_at: item.accepted_at,
+      completed_at: item.completed_at || item.completed_by_receiver_at || item.confirmed_at,
+      deflected_at: item.deflected_at,
+      rejected_at: item.rejected_at,
+    };
+  }, [myUserId]);
+
   const loadHistory = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     try {
-      // 1. Instantly check memory or AsyncStorage for active room and current user
-      const profile = await getMyProfileCached();
-      const currentUserId = profile?.id || null;
-      if (currentUserId) {
-        setMyUserId(currentUserId);
+      // 1. Parallel batch lookup of all cached keys in 0ms
+      const batchKeys = [
+        'cachedUserId',
+        'cachedActiveRoom',
+        'cachedRoomHistory',
+        'cachedCardSends'
+      ];
+      if (memoryCachedRoomInfo?.id) {
+        batchKeys.push(`cached_active_room_history_${memoryCachedRoomInfo.id}`);
       }
 
-      // Fast resolve room from cache without blocking
+      const multiValues = await AsyncStorage.multiGet(batchKeys);
+      const valMap = Object.fromEntries(multiValues);
+
+      let currentUserId = memoryCachedUserId || valMap['cachedUserId'] || null;
+      if (currentUserId) {
+        memoryCachedUserId = currentUserId;
+        setMyUserId(currentUserId);
+      } else {
+        getMyProfileCached().then(p => {
+          if (p?.id) {
+            memoryCachedUserId = p.id;
+            setMyUserId(p.id);
+          }
+        }).catch(() => {});
+      }
+
       let activeRoom: any = null;
-      const cachedRoomRaw = await AsyncStorage.getItem('cachedActiveRoom');
-      if (cachedRoomRaw) {
+      try {
+        if (valMap['cachedActiveRoom']) {
+          activeRoom = JSON.parse(valMap['cachedActiveRoom']);
+        }
+      } catch (e) {}
+
+      if (!activeRoom && memoryCachedRoomInfo) {
+        activeRoom = memoryCachedRoomInfo;
+      }
+
+      // Non-blocking fallback getActiveRoom if cache missing
+      if (!activeRoom) {
         try {
-          activeRoom = JSON.parse(cachedRoomRaw);
+          activeRoom = await getActiveRoom();
         } catch (e) {}
       }
-      let activeRoomId = activeRoom?.id || memoryCachedRoomInfo?.id || null;
 
-      // 2. Frame-1 Instant Display: load cached history immediately without waiting for any network call
-      if (!showRefreshing) {
-        let cached = activeRoomId ? await AsyncStorage.getItem(`cached_active_room_history_${activeRoomId}`) : null;
-        if (!cached) {
-          cached = await AsyncStorage.getItem('cachedRoomHistory');
-        }
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              memoryCachedHistory = parsed;
-              setChallengeHistory(parsed);
-              calculateStats(parsed);
-              setLoading(false);
-            }
-          } catch (e) {}
-        }
-      }
-
-      // 3. Parallel fetch of fresh room & fresh history (non-blocking)
-      const [freshRoom, freshHistoryRaw] = await Promise.all([
-        getActiveRoom().catch(() => activeRoom),
-        activeRoomId ? fetchRoomHistory(activeRoomId).catch(() => null) : Promise.resolve(null)
-      ]);
-
-      if (freshRoom) {
-        activeRoom = freshRoom;
-        activeRoomId = freshRoom.id;
-      }
+      const activeRoomId = activeRoom?.id || memoryCachedRoomInfo?.id || null;
 
       if (!activeRoomId) {
         memoryCachedHistory = [];
@@ -304,13 +355,10 @@ export default function History() {
         ? (activeRoom.partner_avatar || activeRoom.partner?.avatar_url)
         : (activeRoom.host_avatar || activeRoom.host?.avatar_url);
 
-      const storedPartnerName = await AsyncStorage.getItem(`partnerName_${activeRoomId}`);
-      const resolvedPartnerName = storedPartnerName || partnerName || 'Partner';
-
       const currentRoomData = {
         id: activeRoomId,
         code: activeRoom.code || 'GAME',
-        partnerName: resolvedPartnerName,
+        partnerName: partnerName || 'Partner',
         partnerAvatar: partnerAvatar || null,
         status: activeRoom.status || 'ACTIVE',
       };
@@ -320,27 +368,97 @@ export default function History() {
 
       const cacheKey = `cached_active_room_history_${activeRoomId}`;
 
-      const enrichItem = (item: SentChallenge): SentChallenge => {
-        return {
-          ...item,
-          room_id: activeRoomId,
-          room_code:
-            !item.room_code || item.room_code === 'GAME' || item.room_code === 'ROOM'
-              ? currentRoomData.code
-              : item.room_code,
-          partner_name:
-            !item.partner_name || item.partner_name === 'Partner'
-              ? currentRoomData.partnerName
-              : item.partner_name,
-          partner_avatar: !item.partner_avatar ? currentRoomData.partnerAvatar : item.partner_avatar,
-          room_status: currentRoomData.status,
-        };
-      };
+      // 2. Instant Frame-1 3-way Cache Merging
+      if (!showRefreshing) {
+        try {
+          const cachedHistRaw = valMap[cacheKey] || (await AsyncStorage.getItem(cacheKey));
+          const cachedRoomHistRaw = valMap['cachedRoomHistory'];
+          const cachedSendsRaw = valMap['cachedCardSends'];
 
-      // 4. If fresh history was fetched in parallel, use it directly (no double request)
-      let freshHistory = freshHistoryRaw !== null
-        ? freshHistoryRaw
-        : await fetchRoomHistory(activeRoomId).catch(() => []);
+          const parseList = (str: string | null | undefined): any[] => {
+            if (!str) return [];
+            try {
+              const parsed = JSON.parse(str);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          };
+
+          const list1 = parseList(cachedHistRaw);
+          const list2 = parseList(cachedRoomHistRaw);
+          const list3 = parseList(cachedSendsRaw);
+
+          if (list1.length > 0 || list2.length > 0 || list3.length > 0) {
+            const itemMap = new Map<string, SentChallenge>();
+
+            // 1) Base: cachedHistory
+            list1.forEach((item) => {
+              if (item) {
+                const norm = enrichItem(item, currentRoomData, currentUserId);
+                itemMap.set(String(norm.id), norm);
+              }
+            });
+
+            // 2) Merge: cachedRoomHistory
+            list2.forEach((item) => {
+              if (item) {
+                const norm = enrichItem(item, currentRoomData, currentUserId);
+                const existing = itemMap.get(String(norm.id));
+                if (!existing) {
+                  itemMap.set(String(norm.id), norm);
+                } else {
+                  itemMap.set(String(norm.id), { ...existing, ...norm });
+                }
+              }
+            });
+
+            // 3) Merge: cachedCardSends (has the freshest client action status: IN_PROGRESS, REJECTED, DEFLECTED, COMPLETED)
+            list3.forEach((item) => {
+              if (item) {
+                const norm = enrichItem(item, currentRoomData, currentUserId);
+                const existing = itemMap.get(String(norm.id));
+                if (!existing) {
+                  itemMap.set(String(norm.id), norm);
+                } else {
+                  itemMap.set(String(norm.id), {
+                    ...existing,
+                    ...norm,
+                    title: norm.title && norm.title !== 'Dare' ? norm.title : existing.title,
+                    description: norm.description || existing.description,
+                    status: norm.status || existing.status,
+                  });
+                }
+              }
+            });
+
+            const merged = Array.from(itemMap.values()).sort((a, b) => {
+              const tA = new Date(a.sent_at || 0).getTime();
+              const tB = new Date(b.sent_at || 0).getTime();
+              return tB - tA;
+            });
+
+            if (merged.length > 0) {
+              memoryCachedHistory = merged;
+              setChallengeHistory(merged);
+              calculateStats(merged, 0);
+              setLoading(false);
+            }
+          }
+        } catch (e) {
+          console.log('Cache 3-way merge error:', e);
+        }
+      }
+
+      // 3. Non-blocking background network fetch
+      let freshHistory: SentChallenge[] = [];
+      let fetchFailed = false;
+      try {
+        freshHistory = await fetchRoomHistory(activeRoomId);
+      } catch (err) {
+        console.log('Fetch room history API error:', err);
+        fetchFailed = true;
+      }
 
       if (!Array.isArray(freshHistory) || freshHistory.length === 0) {
         if (activeRoom?.game_state?.challenge_history) {
@@ -359,14 +477,31 @@ export default function History() {
         ? freshHistory.filter((item) => !item.room_id || item.room_id === activeRoomId)
         : [];
 
-      const enriched = currentRoomOnly.map(enrichItem);
+      if (!fetchFailed && currentRoomOnly.length > 0) {
+        const enrichedServer = currentRoomOnly.map((item) => enrichItem(item, currentRoomData, currentUserId));
 
-      if (enriched.length > 0 || (freshHistoryRaw !== null && freshHistoryRaw.length === 0)) {
-        memoryCachedHistory = enriched;
-        setChallengeHistory(enriched);
-        calculateStats(enriched);
-        AsyncStorage.setItem(cacheKey, JSON.stringify(enriched)).catch(() => {});
-        AsyncStorage.setItem('cachedRoomHistory', JSON.stringify(enriched)).catch(() => {});
+        setChallengeHistory((prevHistory) => {
+          const map = new Map<string, SentChallenge>();
+          enrichedServer.forEach((item) => map.set(String(item.id), item));
+          // Preserve any optimistic items that haven't propagated to backend yet
+          prevHistory.forEach((item) => {
+            if (!map.has(String(item.id))) {
+              map.set(String(item.id), item);
+            }
+          });
+
+          const merged = Array.from(map.values()).sort((a, b) => {
+            const tA = new Date(a.sent_at || 0).getTime();
+            const tB = new Date(b.sent_at || 0).getTime();
+            return tB - tA;
+          });
+
+          memoryCachedHistory = merged;
+          calculateStats(merged, 0);
+          AsyncStorage.setItem(cacheKey, JSON.stringify(merged)).catch(() => {});
+          AsyncStorage.setItem('cachedRoomHistory', JSON.stringify(merged)).catch(() => {});
+          return merged;
+        });
       }
     } catch (error) {
       console.log('Failed to load history for active room:', error);
@@ -374,7 +509,7 @@ export default function History() {
       if (showRefreshing) setRefreshing(false);
       setLoading(false);
     }
-  }, []);
+  }, [enrichItem]);
 
   useFocusEffect(
     useCallback(() => {
@@ -383,33 +518,66 @@ export default function History() {
   );
 
   useEffect(() => {
-    loadHistory(false);
+    loadHistory();
 
-    const handleRefresh = () => loadHistory(false);
+    const handleEvent = (data?: any) => {
+      if (data && (data.send_id || data.id)) {
+        const sendId = String(data.send_id || data.id);
+        const newStatus = (
+          data.status ||
+          (data.type === 'CARD_ACCEPTED' ? 'IN_PROGRESS' :
+           data.type === 'CARD_REJECTED' ? 'REJECTED' :
+           data.type === 'CARD_DEFLECTED' ? 'DEFLECTED' :
+           data.type === 'CARD_COMPLETED' ? 'COMPLETED' : 'SENT')
+        ).toUpperCase();
 
-    GameSocket.on('card_received', handleRefresh);
-    GameSocket.on('card_accepted', handleRefresh);
-    GameSocket.on('card_deflected', handleRefresh);
-    GameSocket.on('card_completed_by_receiver', handleRefresh);
-    GameSocket.on('card_confirmed', handleRefresh);
-    GameSocket.on('card_rejected', handleRefresh);
-    GameSocket.on('game_event', handleRefresh);
-    GameSocket.on('partner_joined', handleRefresh);
+        setChallengeHistory((prev) => {
+          const exists = prev.some((c) => String(c.id) === sendId);
+          if (exists) {
+            const updated = prev.map((c) =>
+              String(c.id) === sendId ? { ...c, ...data, status: newStatus } : c
+            );
+            memoryCachedHistory = updated;
+            calculateStats(updated, 0);
+            return updated;
+          } else if (data.title || data.card?.name || data.card_id) {
+            const newCard = enrichItem(data);
+            const updated = [newCard, ...prev];
+            memoryCachedHistory = updated;
+            calculateStats(updated, 0);
+            return updated;
+          }
+          return prev;
+        });
+      }
+      loadHistory(false);
+    };
 
-    const sub = DeviceEventEmitter.addListener('app:refreshHistory', handleRefresh);
+    GameSocket.on('game_event', handleEvent);
+    GameSocket.on('partner_joined', handleEvent);
+    GameSocket.on('card_received', handleEvent);
+    GameSocket.on('card_accepted', handleEvent);
+    GameSocket.on('card_deflected', handleEvent);
+    GameSocket.on('card_completed_by_receiver', handleEvent);
+    GameSocket.on('card_confirmed', handleEvent);
+    GameSocket.on('card_rejected', handleEvent);
+
+    const histSub = DeviceEventEmitter.addListener('app:refreshHistory', handleEvent);
+    const dashSub = DeviceEventEmitter.addListener('app:refreshDashboard', handleEvent);
 
     return () => {
-      GameSocket.off('card_received', handleRefresh);
-      GameSocket.off('card_accepted', handleRefresh);
-      GameSocket.off('card_deflected', handleRefresh);
-      GameSocket.off('card_completed_by_receiver', handleRefresh);
-      GameSocket.off('card_confirmed', handleRefresh);
-      GameSocket.off('card_rejected', handleRefresh);
-      GameSocket.off('game_event', handleRefresh);
-      GameSocket.off('partner_joined', handleRefresh);
-      sub.remove();
+      GameSocket.off('game_event', handleEvent);
+      GameSocket.off('partner_joined', handleEvent);
+      GameSocket.off('card_received', handleEvent);
+      GameSocket.off('card_accepted', handleEvent);
+      GameSocket.off('card_deflected', handleEvent);
+      GameSocket.off('card_completed_by_receiver', handleEvent);
+      GameSocket.off('card_confirmed', handleEvent);
+      GameSocket.off('card_rejected', handleEvent);
+      histSub.remove();
+      dashSub.remove();
     };
-  }, [loadHistory]);
+  }, [loadHistory, enrichItem]);
 
   // Counts for Category Cards
   const allDaresCount = challengeHistory.length;
