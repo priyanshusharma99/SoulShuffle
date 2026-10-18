@@ -255,6 +255,43 @@ export default function Dashboard() {
             setRoomLoading(false);
           }
         }
+
+        // ⚡ INSTANT LOCALSTORAGE RENDER (Zero-latency cold startup)
+        const [cachedSendsStr, cachedDeckStr, cachedHistoryStr] = await Promise.all([
+          AsyncStorage.getItem("cachedCardSends"),
+          AsyncStorage.getItem("cachedDeckCards"),
+          AsyncStorage.getItem("cachedRoomHistory"),
+        ]);
+
+        if (cachedSendsStr) {
+          try {
+            const parsed = JSON.parse(cachedSendsStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              memoryDashboardCardSends = parsed;
+              setCardSends(parsed);
+            }
+          } catch {}
+        }
+
+        if (cachedDeckStr) {
+          try {
+            const parsed = JSON.parse(cachedDeckStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              memoryDashboardDeckCards = parsed;
+              setDeckCards(parsed);
+            }
+          } catch {}
+        }
+
+        if (cachedHistoryStr) {
+          try {
+            const parsed = JSON.parse(cachedHistoryStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              memoryDashboardRoomHistory = parsed;
+              setRoomHistoryData(parsed);
+            }
+          } catch {}
+        }
       } catch (e) {
         console.log("Failed to load cached profile or room in dashboard:", e);
       }
@@ -479,7 +516,10 @@ export default function Dashboard() {
       try {
         const sends = await fetchCardSends(targetRoomId);
         const rawSends = sends?.sends || sends || [];
-        setCardSends(rawSends.map(normalizeSendRecord).filter(Boolean));
+        const normalized = rawSends.map(normalizeSendRecord).filter(Boolean);
+        memoryDashboardCardSends = normalized;
+        setCardSends(normalized);
+        AsyncStorage.setItem("cachedCardSends", JSON.stringify(normalized)).catch(() => {});
       } catch (e) {
         // silently fail
       }
@@ -536,18 +576,21 @@ export default function Dashboard() {
           const normalized = rawSends.map(normalizeSendRecord).filter(Boolean);
           memoryDashboardCardSends = normalized;
           setCardSends(normalized);
+          AsyncStorage.setItem("cachedCardSends", JSON.stringify(normalized)).catch(() => {});
         }
 
         if (deckResult.status === "fulfilled") {
           const deck = Array.isArray(deckResult.value) ? deckResult.value : [];
           memoryDashboardDeckCards = deck;
           setDeckCards(deck);
+          AsyncStorage.setItem("cachedDeckCards", JSON.stringify(deck)).catch(() => {});
         }
 
         if (historyResult.status === "fulfilled") {
           const history = Array.isArray(historyResult.value) ? historyResult.value : [];
           memoryDashboardRoomHistory = history;
           setRoomHistoryData(history);
+          AsyncStorage.setItem("cachedRoomHistory", JSON.stringify(history)).catch(() => {});
         }
 
         if (room.expiry_type === "30_DAYS" && deflectResult.status === "fulfilled" && deflectResult.value) {
@@ -584,14 +627,16 @@ export default function Dashboard() {
     const sub = DeviceEventEmitter.addListener("app:refreshDashboard", () => {
       fetchActiveRoom(true);
     });
-    const clearRoomSub = DeviceEventEmitter.addListener("app:clearRoom", () => {
-      // Immediately reset all room state so UI shows 'No Room' card right away
+    const resetAllDashboardState = () => {
       memoryDashboardRoom = null;
       memoryDashboardCardSends = [];
       memoryDashboardDeckCards = [];
       memoryDashboardRoomHistory = [];
+      memoryDashboardUserName = "";
+      memoryDashboardCurrentUserId = null;
       setActiveRoom(null);
       setCardSends([]);
+      setDeckCards([]);
       setDeflectCardsCount(0);
       setDeflectCards([]);
       setLocalPendingChallenges([]);
@@ -599,7 +644,10 @@ export default function Dashboard() {
       setPartnerName("Partner");
       setPartnerAvatar(ANIMATED_AVATARS[1].url);
       setRoomLoading(false);
-    });
+    };
+
+    const clearRoomSub = DeviceEventEmitter.addListener("app:clearRoom", resetAllDashboardState);
+    const logoutSub = DeviceEventEmitter.addListener("app:logout", resetAllDashboardState);
     const penaltyGiftSub = DeviceEventEmitter.addListener(
       "app:showPenaltyGift",
       (cardData: any) => {
@@ -610,6 +658,7 @@ export default function Dashboard() {
     return () => {
       sub.remove();
       clearRoomSub.remove();
+      logoutSub.remove();
       penaltyGiftSub.remove();
     };
   }, [fetchActiveRoom]);

@@ -73,6 +73,9 @@ export const clearRoomCache = async (roomId?: string) => {
     await AsyncStorage.removeItem('activeRoomId');
     await AsyncStorage.removeItem('relationshipStats');
     await AsyncStorage.removeItem('@soulshuffle_dares_cache');
+    await AsyncStorage.removeItem('cachedCardSends');
+    await AsyncStorage.removeItem('cachedDeckCards');
+    await AsyncStorage.removeItem('cachedRoomHistory');
   } catch (e) {
     console.warn('[clearRoomCache] Cache clear error (non-fatal):', e);
   }
