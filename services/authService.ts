@@ -1,86 +1,133 @@
 import api, { setMemoryToken } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Helper to save tokens after login/signup
-const saveTokens = async (accessToken: string, refreshToken: string) => {
-  setMemoryToken(accessToken);
-  await AsyncStorage.setItem('accessToken', accessToken);
-  await AsyncStorage.setItem('refreshToken', refreshToken);
-  await AsyncStorage.setItem('rememberMe', 'true');
-
-  // Sync push token to backend for the authenticated user
-  try {
-    const pushToken = await AsyncStorage.getItem('expoPushToken');
-    if (pushToken) {
-      await api.post('/notifications/register-push-token', { pushToken });
-    }
-  } catch (e) {
-    // silently fail
+// Helper to save tokens and profile cache atomically in a single batch
+export const saveTokens = async (
+  accessToken: string,
+  refreshToken: string,
+  extra?: {
+    rememberMe?: boolean;
+    firstName?: string;
+    userId?: string;
+    avatarUrl?: string;
   }
+) => {
+  setMemoryToken(accessToken);
+
+  const entries: [string, string][] = [
+    ['accessToken', accessToken],
+    ['refreshToken', refreshToken],
+    ['rememberMe', extra?.rememberMe !== false ? 'true' : 'false'],
+  ];
+
+  if (extra?.firstName) {
+    entries.push(['cachedUserName', extra.firstName]);
+  }
+  if (extra?.userId) {
+    entries.push(['cachedUserId', extra.userId]);
+  }
+  if (extra?.avatarUrl) {
+    entries.push(['cachedUserAvatar', extra.avatarUrl]);
+  }
+
+  // Atomic batch write to storage (1 disk cycle instead of 6+)
+  await AsyncStorage.multiSet(entries);
+
+  // Sync push token non-blockingly (fire-and-forget in background)
+  AsyncStorage.getItem('expoPushToken')
+    .then((pushToken) => {
+      if (pushToken) {
+        api.post('/notifications/register-push-token', { pushToken }).catch(() => {});
+      }
+    })
+    .catch(() => {});
 };
 
-// Helper to clear user cache
-const clearUserCache = async () => {
+// Helper to clear user cache atomically
+export const clearUserCache = async () => {
   setMemoryToken(null);
-  await AsyncStorage.removeItem('accessToken');
-  await AsyncStorage.removeItem('refreshToken');
-  await AsyncStorage.removeItem('cachedUserName');
-  await AsyncStorage.removeItem('cachedUserId');
-  await AsyncStorage.removeItem('cachedUserAvatar');
+  await AsyncStorage.multiRemove([
+    'accessToken',
+    'refreshToken',
+    'cachedUserName',
+    'cachedUserId',
+    'cachedUserAvatar'
+  ]);
 };
 
 // ── SIGN UP ──────────────────────────────────────────────
 export const signUp = async (name: string, email: string, password: string) => {
   const response = await api.post('/auth/signup', { name, email, password });
-  await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
+  const data = response.data.data;
   
   const enteredFirstName = (name || '').trim().split(' ')[0];
-  const firstName = response.data.data?.user?.first_name 
-    || response.data.data?.profile?.first_name 
-    || response.data.data?.user?.name?.split(' ')[0] 
+  const firstName = data?.user?.first_name 
+    || data?.profile?.first_name 
+    || data?.user?.name?.split(' ')[0] 
     || enteredFirstName;
 
-  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
-  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
-  if (response.data.data?.profile?.avatar_url) await AsyncStorage.setItem('cachedUserAvatar', response.data.data.profile.avatar_url);
-  return response.data.data;
+  await saveTokens(data.accessToken, data.refreshToken, {
+    firstName,
+    userId: data?.user?.id,
+    avatarUrl: data?.profile?.avatar_url,
+  });
+
+  return data;
 };
 
 // ── SIGN IN ──────────────────────────────────────────────
-export const signIn = async (email: string, password: string) => {
+export const signIn = async (email: string, password: string, rememberMe: boolean = true) => {
   const response = await api.post('/auth/login', { email, password });
-  await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
+  const data = response.data.data;
 
-  const firstName = response.data.data?.user?.first_name 
-    || response.data.data?.profile?.first_name 
-    || response.data.data?.user?.name?.split(' ')[0];
+  const firstName = data?.user?.first_name 
+    || data?.profile?.first_name 
+    || data?.user?.name?.split(' ')[0];
 
-  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
-  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
-  if (response.data.data?.profile?.avatar_url) await AsyncStorage.setItem('cachedUserAvatar', response.data.data.profile.avatar_url);
-  return response.data.data;
+  await saveTokens(data.accessToken, data.refreshToken, {
+    rememberMe,
+    firstName,
+    userId: data?.user?.id,
+    avatarUrl: data?.profile?.avatar_url,
+  });
+
+  return data;
 };
 
 // ── GOOGLE LOGIN ─────────────────────────────────────────
 export const googleLogin = async (googleIdToken: string) => {
   const response = await api.post('/auth/google', { token: googleIdToken });
-  await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
-  const firstName = response.data.data?.user?.first_name || response.data.data?.user?.name?.split(' ')[0];
-  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
-  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
-  if (response.data.data?.profile?.avatar_url) await AsyncStorage.setItem('cachedUserAvatar', response.data.data.profile.avatar_url);
-  return response.data.data;
+  const data = response.data.data;
+
+  const firstName = data?.user?.first_name 
+    || data?.profile?.first_name 
+    || data?.user?.name?.split(' ')[0];
+
+  await saveTokens(data.accessToken, data.refreshToken, {
+    firstName,
+    userId: data?.user?.id,
+    avatarUrl: data?.profile?.avatar_url,
+  });
+
+  return data;
 };
 
 // ── APPLE LOGIN ─────────────────────────────────────────
 export const appleLogin = async (appleIdentityToken: string) => {
   const response = await api.post('/auth/apple', { token: appleIdentityToken });
-  await saveTokens(response.data.data.accessToken, response.data.data.refreshToken);
-  const firstName = response.data.data?.user?.first_name || response.data.data?.user?.name?.split(' ')[0];
-  if (firstName) await AsyncStorage.setItem('cachedUserName', firstName);
-  if (response.data.data?.user?.id) await AsyncStorage.setItem('cachedUserId', response.data.data.user.id);
-  if (response.data.data?.profile?.avatar_url) await AsyncStorage.setItem('cachedUserAvatar', response.data.data.profile.avatar_url);
-  return response.data.data;
+  const data = response.data.data;
+
+  const firstName = data?.user?.first_name 
+    || data?.profile?.first_name 
+    || data?.user?.name?.split(' ')[0];
+
+  await saveTokens(data.accessToken, data.refreshToken, {
+    firstName,
+    userId: data?.user?.id,
+    avatarUrl: data?.profile?.avatar_url,
+  });
+
+  return data;
 };
 
 // ── FORGOT PASSWORD ──────────────────────────────────────

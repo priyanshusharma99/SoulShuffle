@@ -6,12 +6,18 @@ import { useFocusEffect, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import api from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
 const Index = () => {
   const [mode, setMode] = useState('signin');
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    // Pre-warm TCP & TLS connection to AWS EC2 in background so login request is instantaneous
+    api.get('/health').catch(() => {});
+  }, []);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));

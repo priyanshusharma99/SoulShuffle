@@ -117,11 +117,8 @@ const SigninForm = () => {
             }
             try {
                 setIsLoading(true);
-                const data = await signIn(email, password);
+                const data = await signIn(email, password, rememberMe);
                 console.log('Sign in successful:', data);
-
-                // Save remember-me preference
-                await AsyncStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
 
                 // @ts-ignore
                 router.replace('/(tabs)');

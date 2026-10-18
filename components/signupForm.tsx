@@ -103,7 +103,6 @@ const SignupForm = () => {
 
         try {
             await signUp(trimmedName, trimmedEmail, password);
-            await AsyncStorage.setItem('rememberMe', 'true');
             // @ts-ignore
             router.replace('/questionnaire');
         } catch (error: any) {
@@ -114,7 +113,6 @@ const SignupForm = () => {
             if (status === 409 || message.toLowerCase().includes('already in use')) {
                 try {
                     await signIn(trimmedEmail, password);
-                    await AsyncStorage.setItem('rememberMe', 'true');
                     // @ts-ignore
                     router.replace('/questionnaire');
                     return;
