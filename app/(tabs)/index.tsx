@@ -232,40 +232,66 @@ export default function Dashboard() {
     ANIMATED_AVATARS[1].url,
   );
 
-  // ── Load cached profile & active room instantly on mount ───────────────────
+  // ── Load cached profile & active room instantly on mount (ZERO NETWORK BLOCK) ─────────────
   useEffect(() => {
     registerPushTokenWithBackend();
     const loadCachedState = async () => {
       try {
-        const cached = await getMyProfileCached();
-        if (cached?.id) {
-          memoryDashboardCurrentUserId = cached.id;
-          setCurrentUserId(cached.id);
-        }
-        if (cached?.firstName) {
-          memoryDashboardUserName = cached.firstName;
-          setUserName(cached.firstName);
-        }
-        const cachedRoomStr = await AsyncStorage.getItem("cachedActiveRoom");
-        if (cachedRoomStr) {
-          const cachedRoom = JSON.parse(cachedRoomStr);
-          if (cachedRoom && cachedRoom.id) {
-            memoryDashboardRoom = cachedRoom;
-            setActiveRoom(cachedRoom);
-            setRoomLoading(false);
-          }
+        // Fetch ALL local data in one single atomic disk read (~3ms)
+        const keys = [
+          "cachedActiveRoom",
+          "cachedCardSends",
+          "cachedDeckCards",
+          "cachedRoomHistory",
+          "cachedUserName",
+          "cachedUserId",
+          "cachedUserAvatar",
+        ];
+        const entries = await AsyncStorage.multiGet(keys);
+        const cacheMap: Record<string, string | null> = {};
+        for (const [k, v] of entries) {
+          cacheMap[k] = v;
         }
 
-        // ⚡ INSTANT LOCALSTORAGE RENDER (Zero-latency cold startup)
-        const [cachedSendsStr, cachedDeckStr, cachedHistoryStr] = await Promise.all([
-          AsyncStorage.getItem("cachedCardSends"),
-          AsyncStorage.getItem("cachedDeckCards"),
-          AsyncStorage.getItem("cachedRoomHistory"),
-        ]);
+        // 1. Instant User details
+        const storedUserId = cacheMap["cachedUserId"];
+        const storedUserName = cacheMap["cachedUserName"];
+        const storedAvatar = cacheMap["cachedUserAvatar"];
+        if (storedUserId) {
+          memoryDashboardCurrentUserId = storedUserId;
+          setCurrentUserId(storedUserId);
+        }
+        if (storedUserName && storedUserName !== "User") {
+          memoryDashboardUserName = storedUserName;
+          setUserName(storedUserName);
+        }
+        if (storedAvatar && !storedAvatar.includes("dicebear")) {
+          // Keep custom avatar if stored
+        }
 
-        if (cachedSendsStr) {
+        // 2. Instant Active Room & Partner info
+        if (cacheMap["cachedActiveRoom"]) {
           try {
-            const parsed = JSON.parse(cachedSendsStr);
+            const cachedRoom = JSON.parse(cacheMap["cachedActiveRoom"]);
+            if (cachedRoom && cachedRoom.id) {
+              memoryDashboardRoom = cachedRoom;
+              setActiveRoom(cachedRoom);
+              setRoomLoading(false);
+
+              // Instantly resolve partner details directly from room
+              const isHost = (storedUserId === cachedRoom.host_id);
+              const pName = isHost ? cachedRoom.partner_name : cachedRoom.host_name;
+              const pAvatar = isHost ? cachedRoom.partner_avatar : cachedRoom.host_avatar;
+              if (pName) setPartnerName(pName);
+              if (pAvatar && !pAvatar.includes("dicebear")) setPartnerAvatar(pAvatar);
+            }
+          } catch {}
+        }
+
+        // 3. Instant Recent Moments & Pending Dares
+        if (cacheMap["cachedCardSends"]) {
+          try {
+            const parsed = JSON.parse(cacheMap["cachedCardSends"]);
             if (Array.isArray(parsed) && parsed.length > 0) {
               memoryDashboardCardSends = parsed;
               setCardSends(parsed);
@@ -273,9 +299,10 @@ export default function Dashboard() {
           } catch {}
         }
 
-        if (cachedDeckStr) {
+        // 4. Instant Picked for You cards
+        if (cacheMap["cachedDeckCards"]) {
           try {
-            const parsed = JSON.parse(cachedDeckStr);
+            const parsed = JSON.parse(cacheMap["cachedDeckCards"]);
             if (Array.isArray(parsed) && parsed.length > 0) {
               memoryDashboardDeckCards = parsed;
               setDeckCards(parsed);
@@ -283,15 +310,29 @@ export default function Dashboard() {
           } catch {}
         }
 
-        if (cachedHistoryStr) {
+        // 5. Instant Room History
+        if (cacheMap["cachedRoomHistory"]) {
           try {
-            const parsed = JSON.parse(cachedHistoryStr);
+            const parsed = JSON.parse(cacheMap["cachedRoomHistory"]);
             if (Array.isArray(parsed) && parsed.length > 0) {
               memoryDashboardRoomHistory = parsed;
               setRoomHistoryData(parsed);
             }
           } catch {}
         }
+
+        // Profile API refresh in parallel non-blocking background
+        getMyProfileCached().then(profile => {
+          if (profile?.id && !storedUserId) {
+            memoryDashboardCurrentUserId = profile.id;
+            setCurrentUserId(profile.id);
+          }
+          if (profile?.firstName && (!storedUserName || storedUserName === "User")) {
+            memoryDashboardUserName = profile.firstName;
+            setUserName(profile.firstName);
+          }
+        }).catch(() => {});
+
       } catch (e) {
         console.log("Failed to load cached profile or room in dashboard:", e);
       }
@@ -623,7 +664,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchActiveRoom();
+    fetchActiveRoom(true);
     const sub = DeviceEventEmitter.addListener("app:refreshDashboard", () => {
       fetchActiveRoom(true);
     });
