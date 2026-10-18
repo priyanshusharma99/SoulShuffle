@@ -793,6 +793,17 @@ export default function Dashboard() {
       }
     };
 
+    const handleCardAction = () => {
+      refreshCardSendsOnly();
+    };
+
+    const handleCardRejected = (payload: any) => {
+      refreshCardSendsOnly();
+      if (payload?.card_transferred) {
+        DeviceEventEmitter.emit("app:showPenaltyGift", payload.card_transferred);
+      }
+    };
+
     GameSocket.on("partner_joined", handlePartnerJoined);
     GameSocket.on("room_updated", handlePartnerJoined);
     GameSocket.on("game_event", handleGameEvent);
@@ -800,6 +811,12 @@ export default function Dashboard() {
     GameSocket.on("room_left", handleRoomLeft);
     GameSocket.on("room_closed", handleRoomLeft);
     GameSocket.on("partner_avatar_updated", handlePartnerAvatarUpdated);
+    GameSocket.on("card_received", handleCardAction);
+    GameSocket.on("card_accepted", handleCardAction);
+    GameSocket.on("card_deflected", handleCardAction);
+    GameSocket.on("card_completed_by_receiver", handleCardAction);
+    GameSocket.on("card_confirmed", handleCardAction);
+    GameSocket.on("card_rejected", handleCardRejected);
 
     return () => {
       GameSocket.off("partner_joined", handlePartnerJoined);
@@ -809,6 +826,12 @@ export default function Dashboard() {
       GameSocket.off("room_left", handleRoomLeft);
       GameSocket.off("room_closed", handleRoomLeft);
       GameSocket.off("partner_avatar_updated", handlePartnerAvatarUpdated);
+      GameSocket.off("card_received", handleCardAction);
+      GameSocket.off("card_accepted", handleCardAction);
+      GameSocket.off("card_deflected", handleCardAction);
+      GameSocket.off("card_completed_by_receiver", handleCardAction);
+      GameSocket.off("card_confirmed", handleCardAction);
+      GameSocket.off("card_rejected", handleCardRejected);
     };
   }, [
     fetchActiveRoom,
@@ -916,9 +939,12 @@ export default function Dashboard() {
     // Permanently dismiss so the popup never reopens
     setDismissedCardIds((prev) => [...prev, sendId]);
     setSelectedReceivedCard(null);
-    setCardSends((prev) =>
-      prev.map((s) => (s.id === sendId ? { ...s, status: "IN_PROGRESS" } : s)),
-    );
+    setCardSends((prev) => {
+      const updated = prev.map((s) => (s.id === sendId ? { ...s, status: "IN_PROGRESS" } : s));
+      memoryDashboardCardSends = updated;
+      AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
 
     try {
       await acceptCardSend(sendId);
@@ -938,19 +964,23 @@ export default function Dashboard() {
     // Permanently dismiss so the popup never reopens
     setDismissedCardIds((prev) => [...prev, sendId]);
     setSelectedReceivedCard(null);
-    setCardSends((prev) =>
-      prev.map((s) => (s.id === sendId ? { ...s, status: "REJECTED" } : s)),
-    );
+    setCardSends((prev) => {
+      const updated = prev.map((s) => (s.id === sendId ? { ...s, status: "REJECTED" } : s));
+      memoryDashboardCardSends = updated;
+      AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
 
     try {
-      await rejectCardSend(sendId, roomId);
+      const targetRoomId = roomId || activeRoom?.id || "";
+      await rejectCardSend(sendId, targetRoomId);
       if (activeRoom) {
         GameSocket.sendGameEvent(activeRoom.code, "CARD_REJECTED", { sendId });
       }
-      refreshCardSendsOnly();
+      refreshCardSendsOnly(targetRoomId);
     } catch (e: any) {
       setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to reject card" });
-      refreshCardSendsOnly();
+      refreshCardSendsOnly(roomId || activeRoom?.id);
     } finally {
       isActioningRef.current = false;
     }
@@ -971,9 +1001,12 @@ export default function Dashboard() {
     setDismissedCardIds((prev) => [...prev, sendId]);
     setSelectedReceivedCard(null);
     setShowDeflectDropdown(false);
-    setCardSends((prev) =>
-      prev.map((s) => (s.id === sendId ? { ...s, status: "DEFLECTED" } : s)),
-    );
+    setCardSends((prev) => {
+      const updated = prev.map((s) => (s.id === sendId ? { ...s, status: "DEFLECTED" } : s));
+      memoryDashboardCardSends = updated;
+      AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
     setDeflectCardsCount((prev) => Math.max(0, prev - 1));
     setDeflectCards((prev) => prev.filter((c) => c.id !== deflectCardToUse.id));
 
@@ -1008,18 +1041,24 @@ export default function Dashboard() {
 
       // Optimistic update
       setSelectedReceivedCard(null);
-      setCardSends((prev) =>
-        prev.map((s) => s.id === sendId ? { ...s, status: "COMPLETED" } : s),
-      );
+      setCardSends((prev) => {
+        const updated = prev.map((s) => s.id === sendId ? { ...s, status: "COMPLETED" } : s);
+        memoryDashboardCardSends = updated;
+        AsyncStorage.setItem("cachedCardSends", JSON.stringify(updated)).catch(() => {});
+        return updated;
+      });
 
       await completeCardSend(sendId);
       setCustomAlert({ visible: true, title: "Challenge Completed! 🎉", message: "Well done! You have completed this dare." });
       refreshCardSendsOnly();
     } catch (e: any) {
       // Revert optimistic update on failure
-      setCardSends((prev) =>
-        prev.map((s) => s.id === sendId ? { ...s, status: currentStatus || "IN_PROGRESS" } : s),
-      );
+      setCardSends((prev) => {
+        const reverted = prev.map((s) => s.id === sendId ? { ...s, status: currentStatus || "IN_PROGRESS" } : s);
+        memoryDashboardCardSends = reverted;
+        AsyncStorage.setItem("cachedCardSends", JSON.stringify(reverted)).catch(() => {});
+        return reverted;
+      });
       setCustomAlert({ visible: true, title: "Error", message: e.response?.data?.message || "Failed to complete card" });
       refreshCardSendsOnly();
     } finally {
@@ -1613,7 +1652,7 @@ export default function Dashboard() {
                                 pendingChallenges={pendingChallenges} 
                                 currentUserId={currentUserId} 
                                 onPressCard={(send: any) => { 
-                                  if (send.status === "IN_PROGRESS") { 
+                                  if (send.status === "IN_PROGRESS" || send.status === "ACCEPTED") { 
                                     handleCompleteCard(send.id); 
                                   } else { 
                                     const isSentByMe = currentUserId ? send.sender_id === currentUserId : false;
@@ -1905,8 +1944,8 @@ export default function Dashboard() {
                   </TouchableOpacity>
                 )}
 
-                {/* Deflect (Only 30_DAYS) */}
-                {activeRoom?.expiry_type === "30_DAYS" && (
+                {/* Deflect (Only 30_DAYS and only if not yet accepted) */}
+                {activeRoom?.expiry_type === "30_DAYS" && !(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
                   <TouchableOpacity 
                     style={{ backgroundColor: isDark ? '#210d11' : '#FFF7ED', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#3d1620' : '#FFEDD5' }}
                     onPress={() => {
@@ -1924,7 +1963,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Deflect Dropdown (if toggled) */}
-                {showDeflectDropdown && activeRoom?.expiry_type === "30_DAYS" && deflectCards.length > 0 && (
+                {showDeflectDropdown && activeRoom?.expiry_type === "30_DAYS" && deflectCards.length > 0 && !(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
                   <View style={{ backgroundColor: isDark ? '#2a1217' : '#F9FAFB', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#4a1b26' : '#E5E7EB' }}>
                     <Text style={{ color: isDark ? '#ff8fab' : '#C2410C', fontSize: 12, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>SELECT A CARD TO SEND BACK</Text>
                     {deflectCards.map((dc: any) => (
@@ -1942,15 +1981,17 @@ export default function Dashboard() {
                   </View>
                 )}
 
-                {/* Reject */}
-                <TouchableOpacity 
-                  style={{ backgroundColor: isDark ? '#1d090d' : '#F3F4F6', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: isDark ? '#331219' : '#E5E7EB' }}
-                  onPress={() => selectedReceivedCard && handleRejectCard(selectedReceivedCard.id, selectedReceivedCard.room_id || activeRoom?.id || "")}
-                >
-                  <Ionicons name="ban-outline" size={18} color={isDark ? "#ffb3c6" : "#4B5563"} style={{ position: 'absolute', left: 16 }} />
-                  <Text style={{ color: isDark ? '#ffb3c6' : '#4B5563', fontSize: 14, fontWeight: 'bold' }}>Reject (Penalty: 1 Card)</Text>
-                  <Ionicons name="chevron-forward" size={18} color={isDark ? "#ffb3c6" : "#4B5563"} style={{ position: 'absolute', right: 16 }} />
-                </TouchableOpacity>
+                {/* Reject (only if not yet accepted) */}
+                {!(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
+                  <TouchableOpacity 
+                    style={{ backgroundColor: isDark ? '#1d090d' : '#F3F4F6', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: isDark ? '#331219' : '#E5E7EB' }}
+                    onPress={() => selectedReceivedCard && handleRejectCard(selectedReceivedCard.id, selectedReceivedCard.room_id || activeRoom?.id || "")}
+                  >
+                    <Ionicons name="ban-outline" size={18} color={isDark ? "#ffb3c6" : "#4B5563"} style={{ position: 'absolute', left: 16 }} />
+                    <Text style={{ color: isDark ? '#ffb3c6' : '#4B5563', fontSize: 14, fontWeight: 'bold' }}>Reject (Penalty: 1 Card)</Text>
+                    <Ionicons name="chevron-forward" size={18} color={isDark ? "#ffb3c6" : "#4B5563"} style={{ position: 'absolute', right: 16 }} />
+                  </TouchableOpacity>
+                )}
 
                 {/* Decide Later */}
                 <TouchableOpacity 

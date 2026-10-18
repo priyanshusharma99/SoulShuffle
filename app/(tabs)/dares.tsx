@@ -1,5 +1,5 @@
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation, interpolateColor } from 'react-native-reanimated';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Easing, Text, ScrollView, Dimensions, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter, Animated as RNAnimated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -487,7 +487,7 @@ export default function Dares() {
   };
 
   // Compute search-filtered deck: matching cards float to the TOP of the deck
-  const getFilteredDares = (baseDares: any[]) => {
+  const getFilteredDares = useCallback((baseDares: any[]) => {
     if (!searchQuery.trim()) return baseDares;
     const q = searchQuery.trim().toLowerCase();
     const matching = baseDares.filter(d =>
@@ -499,7 +499,60 @@ export default function Dares() {
       !(d.category || '').toLowerCase().includes(q)
     );
     return [...matching, ...rest];
-  };
+  }, [searchQuery]);
+
+  const filteredDares = useMemo(() => {
+    const base = selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory);
+    return getFilteredDares(base);
+  }, [dares, selectedCategory, getFilteredDares]);
+
+  const dynamicCategories = useMemo(() => {
+    const catMap = new Map();
+    dares.forEach((d: any) => {
+      const c = d.category || 'GENERAL';
+      const catImg = d.categoryImage || (typeof d.image === 'object' && d.image?.uri ? d.image.uri : null);
+      if (!catMap.has(c)) {
+        catMap.set(c, { id: c, count: 1, image: catImg });
+      } else {
+        catMap.get(c).count++;
+        if (!catMap.get(c).image && catImg) {
+          catMap.get(c).image = catImg;
+        }
+      }
+    });
+
+    return Array.from(catMap.values()).map(cat => {
+      let color = '#3A86FF';
+      let defaultImage: any = require('@/assets/images/bundle_cozy.jpg');
+      const nameLower = cat.id.toLowerCase();
+      if(nameLower.includes('romanc')) { color = '#FF296D'; defaultImage = require('@/assets/images/bundle_romantic.jpg'); }
+      else if(nameLower.includes('spic')) { color = '#D90429'; defaultImage = require('@/assets/images/bundle_spicy.jpg'); }
+      else if(nameLower.includes('fun')) { color = '#9D4EDD'; defaultImage = require('@/assets/images/bundle_cozy.jpg'); }
+      else if(nameLower.includes('deep') || nameLower.includes('conflict')) { color = '#3A86FF'; defaultImage = require('@/assets/images/sunset_picnic.jpeg'); }
+      else if(nameLower.includes('penalt')) { color = '#FF9F1C'; defaultImage = require('@/assets/images/bundle_spicy.jpg'); }
+
+      const dbUrl = cat.image ||
+                    categoryDbImages[cat.id.toUpperCase()] ||
+                    categoryDbImages[cat.id] ||
+                    null;
+
+      const image = dbUrl ? { uri: dbUrl } : defaultImage;
+
+      return {
+        id: cat.id,
+        label: cat.id.charAt(0) + cat.id.slice(1).toLowerCase(),
+        count: cat.count,
+        color,
+        image
+      };
+    });
+  }, [dares, categoryDbImages]);
+
+  useEffect(() => {
+    if (selectedCategory !== 'ALL' && dynamicCategories.length > 0 && !dynamicCategories.some(c => c.id === selectedCategory)) {
+      setSelectedCategory('ALL');
+    }
+  }, [selectedCategory, dynamicCategories]);
 
   const getFallbackCards = () => [
     {
@@ -514,6 +567,40 @@ export default function Dares() {
   ];
 
   const CACHE_KEY = '@soulshuffle_dares_cache';
+
+  // Instant frame-1 cache loader on screen mount
+  useEffect(() => {
+    AsyncStorage.multiGet([CACHE_KEY, 'cachedActiveRoom']).then(([daresRes, roomRes]) => {
+      if (daresRes && daresRes[1]) {
+        try {
+          const { cachedDares, cachedLimits, roomId } = JSON.parse(daresRes[1]);
+          if (cachedDares && cachedDares.length > 0) {
+            memoryCachedDares = cachedDares;
+            setDares(cachedDares);
+            if (cachedLimits) {
+              memoryCachedLimits = cachedLimits;
+              setLimits(cachedLimits);
+            }
+            if (roomId) {
+              const r = { id: roomId, code: '', status: 'ACTIVE' };
+              memoryCachedRoom = r;
+              setRoom(r as any);
+            }
+            setLoading(false);
+          }
+        } catch (e) {}
+      }
+      if (roomRes && roomRes[1]) {
+        try {
+          const parsedRoom = JSON.parse(roomRes[1]);
+          if (parsedRoom && parsedRoom.id) {
+            setRoom(parsedRoom);
+            memoryCachedRoom = parsedRoom;
+          }
+        } catch (e) {}
+      }
+    }).catch(() => {});
+  }, []);
 
   const loadDares = async (silent = false, skipCache = false) => {
     try {
@@ -532,7 +619,7 @@ export default function Dares() {
               setDares(cachedDares);
               if (cachedLimits) setLimits(cachedLimits);
               if (roomId) setRoom({ id: roomId, code: '', status: 'ACTIVE' } as any);
-              if (!silent) setLoading(false);
+              setLoading(false);
             }
           }
         } catch (e) {
@@ -722,16 +809,19 @@ export default function Dares() {
 
     const activeRoom = room || await getActiveRoom();
     if (!activeRoom) {
+      isSendingRef.current = false;
       setCustomAlert({ visible: true, title: 'No Room Found', message: 'Create or join a room before sending a challenge.' });
       return;
     }
     if (activeRoom.status !== 'ACTIVE') {
+      isSendingRef.current = false;
       setCustomAlert({ visible: true, title: 'Partner Not Connected', message: 'Your partner needs to join the room before you can send a challenge.' });
       return;
     }
 
     // ── Hard limit guard (double-check even if button was enabled) ──
     if (limits && limits.can_send === false) {
+      isSendingRef.current = false;
       const isBlocked = limits.active_remaining <= 0;
       const title = isBlocked ? 'Waiting for Partner' : 'Daily Limit Reached';
       const msg = isBlocked
@@ -813,6 +903,7 @@ export default function Dares() {
       }).catch(() => {});
     } finally {
       setIsSending(false);
+      isSendingRef.current = false;
     }
   };
 
@@ -877,11 +968,7 @@ export default function Dares() {
                 {/* Card Count Badge */}
                 <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}>
                   <Text style={{ color: textColor, fontWeight: '800', fontSize: 13 }}>
-                    {searchQuery.trim()
-                      ? getFilteredDares(selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory)).filter(d => (d.title || d.name || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) || (d.category || '').toLowerCase().includes(searchQuery.trim().toLowerCase())).length
-                      : selectedCategory === 'ALL'
-                        ? dares.length
-                        : dares.filter((d: any) => d.category === selectedCategory).length} Cards
+                    {filteredDares.length} Cards
                   </Text>
                 </View>
               </View>
@@ -934,138 +1021,87 @@ export default function Dares() {
           {/* Carousel */}
           <View style={{ marginTop: 8, marginBottom: 30 }}>
               <DareCarousel 
-                data={getFilteredDares(selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory))} 
+                data={filteredDares} 
                 isDark={isDark} 
                 onSelectDare={setSelectedDare} 
               />
           </View>
 
           {/* Explore Categories */}
-          {(() => {
-            // Dynamically calculate available categories based on current deck
-            const catMap = new Map();
-            dares.forEach((d: any) => {
-              const c = d.category || 'GENERAL';
-              const catImg = d.categoryImage || (typeof d.image === 'object' && d.image?.uri ? d.image.uri : null);
-              if (!catMap.has(c)) {
-                catMap.set(c, { id: c, count: 1, image: catImg });
-              } else {
-                catMap.get(c).count++;
-                if (!catMap.get(c).image && catImg) {
-                  catMap.get(c).image = catImg;
-                }
-              }
-            });
-
-            const dynamicCategories = Array.from(catMap.values()).map(cat => {
-              let color = '#3A86FF';
-              let defaultImage: any = require('@/assets/images/bundle_cozy.jpg');
-              const nameLower = cat.id.toLowerCase();
-              if(nameLower.includes('romanc')) { color = '#FF296D'; defaultImage = require('@/assets/images/bundle_romantic.jpg'); }
-              else if(nameLower.includes('spic')) { color = '#D90429'; defaultImage = require('@/assets/images/bundle_spicy.jpg'); }
-              else if(nameLower.includes('fun')) { color = '#9D4EDD'; defaultImage = require('@/assets/images/bundle_cozy.jpg'); }
-              else if(nameLower.includes('deep') || nameLower.includes('conflict')) { color = '#3A86FF'; defaultImage = require('@/assets/images/sunset_picnic.jpeg'); }
-              else if(nameLower.includes('penalt')) { color = '#FF9F1C'; defaultImage = require('@/assets/images/bundle_spicy.jpg'); }
-
-              // Check if actual database saved image exists from Supabase
-              const dbUrl = cat.image ||
-                            categoryDbImages[cat.id.toUpperCase()] ||
-                            categoryDbImages[cat.id] ||
-                            null;
-
-              const image = dbUrl ? { uri: dbUrl } : defaultImage;
-
-              return {
-                id: cat.id,
-                label: cat.id.charAt(0) + cat.id.slice(1).toLowerCase(),
-                count: cat.count,
-                color,
-                image
-              };
-            });
-
-            // If selected category becomes empty, fallback to ALL silently
-            if (selectedCategory !== 'ALL' && !catMap.has(selectedCategory)) {
-              setTimeout(() => setSelectedCategory('ALL'), 0);
-            }
-
-            if (dynamicCategories.length === 0) return null;
-
-            return (
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: textColor }}>Explore Categories</Text>
-                  {selectedCategory !== 'ALL' && (
-                    <TouchableOpacity onPress={() => setSelectedCategory('ALL')}>
-                      <Text style={{ color: '#FF296D', fontWeight: '700', fontSize: 14 }}>View all deck</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24 }} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                  {dynamicCategories.map((cat: any) => (
-                    <TouchableOpacity 
-                      key={cat.id} 
-                      activeOpacity={0.9} 
-                      onPress={() => setSelectedCategory(cat.id)} 
-                      style={{
-                        width: 124,
-                        height: 145,
-                        backgroundColor: selectedCategory === cat.id ? cat.color : (isDark ? '#1C1721' : '#FFFFFF'),
-                        borderRadius: 24,
-                        overflow: 'hidden',
-                        marginRight: 14,
-                        alignItems: 'center',
-                        borderWidth: 2,
-                        borderColor: selectedCategory === cat.id ? cat.color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                        shadowColor: cat.color,
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: selectedCategory === cat.id ? 0.4 : (isDark ? 0.3 : 0.05),
-                        shadowRadius: 10,
-                        elevation: 3
-                      }}
-                    >
-                      <View style={{ width: '100%', height: '65%', position: 'relative' }}>
-                          <Image source={cat.image} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                          
-                          {/* Top Right Card Count Badge */}
-                          <View style={{ 
-                            position: 'absolute', 
-                            top: 6, 
-                            right: 6, 
-                            backgroundColor: 'rgba(0,0,0,0.6)', 
-                            borderRadius: 12, 
-                            paddingHorizontal: 6,
-                            paddingVertical: 3,
-                            minWidth: 24, 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.1)'
-                          }}>
-                            <Text style={{ color: 'white', fontSize: 10, fontWeight: '900' }}>{cat.count}</Text>
-                          </View>
-                        </View>
-                        
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', paddingHorizontal: 8 }}>
-                          <Text 
-                            numberOfLines={1}
-                            style={{ 
-                              fontSize: 14, 
-                              fontWeight: '800', 
-                              color: selectedCategory === cat.id ? '#FFF' : cat.color, 
-                              textAlign: 'center', 
-                              width: '100%' 
-                            }}
-                          >
-                            {cat.label}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                  ))}
-                </ScrollView>
+          {dynamicCategories.length > 0 && (
+            <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: textColor }}>Explore Categories</Text>
+                {selectedCategory !== 'ALL' && (
+                  <TouchableOpacity onPress={() => setSelectedCategory('ALL')}>
+                    <Text style={{ color: '#FF296D', fontWeight: '700', fontSize: 14 }}>View all deck</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            );
-          })()}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24 }} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {dynamicCategories.map((cat: any) => (
+                  <TouchableOpacity 
+                    key={cat.id} 
+                    activeOpacity={0.9} 
+                    onPress={() => setSelectedCategory(cat.id)} 
+                    style={{
+                      width: 124,
+                      height: 145,
+                      backgroundColor: selectedCategory === cat.id ? cat.color : (isDark ? '#1C1721' : '#FFFFFF'),
+                      borderRadius: 24,
+                      overflow: 'hidden',
+                      marginRight: 14,
+                      alignItems: 'center',
+                      borderWidth: 2,
+                      borderColor: selectedCategory === cat.id ? cat.color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                      shadowColor: cat.color,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: selectedCategory === cat.id ? 0.4 : (isDark ? 0.3 : 0.05),
+                      shadowRadius: 10,
+                      elevation: 3
+                    }}
+                  >
+                    <View style={{ width: '100%', height: '65%', position: 'relative' }}>
+                        <Image source={cat.image} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        
+                        {/* Top Right Card Count Badge */}
+                        <View style={{ 
+                          position: 'absolute', 
+                          top: 6, 
+                          right: 6, 
+                          backgroundColor: 'rgba(0,0,0,0.6)', 
+                          borderRadius: 12, 
+                          paddingHorizontal: 6,
+                          paddingVertical: 3,
+                          minWidth: 24, 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.1)'
+                        }}>
+                          <Text style={{ color: 'white', fontSize: 10, fontWeight: '900' }}>{cat.count}</Text>
+                        </View>
+                      </View>
+                      
+                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', paddingHorizontal: 8 }}>
+                        <Text 
+                          numberOfLines={1}
+                          style={{ 
+                            fontSize: 14, 
+                            fontWeight: '800', 
+                            color: selectedCategory === cat.id ? '#FFF' : cat.color, 
+                            textAlign: 'center', 
+                            width: '100%' 
+                          }}
+                        >
+                          {cat.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </ScrollView>
       ) : (
         renderDisconnectedState()
