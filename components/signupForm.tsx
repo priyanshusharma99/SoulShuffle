@@ -1,8 +1,11 @@
-import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native'
+import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { signUp, googleLogin, appleLogin } from '../services/authService'
+import { signUp, appleLogin } from '../services/authService'
+import { promptGoogleSignIn } from '../services/googleAuth'
+import * as AppleAuthentication from 'expo-apple-authentication'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 
@@ -17,6 +20,59 @@ const SignupForm = () => {
     const colorScheme = useColorScheme()
     const isDark = colorScheme === 'dark'
 
+    const handleGoogleLogin = async () => {
+        try {
+            setIsLoading(true);
+            setErrorMessage('');
+            const success = await promptGoogleSignIn();
+            if (success) {
+                // @ts-ignore
+                router.replace('/(tabs)');
+            }
+        } catch (error: any) {
+            setErrorMessage(error?.message || "Google Sign-In failed");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAppleLogin = async () => {
+        try {
+            setIsLoading(true);
+            setErrorMessage('');
+            if (Platform.OS !== 'ios') {
+                Alert.alert("Apple Sign-In", "Apple Sign-In is only supported on iOS devices.");
+                setIsLoading(false);
+                return;
+            }
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            const idToken = credential.identityToken;
+            if (idToken) {
+                await appleLogin(idToken);
+                await AsyncStorage.setItem('rememberMe', 'true');
+                // @ts-ignore
+                router.replace('/(tabs)');
+            } else {
+                throw new Error("Apple Sign-In failed: No Identity Token returned");
+            }
+        } catch (error: any) {
+            if (error.code === 'ERR_REQUEST_CANCELED') {
+                // User canceled
+            } else {
+                console.log('Apple Sign-In Error:', error);
+                const message = error?.response?.data?.message || error?.message || "Apple Sign-In failed";
+                Alert.alert("Sign Up Failed", message);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSignUp = async () => {
         if (!name || !email || !password) {
             setErrorMessage("Please fill all fields.");
@@ -28,6 +84,8 @@ const SignupForm = () => {
 
         try {
             await signUp(name, email, password);
+            // @ts-ignore
+            router.replace('/(tabs)');
         } catch (error: any) {
             setErrorMessage(error?.response?.data?.message || "Failed to sign up.");
         } finally {
@@ -40,7 +98,7 @@ return (
         {/* Google & Apple Auth Row */}
         <View className="flex-row gap-x-3">
             <TouchableOpacity 
-                onPress={googleLogin}
+                onPress={handleGoogleLogin}
                 className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
             >
                 <Ionicons name="logo-google" size={18} color="white" />
@@ -48,7 +106,7 @@ return (
             </TouchableOpacity>
 
             <TouchableOpacity 
-                onPress={appleLogin}
+                onPress={handleAppleLogin}
                 className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
             >
                 <Ionicons name="logo-apple" size={18} color="white" />

@@ -761,11 +761,7 @@ export default function Dares() {
           <Ionicons name="infinite" size={24} color="#FF296D" style={{ transform: [{ rotate: '-15deg' }] }} />
           <Text style={{ color: '#FF296D', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginLeft: 4 }}>SoulShuffle</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <TouchableOpacity>
-             <Ionicons name="notifications-outline" size={24} color={textColor} />
-             <View style={{ position: 'absolute', top: 0, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF296D', borderWidth: 1.5, borderColor: bgColor }} />
-          </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image 
               source={{ uri: userAvatar }} 

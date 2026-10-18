@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import GameSocket from '@/services/socketService';
 import { useSidebar } from '@/context/SidebarContext';
 import { useUserAvatar } from '@/hooks/use-user-avatar';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import * as Haptics from 'expo-haptics';
 
 type FilterType = 'ALL' | 'SENT_BY_ME' | 'RECEIVED' | 'SAVED';
@@ -53,6 +54,8 @@ export default function History() {
   const { openSidebar } = useSidebar();
   const userAvatar = useUserAvatar();
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [challengeHistory, setChallengeHistory] = useState<SentChallenge[]>([]);
   const [stats, setStats] = useState({ completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 });
@@ -699,31 +702,31 @@ export default function History() {
       count: allDaresCount,
       icon: 'layers',
       iconColor: '#FF3366',
-      iconBg: '#2E1220',
+      iconBg: isDark ? '#2E1220' : '#FFE4E6',
     },
     {
       id: 'SENT_BY_ME',
       title: 'Sent by You',
       count: sentByYouCount,
       icon: 'paper-plane',
-      iconColor: '#C084FC',
-      iconBg: '#25142B',
+      iconColor: isDark ? '#C084FC' : '#9333EA',
+      iconBg: isDark ? '#25142B' : '#F3E8FF',
     },
     {
       id: 'RECEIVED',
       title: 'Received',
       count: receivedCount,
       icon: 'download',
-      iconColor: '#38BDF8',
-      iconBg: '#141E2D',
+      iconColor: isDark ? '#38BDF8' : '#0284C7',
+      iconBg: isDark ? '#141E2D' : '#E0F2FE',
     },
     {
       id: 'SAVED',
       title: 'Saved Dares',
       count: savedDaresCount,
       icon: 'bookmark',
-      iconColor: '#FB923C',
-      iconBg: '#2D1E13',
+      iconColor: isDark ? '#FB923C' : '#EA580C',
+      iconBg: isDark ? '#2D1E13' : '#FFEDD5',
     },
   ];
 
@@ -745,24 +748,53 @@ export default function History() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0B0507]" edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0507" />
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: isDark ? '#0B0507' : '#FBF7F8' }}
+      edges={['top', 'left', 'right']}
+    >
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? '#0B0507' : '#FBF7F8'}
+      />
 
       {/* ── TOP APP BAR ── */}
-      <View className="flex-row items-center justify-between px-5 pt-3 pb-3 bg-[#0B0507] z-10">
-        <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} className="p-1">
-          <Ionicons name="menu" size={28} color="#FFFFFF" />
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: 12,
+          backgroundColor: isDark ? '#0B0507' : '#FBF7F8',
+          zIndex: 10,
+        }}
+      >
+        <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={{ padding: 4 }}>
+          <Ionicons name="menu" size={28} color={isDark ? '#FFFFFF' : '#1F2937'} />
         </TouchableOpacity>
 
-        <View className="flex-row items-center gap-2">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name="hourglass" size={22} color="#FF3366" />
-          <Text className="text-[#FF3366] font-extrabold text-[20px] tracking-tight">Game Journey</Text>
+          <Text style={{ color: '#FF3366', fontWeight: '800', fontSize: 20, letterSpacing: -0.4 }}>
+            Game Journey
+          </Text>
         </View>
 
         <TouchableOpacity
           onPress={() => router.push('/profile')}
           activeOpacity={0.7}
-          className="w-9 h-9 rounded-full bg-[#251222] items-center justify-center border border-[#3E1A33] overflow-hidden"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: isDark ? '#251222' : '#FFE4E6',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: isDark ? '#3E1A33' : '#FECDD3',
+            overflow: 'hidden',
+          }}
         >
           <Image
             source={{
@@ -770,7 +802,7 @@ export default function History() {
                 userAvatar ||
                 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Crystal%20ball/3D/crystal_ball_3d.png',
             }}
-            className="w-7 h-7"
+            style={{ width: 28, height: 28 }}
             resizeMode="contain"
           />
         </TouchableOpacity>
@@ -789,44 +821,134 @@ export default function History() {
         }
       >
         {/* ── TITLE SECTION ── */}
-        <View className="mt-3 mb-5">
-          <Text className="text-[11px] font-bold text-[#FF4B72] tracking-[0.2em] uppercase mb-1.5">
+        <View style={{ marginTop: 12, marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: isDark ? '#FF4B72' : '#E11D48',
+              letterSpacing: 2,
+              textTransform: 'uppercase',
+              marginBottom: 6,
+            }}
+          >
             CURRENT GAME STATS
           </Text>
-          <Text className="text-[34px] leading-[40px] font-black text-white tracking-tight">
-            Our <Text className="italic text-[#FF3366]">Moments</Text>
+          <Text
+            style={{
+              fontSize: 34,
+              lineHeight: 40,
+              fontWeight: '900',
+              color: isDark ? '#FFFFFF' : '#111827',
+              letterSpacing: -0.6,
+            }}
+          >
+            Our <Text style={{ fontStyle: 'italic', color: '#FF3366' }}>Moments</Text>
             {'\n'}& Dares
           </Text>
         </View>
 
         {/* ── STATS CARDS ROW ── */}
-        <View className="flex-row gap-3 mb-6">
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
           {/* 1. Completion */}
-          <View className="flex-1 bg-[#160B10] rounded-[22px] p-3.5 border border-[#26131D] justify-between">
-            <View className="w-8 h-8 rounded-full bg-[#2E1220] items-center justify-center mb-2.5">
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: isDark ? '#160B10' : '#FFFFFF',
+              borderRadius: 22,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: isDark ? '#26131D' : '#F1E8EC',
+              justifyContent: 'space-between',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0 : 0.05,
+              shadowRadius: 6,
+              elevation: isDark ? 0 : 1,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: isDark ? '#2E1220' : '#FFE4E6',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Ionicons name="radio-button-on" size={16} color="#FF3366" />
             </View>
-            <Text className="text-[11px] font-medium text-[#9CA3AF] mb-0.5">Completion</Text>
-            <Text className="text-[24px] font-black text-white tracking-tight">{stats.completionRate}%</Text>
-            <View className="w-full h-1.5 bg-[#26131D] rounded-full mt-2.5 overflow-hidden">
+            <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 2 }}>
+              Completion
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '900', color: isDark ? '#FFFFFF' : '#111827', letterSpacing: -0.5 }}>
+              {stats.completionRate}%
+            </Text>
+            <View
+              style={{
+                width: '100%',
+                height: 6,
+                backgroundColor: isDark ? '#26131D' : '#F1E5E8',
+                borderRadius: 999,
+                marginTop: 10,
+                overflow: 'hidden',
+              }}
+            >
               <View
-                className="h-full bg-[#FF3366] rounded-full"
-                style={{ width: `${Math.min(100, Math.max(0, stats.completionRate))}%` }}
+                style={{
+                  height: '100%',
+                  backgroundColor: '#FF3366',
+                  borderRadius: 999,
+                  width: `${Math.min(100, Math.max(0, stats.completionRate))}%`,
+                }}
               />
             </View>
           </View>
 
           {/* 2. Active Streak */}
-          <View className="flex-1 bg-[#160B10] rounded-[22px] p-3.5 border border-[#26131D] justify-between">
-            <View className="w-8 h-8 rounded-full bg-[#2E1612] items-center justify-center mb-2.5">
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: isDark ? '#160B10' : '#FFFFFF',
+              borderRadius: 22,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: isDark ? '#26131D' : '#F1E8EC',
+              justifyContent: 'space-between',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0 : 0.05,
+              shadowRadius: 6,
+              elevation: isDark ? 0 : 1,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: isDark ? '#2E1612' : '#FFEDD5',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Ionicons name="flame" size={17} color="#FF6B35" />
             </View>
-            <Text className="text-[11px] font-medium text-[#9CA3AF] mb-0.5">Active Streak</Text>
-            <View className="flex-row items-baseline gap-1">
-              <Text className="text-[24px] font-black text-white tracking-tight">{stats.currentStreak}</Text>
-              <Text className="text-[12px] font-medium text-[#9CA3AF]">Days</Text>
+            <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 2 }}>
+              Active Streak
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: isDark ? '#FFFFFF' : '#111827', letterSpacing: -0.5 }}>
+                {stats.currentStreak}
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                Days
+              </Text>
             </View>
-            <View className="flex-row items-center gap-1 mt-2.5">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 }}>
               {[...Array(6)].map((_, i) => (
                 <View
                   key={i}
@@ -834,7 +956,7 @@ export default function History() {
                     flex: 1,
                     height: 4,
                     borderRadius: 999,
-                    backgroundColor: i < Math.min(stats.currentStreak, 6) ? '#FF6B35' : '#26131D',
+                    backgroundColor: i < Math.min(stats.currentStreak, 6) ? '#FF6B35' : (isDark ? '#26131D' : '#F1E5E8'),
                   }}
                 />
               ))}
@@ -842,13 +964,42 @@ export default function History() {
           </View>
 
           {/* 3. Dares Won */}
-          <View className="flex-1 bg-[#160B10] rounded-[22px] p-3.5 border border-[#26131D] justify-between">
-            <View className="w-8 h-8 rounded-full bg-[#291228] items-center justify-center mb-2.5">
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: isDark ? '#160B10' : '#FFFFFF',
+              borderRadius: 22,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: isDark ? '#26131D' : '#F1E8EC',
+              justifyContent: 'space-between',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0 : 0.05,
+              shadowRadius: 6,
+              elevation: isDark ? 0 : 1,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: isDark ? '#291228' : '#F3E8FF',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
               <Ionicons name="trophy" size={16} color="#E879F9" />
             </View>
-            <Text className="text-[11px] font-medium text-[#9CA3AF] mb-0.5">Dares Won</Text>
-            <Text className="text-[24px] font-black text-white tracking-tight">{stats.daresMastered}</Text>
-            <View className="h-1 mt-2.5" />
+            <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 2 }}>
+              Dares Won
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '900', color: isDark ? '#FFFFFF' : '#111827', letterSpacing: -0.5 }}>
+              {stats.daresMastered}
+            </Text>
+            <View style={{ height: 4, marginTop: 10 }} />
           </View>
         </View>
 
@@ -856,7 +1007,7 @@ export default function History() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="mb-5"
+          style={{ marginBottom: 20 }}
           contentContainerStyle={{ gap: 10, paddingHorizontal: 2 }}
         >
           {filterPills.map((pill) => {
@@ -866,21 +1017,31 @@ export default function History() {
                 key={pill.value}
                 onPress={() => handlePillPress(pill.value)}
                 activeOpacity={0.8}
-                className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
                 style={{
-                  backgroundColor: isActive ? '#FF2A5F' : '#160B10',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 999,
+                  backgroundColor: isActive ? '#FF2A5F' : (isDark ? '#160B10' : '#FFFFFF'),
                   borderWidth: 1,
-                  borderColor: isActive ? '#FF2A5F' : '#26131D',
+                  borderColor: isActive ? '#FF2A5F' : (isDark ? '#26131D' : '#F1E8EC'),
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: !isActive && !isDark ? 0.04 : 0,
+                  shadowRadius: 3,
+                  elevation: !isActive && !isDark ? 1 : 0,
                 }}
               >
                 <Ionicons
                   name={pill.icon}
                   size={15}
-                  color={isActive ? '#FFFFFF' : '#9CA3AF'}
+                  color={isActive ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
                 />
                 <Text
                   style={{
-                    color: isActive ? '#FFFFFF' : '#D4D4D8',
+                    color: isActive ? '#FFFFFF' : (isDark ? '#D4D4D8' : '#374151'),
                     fontWeight: isActive ? '700' : '600',
                     fontSize: 12.5,
                   }}
@@ -893,88 +1054,154 @@ export default function History() {
         </ScrollView>
 
         {/* ── FOUR CATEGORY OVERVIEW CARDS ── */}
-        <View className="mb-4">
+        <View style={{ marginBottom: 16 }}>
           {categoryCards.map((card) => {
             const isSelected = activeFilter === card.id;
             const isCardExpanded = expandedCategory === card.id && filteredHistory.length > 0;
 
             return (
-              <View key={card.id} className="mb-3">
+              <View key={card.id} style={{ marginBottom: 12 }}>
                 <TouchableOpacity
                   onPress={() => handleCategoryPress(card.id)}
                   activeOpacity={0.8}
-                  className="flex-row items-center justify-between p-3.5 rounded-[22px] bg-[#160B10] border"
                   style={{
-                    borderColor: isSelected ? '#FF2A5F' : '#26131D',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 14,
+                    borderRadius: 22,
+                    backgroundColor: isDark ? '#160B10' : '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: isSelected ? '#FF2A5F' : (isDark ? '#26131D' : '#F1E8EC'),
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0 : 0.04,
+                    shadowRadius: 6,
+                    elevation: isDark ? 0 : 1,
                   }}
                 >
-                  <View className="flex-row items-center gap-3.5">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                     <View
-                      className="w-12 h-12 rounded-full items-center justify-center"
-                      style={{ backgroundColor: card.iconBg }}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: card.iconBg,
+                      }}
                     >
                       <Ionicons name={card.icon} size={20} color={card.iconColor} />
                     </View>
-                    <Text className="text-white text-[16px] font-bold tracking-tight">
+                    <Text
+                      style={{
+                        color: isDark ? '#FFFFFF' : '#111827',
+                        fontSize: 16,
+                        fontWeight: '700',
+                        letterSpacing: -0.3,
+                      }}
+                    >
                       {card.title}
                     </Text>
                   </View>
 
-                  <View className="flex-row items-center gap-2">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text
-                      className="text-[16px] font-bold"
-                      style={{ color: isSelected ? '#FFFFFF' : '#9CA3AF' }}
+                      style={{
+                        fontSize: 16,
+                        fontWeight: '700',
+                        color: isSelected ? (isDark ? '#FFFFFF' : '#FF2A5F') : (isDark ? '#9CA3AF' : '#6B7280'),
+                      }}
                     >
                       {card.count}
                     </Text>
                     <Ionicons
                       name={isCardExpanded ? 'chevron-down' : 'chevron-forward'}
                       size={18}
-                      color={isSelected ? '#FF2A5F' : '#9CA3AF'}
+                      color={isSelected ? '#FF2A5F' : (isDark ? '#9CA3AF' : '#9CA3AF')}
                     />
                   </View>
                 </TouchableOpacity>
 
                 {/* ── EXPANDED DARES TIMELINE (ACCORDION PER CATEGORY) ── */}
                 {isCardExpanded && (
-                  <View className="mt-3 pl-1 pr-1">
+                  <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
                     {roomGroups.map((roomGroup) => {
                       const isActiveRoom = roomGroup.roomStatus === 'ACTIVE' || roomGroup.roomStatus === 'WAITING';
 
                       return (
-                        <View key={roomGroup.roomId} className="mb-4">
+                        <View key={roomGroup.roomId} style={{ marginBottom: 16 }}>
                           {/* Room Header Banner */}
                           <View
-                            className="rounded-2xl p-3 mb-3 flex-row items-center justify-between border border-[#26131D]"
-                            style={{ backgroundColor: '#1A0E13' }}
+                            style={{
+                              borderRadius: 16,
+                              padding: 12,
+                              marginBottom: 12,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              backgroundColor: isDark ? '#1A0E13' : '#FFF5F7',
+                              borderWidth: 1,
+                              borderColor: isDark ? '#26131D' : '#FCE7F3',
+                            }}
                           >
-                            <View className="flex-row items-center gap-2.5">
-                              <View className="w-8 h-8 rounded-full bg-[#2E1220] items-center justify-center">
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                              <View
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  backgroundColor: isDark ? '#2E1220' : '#FFE4E6',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
                                 <Ionicons name="game-controller" size={15} color="#FF3366" />
                               </View>
                               <View>
-                                <View className="flex-row items-center gap-2">
-                                  <Text className="text-xs font-black tracking-wider text-white uppercase">
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: '900',
+                                      letterSpacing: 0.5,
+                                      color: isDark ? '#FFFFFF' : '#111827',
+                                      textTransform: 'uppercase',
+                                    }}
+                                  >
                                     Room #{roomGroup.roomCode}
                                   </Text>
                                   <View
-                                    className="px-2 py-0.5 rounded-full"
                                     style={{
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 2,
+                                      borderRadius: 999,
                                       backgroundColor: isActiveRoom
-                                        ? 'rgba(16,185,129,0.15)'
-                                        : 'rgba(100,116,139,0.15)',
+                                        ? (isDark ? 'rgba(16,185,129,0.15)' : '#DCFCE7')
+                                        : (isDark ? 'rgba(100,116,139,0.15)' : '#F1F5F9'),
                                     }}
                                   >
                                     <Text
-                                      className="text-[9px] font-bold uppercase tracking-wider"
-                                      style={{ color: isActiveRoom ? '#10b981' : '#64748b' }}
+                                      style={{
+                                        fontSize: 9,
+                                        fontWeight: '700',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 0.5,
+                                        color: isActiveRoom ? '#059669' : '#64748b',
+                                      }}
                                     >
                                       {isActiveRoom ? '🟢 Active' : '⚪ Ended'}
                                     </Text>
                                   </View>
                                 </View>
-                                <Text className="text-[11px] text-[#9CA3AF] font-medium">
-                                  Partner: <Text className="font-bold text-[#FF3366]">{roomGroup.partnerName}</Text>
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    color: isDark ? '#9CA3AF' : '#6B7280',
+                                    fontWeight: '500',
+                                  }}
+                                >
+                                  Partner: <Text style={{ fontWeight: '700', color: '#FF3366' }}>{roomGroup.partnerName}</Text>
                                 </Text>
                               </View>
                             </View>
@@ -982,11 +1209,28 @@ export default function History() {
 
                           {/* Date Groups inside Room */}
                           {roomGroup.dateGroups.map((dateGroup) => (
-                            <View key={dateGroup.dateLabel} className="mb-3">
+                            <View key={dateGroup.dateLabel} style={{ marginBottom: 12 }}>
                               {/* Date Bubble */}
-                              <View className="items-center my-2">
-                                <View className="px-3 py-1 rounded-full border border-[#26131D] bg-[#160B10]">
-                                  <Text className="text-[10px] font-bold tracking-wider uppercase text-[#FF4B72]">
+                              <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                                <View
+                                  style={{
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 4,
+                                    borderRadius: 999,
+                                    borderWidth: 1,
+                                    borderColor: isDark ? '#26131D' : '#F1E8EC',
+                                    backgroundColor: isDark ? '#160B10' : '#FFFFFF',
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: '700',
+                                      letterSpacing: 0.5,
+                                      textTransform: 'uppercase',
+                                      color: isDark ? '#FF4B72' : '#E11D48',
+                                    }}
+                                  >
                                     {dateGroup.dateLabel}
                                   </Text>
                                 </View>
@@ -1007,30 +1251,37 @@ export default function History() {
                                 return (
                                   <View
                                     key={`${challenge.id}-${idx}`}
-                                    className="mb-3.5 rounded-[22px] overflow-hidden border border-[#26131D] bg-[#160B10]"
                                     style={{
+                                      marginBottom: 14,
+                                      borderRadius: 22,
+                                      overflow: 'hidden',
+                                      borderWidth: 1,
+                                      borderColor: isDark ? '#26131D' : '#F1E8EC',
+                                      backgroundColor: isDark ? '#160B10' : '#FFFFFF',
                                       shadowColor: '#000',
-                                      shadowOffset: { width: 0, height: 3 },
-                                      shadowOpacity: 0.35,
+                                      shadowOffset: { width: 0, height: 2 },
+                                      shadowOpacity: isDark ? 0.35 : 0.06,
                                       shadowRadius: 6,
-                                      elevation: 3,
+                                      elevation: isDark ? 3 : 2,
                                       opacity: isExpired ? 0.75 : 1,
                                     }}
                                   >
                                     {/* ── Status Banner ── */}
                                     <View
                                       style={{
-                                        backgroundColor: statusDetail.bannerBg,
+                                        backgroundColor: isDark
+                                          ? statusDetail.bannerBg
+                                          : (statusDetail.isCompleted ? '#F0FDF4' : (statusDetail.isIncomplete ? '#FFF7ED' : '#F8FAFC')),
                                         borderBottomWidth: 1,
-                                        borderBottomColor: statusDetail.bannerBorderColor,
+                                        borderBottomColor: isDark ? statusDetail.bannerBorderColor : '#F1F5F9',
                                         borderLeftWidth: 4,
                                         borderLeftColor: statusDetail.accentColor,
                                         paddingHorizontal: 14,
                                         paddingVertical: 10,
                                       }}
                                     >
-                                      <View className="flex-row items-center justify-between">
-                                        <View className="flex-row items-center gap-2 flex-1 mr-2">
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
                                           <View
                                             style={{
                                               width: 24,
@@ -1049,7 +1300,7 @@ export default function History() {
                                           </View>
                                           <Text
                                             style={{
-                                              color: '#FFFFFF',
+                                              color: isDark ? '#FFFFFF' : '#0F172A',
                                               fontWeight: '800',
                                               fontSize: 12.5,
                                               letterSpacing: -0.2,
@@ -1062,12 +1313,24 @@ export default function History() {
                                         </View>
 
                                         <View
-                                          className="flex-row items-center gap-1 px-2.5 py-0.5 rounded-full"
-                                          style={{ backgroundColor: statusDetail.statusBg }}
+                                          style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            paddingHorizontal: 10,
+                                            paddingVertical: 2,
+                                            borderRadius: 999,
+                                            backgroundColor: statusDetail.statusBg,
+                                          }}
                                         >
                                           <Text
-                                            className="text-[9px] font-black uppercase tracking-wider"
-                                            style={{ color: statusDetail.statusColor }}
+                                            style={{
+                                              fontSize: 9,
+                                              fontWeight: '900',
+                                              textTransform: 'uppercase',
+                                              letterSpacing: 0.5,
+                                              color: statusDetail.statusColor,
+                                            }}
                                           >
                                             {statusDetail.statusText}
                                           </Text>
@@ -1076,7 +1339,7 @@ export default function History() {
 
                                       <Text
                                         style={{
-                                          color: '#CBD5E1',
+                                          color: isDark ? '#CBD5E1' : '#475569',
                                           fontSize: 11,
                                           fontWeight: '500',
                                           lineHeight: 16,
@@ -1090,22 +1353,31 @@ export default function History() {
 
                                     {/* ── Direction & Attribution Sub-bar ── */}
                                     <View
-                                      className="px-4 py-1.5 flex-row items-center justify-between border-b border-[#26131D]"
                                       style={{
+                                        paddingHorizontal: 16,
+                                        paddingVertical: 6,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        borderBottomWidth: 1,
+                                        borderBottomColor: isDark ? '#26131D' : '#F1F5F9',
                                         backgroundColor: isSentByMe
-                                          ? 'rgba(45,212,191,0.06)'
-                                          : 'rgba(255,42,95,0.06)',
+                                          ? (isDark ? 'rgba(45,212,191,0.06)' : 'rgba(45,212,191,0.12)')
+                                          : (isDark ? 'rgba(255,42,95,0.06)' : 'rgba(255,42,95,0.08)'),
                                       }}
                                     >
-                                      <View className="flex-row items-center gap-1.5">
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                         <Ionicons
                                           name={isSentByMe ? 'paper-plane' : 'mail-unread'}
                                           size={12}
-                                          color={isSentByMe ? '#2dd4bf' : '#FF4B72'}
+                                          color={isSentByMe ? (isDark ? '#2dd4bf' : '#0d9488') : (isDark ? '#FF4B72' : '#E11D48')}
                                         />
                                         <Text
-                                          className="text-[10px] font-bold"
-                                          style={{ color: isSentByMe ? '#2dd4bf' : '#FF4B72' }}
+                                          style={{
+                                            fontSize: 10,
+                                            fontWeight: '700',
+                                            color: isSentByMe ? (isDark ? '#2dd4bf' : '#0d9488') : (isDark ? '#FF4B72' : '#E11D48'),
+                                          }}
                                         >
                                           {isSentByMe
                                             ? `Sent by You ➔ ${roomGroup.partnerName}`
@@ -1113,10 +1385,25 @@ export default function History() {
                                         </Text>
                                       </View>
 
-                                      <View className="flex-row items-center gap-2">
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         {statusDetail.actionLabel ? (
-                                          <View className="px-1.5 py-0.5 rounded bg-white/5">
-                                            <Text className="text-[9px] font-bold text-[#9CA3AF] uppercase tracking-wider">
+                                          <View
+                                            style={{
+                                              paddingHorizontal: 6,
+                                              paddingVertical: 2,
+                                              borderRadius: 4,
+                                              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                fontSize: 9,
+                                                fontWeight: '700',
+                                                color: isDark ? '#9CA3AF' : '#64748B',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.5,
+                                              }}
+                                            >
                                               {statusDetail.actionLabel}
                                             </Text>
                                           </View>
@@ -1126,12 +1413,12 @@ export default function History() {
                                         <TouchableOpacity
                                           onPress={() => toggleSaveDare(String(challenge.id))}
                                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                          className="p-0.5"
+                                          style={{ padding: 2 }}
                                         >
                                           <Ionicons
                                             name={isSaved ? 'bookmark' : 'bookmark-outline'}
                                             size={15}
-                                            color={isSaved ? '#FB923C' : '#9CA3AF'}
+                                            color={isSaved ? '#FB923C' : (isDark ? '#9CA3AF' : '#94A3B8')}
                                           />
                                         </TouchableOpacity>
                                       </View>
@@ -1145,51 +1432,109 @@ export default function History() {
                                             ? { uri: challenge.image }
                                             : challenge.image
                                         }
-                                        className="w-full h-36"
+                                        style={{ width: '100%', height: 144 }}
                                         resizeMode="cover"
                                       />
                                     )}
 
                                     {/* Card Content Details */}
-                                    <View className="p-4">
-                                      <View className="flex-row items-center justify-between mb-2">
-                                        <View className="px-2.5 py-0.5 rounded-full bg-[#2E1220] border border-[#44182E]">
-                                          <Text className="text-[10px] font-bold uppercase tracking-wider text-[#FF3366]">
+                                    <View style={{ padding: 16 }}>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <View
+                                          style={{
+                                            paddingHorizontal: 10,
+                                            paddingVertical: 2,
+                                            borderRadius: 999,
+                                            backgroundColor: isDark ? '#2E1220' : '#FFE4E6',
+                                            borderWidth: 1,
+                                            borderColor: isDark ? '#44182E' : '#FECDD3',
+                                          }}
+                                        >
+                                          <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, color: '#FF3366' }}>
                                             {challenge.category || 'Dare'}
                                           </Text>
                                         </View>
-                                        <View className="flex-row items-center gap-1">
-                                          <Ionicons name="time-outline" size={12} color="#9CA3AF" />
-                                          <Text className="text-[10px] font-medium text-[#9CA3AF]">
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                          <Ionicons name="time-outline" size={12} color={isDark ? '#9CA3AF' : '#64748B'} />
+                                          <Text
+                                            style={{
+                                              fontSize: 10,
+                                              fontWeight: '500',
+                                              color: isDark ? '#9CA3AF' : '#64748B',
+                                            }}
+                                          >
                                             {formatCardTime(challenge)}
                                           </Text>
                                         </View>
                                       </View>
 
-                                      <Text className="text-[17px] font-black tracking-tight text-white mb-1.5">
+                                      <Text
+                                        style={{
+                                          fontSize: 17,
+                                          fontWeight: '900',
+                                          letterSpacing: -0.3,
+                                          color: isDark ? '#FFFFFF' : '#0F172A',
+                                          marginBottom: 6,
+                                        }}
+                                      >
                                         {challenge.title}
                                       </Text>
 
                                       {challenge.description ? (
-                                        <Text className="text-xs leading-5 text-[#CBD5E1] font-medium mb-2.5">
+                                        <Text
+                                          style={{
+                                            fontSize: 12,
+                                            lineHeight: 20,
+                                            color: isDark ? '#CBD5E1' : '#334155',
+                                            fontWeight: '500',
+                                            marginBottom: 10,
+                                          }}
+                                        >
                                           {challenge.description}
                                         </Text>
                                       ) : null}
 
                                       {/* Personal Message Note */}
                                       {challenge.message ? (
-                                        <View className="p-3 rounded-xl flex-row items-start gap-2 mt-1 border border-[#3E182A] bg-[#220E18]">
+                                        <View
+                                          style={{
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            flexDirection: 'row',
+                                            alignItems: 'flex-start',
+                                            gap: 8,
+                                            marginTop: 4,
+                                            borderWidth: 1,
+                                            backgroundColor: isDark ? '#220E18' : '#FFF1F2',
+                                            borderColor: isDark ? '#3E182A' : '#FFE4E6',
+                                          }}
+                                        >
                                           <Ionicons
                                             name="heart"
                                             size={14}
                                             color="#FF3366"
                                             style={{ marginTop: 2 }}
                                           />
-                                          <View className="flex-1">
-                                            <Text className="text-[9px] font-bold uppercase tracking-wider text-[#FF4B72] mb-0.5">
+                                          <View style={{ flex: 1 }}>
+                                            <Text
+                                              style={{
+                                                fontSize: 9,
+                                                fontWeight: '700',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.5,
+                                                color: isDark ? '#FF4B72' : '#E11D48',
+                                                marginBottom: 2,
+                                              }}
+                                            >
                                               Note from {isSentByMe ? 'You' : roomGroup.partnerName}:
                                             </Text>
-                                            <Text className="text-xs italic text-[#FCE7F3]">
+                                            <Text
+                                              style={{
+                                                fontSize: 12,
+                                                fontStyle: 'italic',
+                                                color: isDark ? '#FCE7F3' : '#881337',
+                                              }}
+                                            >
                                               &ldquo;{challenge.message}&rdquo;
                                             </Text>
                                           </View>
@@ -1213,9 +1558,31 @@ export default function History() {
 
         {/* ── EMPTY STATE WHEN CATEGORY HAS 0 ITEMS AND IS TAPPED ── */}
         {expandedCategory && filteredHistory.length === 0 && challengeHistory.length > 0 && (
-          <View className="rounded-[22px] p-6 items-center bg-[#160B10] border border-[#26131D] mb-4">
+          <View
+            style={{
+              borderRadius: 22,
+              padding: 24,
+              alignItems: 'center',
+              backgroundColor: isDark ? '#160B10' : '#FFFFFF',
+              borderWidth: 1,
+              borderColor: isDark ? '#26131D' : '#F1E8EC',
+              marginBottom: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0 : 0.04,
+              shadowRadius: 6,
+              elevation: isDark ? 0 : 1,
+            }}
+          >
             <Ionicons name="sparkles-outline" size={28} color="#FF3366" />
-            <Text className="text-white font-bold text-sm mt-2.5">
+            <Text
+              style={{
+                color: isDark ? '#FFFFFF' : '#111827',
+                fontWeight: '700',
+                fontSize: 14,
+                marginTop: 10,
+              }}
+            >
               {activeFilter === 'SAVED'
                 ? 'No Saved Dares Yet'
                 : activeFilter === 'SENT_BY_ME'
@@ -1224,7 +1591,15 @@ export default function History() {
                 ? 'No Received Dares Yet'
                 : 'No Dares in this section'}
             </Text>
-            <Text className="text-[#9CA3AF] text-xs text-center mt-1 max-w-[240px]">
+            <Text
+              style={{
+                color: isDark ? '#9CA3AF' : '#6B7280',
+                fontSize: 12,
+                textAlign: 'center',
+                marginTop: 4,
+                maxWidth: 240,
+              }}
+            >
               {activeFilter === 'SAVED'
                 ? 'Tap the bookmark icon on any dare card to save it here for easy access!'
                 : 'Challenges for this category will appear here dynamically as you play.'}

@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import React, { useState, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { signIn, forgotPassword, resetPassword, googleLogin, appleLogin } from '../services/authService'
+import { promptGoogleSignIn } from '../services/googleAuth'
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import * as AppleAuthentication from 'expo-apple-authentication'
@@ -43,44 +44,14 @@ const SigninForm = () => {
           try {
             setIsLoading(true);
             setErrorMessage('');
-            
-            // Lazily require to prevent crashing Expo Go
-            const { GoogleSignin, statusCodes } = require('@react-native-google-signin/google-signin');
-
-            // Configure here instead of top-level
-            GoogleSignin.configure({
-              webClientId: '950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com',
-              iosClientId: '950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com',
-              offlineAccess: false,
-            });
-            
-            // Initiate Native Google Sign-in
-            await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
-            const idToken = userInfo.data?.idToken;
-
-            if (idToken) {
-              await googleLogin(idToken);
-              await AsyncStorage.setItem('rememberMe', 'true');
+            const success = await promptGoogleSignIn();
+            if (success) {
               // @ts-ignore
               router.replace('/(tabs)');
-            } else {
-              throw new Error('Google Sign-In failed: No ID Token returned');
             }
           } catch (error: any) {
-            const { statusCodes } = require('@react-native-google-signin/google-signin');
-            console.log('Google Sign-In Error:', error);
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-              // user cancelled the login flow
-            } else if (error.code === statusCodes.IN_PROGRESS) {
-              // operation (e.g. sign in) is in progress already
-            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-              Alert.alert('Error', 'Google Play Services not available or outdated.');
-            } else {
-              const message = error?.response?.data?.message || error?.message || "Google Sign-In failed";
-              Alert.alert("Login Failed", message);
-              setErrorMessage(message);
-            }
+            const message = error?.message || "Google Sign-In failed";
+            setErrorMessage(message);
           } finally {
             setIsLoading(false);
           }
@@ -125,8 +96,8 @@ const SigninForm = () => {
                 setIsLoading(true);
                 setErrorMessage('');
                 
-                if (Platform.OS === 'web') {
-                    setErrorMessage("Apple Sign-In is only supported on the mobile app.");
+                if (Platform.OS !== 'ios') {
+                    Alert.alert("Apple Sign-In", "Apple Sign-In is only supported on iOS devices.");
                     setIsLoading(false);
                     return;
                 }
@@ -210,7 +181,7 @@ const SigninForm = () => {
             </TouchableOpacity>
 
             <TouchableOpacity 
-                onPress={appleLogin}
+                onPress={handleAppleLogin}
                 className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
             >
                 <Ionicons name="logo-apple" size={18} color="white" />

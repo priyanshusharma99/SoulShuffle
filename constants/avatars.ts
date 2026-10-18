@@ -1,12 +1,280 @@
 export interface AnimatedAvatar {
   id: string;
   name: string;
-  category: 'Love & Romance' | 'Celestial & Cosmic' | 'Vibe & Sparks';
+  category: 'Cute Animals' | 'Love & Romance' | 'Celestial & Cosmic' | 'Vibe & Sparks';
   url: string;
   emoji: string;
 }
 
 export const ANIMATED_AVATARS: AnimatedAvatar[] = [
+  // ── Cute Animals (38 3D Animated Avatars) ──
+  {
+    id: 'fluffy-bunny-3d',
+    name: 'Fluffy Bunny',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Rabbit%20face/3D/rabbit_face_3d.png',
+    emoji: '🐰',
+  },
+  {
+    id: 'playful-panda-3d',
+    name: 'Playful Panda',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Panda/3D/panda_3d.png',
+    emoji: '🐼',
+  },
+  {
+    id: 'sweet-kitten-3d',
+    name: 'Sweet Kitten',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Cat%20face/3D/cat_face_3d.png',
+    emoji: '🐱',
+  },
+  {
+    id: 'happy-puppy-3d',
+    name: 'Happy Puppy',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Dog%20face/3D/dog_face_3d.png',
+    emoji: '🐶',
+  },
+  {
+    id: 'cuddle-teddy-3d',
+    name: 'Cuddle Teddy',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Teddy%20bear/3D/teddy_bear_3d.png',
+    emoji: '🧸',
+  },
+  {
+    id: 'clever-fox-3d',
+    name: 'Clever Fox',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Fox/3D/fox_3d.png',
+    emoji: '🦊',
+  },
+  {
+    id: 'sleepy-koala-3d',
+    name: 'Sleepy Koala',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Koala/3D/koala_3d.png',
+    emoji: '🐨',
+  },
+  {
+    id: 'chubby-hamster-3d',
+    name: 'Chubby Hamster',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Hamster/3D/hamster_3d.png',
+    emoji: '🐹',
+  },
+  {
+    id: 'magic-unicorn-3d',
+    name: 'Magic Unicorn',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Unicorn/3D/unicorn_3d.png',
+    emoji: '🦄',
+  },
+  {
+    id: 'gentle-penguin-3d',
+    name: 'Gentle Penguin',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Penguin/3D/penguin_3d.png',
+    emoji: '🐧',
+  },
+  {
+    id: 'baby-chick-3d',
+    name: 'Baby Chick',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Baby%20chick/3D/baby_chick_3d.png',
+    emoji: '🐤',
+  },
+  {
+    id: 'hatching-chick-3d',
+    name: 'Hatching Chick',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Hatching%20chick/3D/hatching_chick_3d.png',
+    emoji: '🐣',
+  },
+  {
+    id: 'playful-otter-3d',
+    name: 'Playful Otter',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Otter/3D/otter_3d.png',
+    emoji: '🦦',
+  },
+  {
+    id: 'cozy-sloth-3d',
+    name: 'Cozy Sloth',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Sloth/3D/sloth_3d.png',
+    emoji: '🦥',
+  },
+  {
+    id: 'tiny-hedgehog-3d',
+    name: 'Tiny Hedgehog',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Hedgehog/3D/hedgehog_3d.png',
+    emoji: '🦔',
+  },
+  {
+    id: 'sweet-seal-3d',
+    name: 'Sweet Seal',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Seal/3D/seal_3d.png',
+    emoji: '🦭',
+  },
+  {
+    id: 'little-tiger-3d',
+    name: 'Little Tiger',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Tiger%20face/3D/tiger_face_3d.png',
+    emoji: '🐯',
+  },
+  {
+    id: 'little-lion-3d',
+    name: 'Little Lion',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Lion/3D/lion_3d.png',
+    emoji: '🦁',
+  },
+  {
+    id: 'happy-frog-3d',
+    name: 'Happy Frog',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Frog/3D/frog_3d.png',
+    emoji: '🐸',
+  },
+  {
+    id: 'cute-duck-3d',
+    name: 'Cute Duck',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Duck/3D/duck_3d.png',
+    emoji: '🦆',
+  },
+  {
+    id: 'night-owl-3d',
+    name: 'Night Owl',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Owl/3D/owl_3d.png',
+    emoji: '🦉',
+  },
+  {
+    id: 'dreamy-butterfly-3d',
+    name: 'Dreamy Butterfly',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Butterfly/3D/butterfly_3d.png',
+    emoji: '🦋',
+  },
+  {
+    id: 'honey-bee-3d',
+    name: 'Honey Bee',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Honeybee/3D/honeybee_3d.png',
+    emoji: '🐝',
+  },
+  {
+    id: 'cheeky-monkey-3d',
+    name: 'Cheeky Monkey',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Monkey%20face/3D/monkey_face_3d.png',
+    emoji: '🐵',
+  },
+  {
+    id: 'sparkle-dolphin-3d',
+    name: 'Sparkle Dolphin',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Dolphin/3D/dolphin_3d.png',
+    emoji: '🐬',
+  },
+  {
+    id: 'gentle-deer-3d',
+    name: 'Gentle Deer',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Deer/3D/deer_3d.png',
+    emoji: '🦌',
+  },
+  {
+    id: 'pink-flamingo-3d',
+    name: 'Pink Flamingo',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Flamingo/3D/flamingo_3d.png',
+    emoji: '🦩',
+  },
+  {
+    id: 'giggle-kitty-3d',
+    name: 'Giggle Kitty',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Cat%20with%20tears%20of%20joy/3D/cat_with_tears_of_joy_3d.png',
+    emoji: '😹',
+  },
+  {
+    id: 'kissing-kitty-3d',
+    name: 'Kissing Kitty',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Kissing%20cat/3D/kissing_cat_3d.png',
+    emoji: '😽',
+  },
+  {
+    id: 'shy-monkey-3d',
+    name: 'Shy Monkey',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/See-no-evil%20monkey/3D/see-no-evil_monkey_3d.png',
+    emoji: '🙈',
+  },
+  {
+    id: 'warm-bear-3d',
+    name: 'Warm Bear',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Bear/3D/bear_3d.png',
+    emoji: '🐻',
+  },
+  {
+    id: 'cute-cow-3d',
+    name: 'Cute Cow',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Cow%20face/3D/cow_face_3d.png',
+    emoji: '🐮',
+  },
+  {
+    id: 'cute-piggy-3d',
+    name: 'Cute Piggy',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Pig%20face/3D/pig_face_3d.png',
+    emoji: '🐷',
+  },
+  {
+    id: 'little-mouse-3d',
+    name: 'Little Mouse',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Mouse%20face/3D/mouse_face_3d.png',
+    emoji: '🐭',
+  },
+  {
+    id: 'cute-octopus-3d',
+    name: 'Cute Octopus',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Octopus/3D/octopus_3d.png',
+    emoji: '🐙',
+  },
+  {
+    id: 'colorful-parrot-3d',
+    name: 'Colorful Parrot',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Parrot/3D/parrot_3d.png',
+    emoji: '🦜',
+  },
+  {
+    id: 'royal-peacock-3d',
+    name: 'Royal Peacock',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Peacock/3D/peacock_3d.png',
+    emoji: '🦚',
+  },
+  {
+    id: 'lucky-ladybug-3d',
+    name: 'Lucky Ladybug',
+    category: 'Cute Animals',
+    url: 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Lady%20beetle/3D/lady_beetle_3d.png',
+    emoji: '🐞',
+  },
+
   // ── Love & Romance (8 3D Rendered Avatars) ──
   {
     id: 'sparkling-heart-3d',
@@ -184,11 +452,8 @@ export const ANIMATED_AVATARS: AnimatedAvatar[] = [
 
 export const AVATAR_CATEGORIES = [
   'All',
+  'Cute Animals',
   'Love & Romance',
   'Celestial & Cosmic',
   'Vibe & Sparks',
 ] as const;
-
-
-
-

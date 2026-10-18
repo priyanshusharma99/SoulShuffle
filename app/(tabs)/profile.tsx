@@ -1037,7 +1037,7 @@ export default function Profile() {
             <View className="flex-row items-center justify-between mb-1">
               <View className="flex-row items-center gap-2">
                 <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Choose Avatar ✨
+                  Choose Avatar 🐾✨
                 </Text>
               </View>
               <TouchableOpacity
@@ -1048,7 +1048,7 @@ export default function Profile() {
               </TouchableOpacity>
             </View>
             <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-4">
-              Select an aesthetic avatar to represent you in SoulShuffle
+              Select an animated cute animal or aesthetic avatar for your profile ({filteredAvatars.length} available)
             </Text>
 
             {/* Category Filter Pills */}
@@ -1056,6 +1056,16 @@ export default function Profile() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 10 }}>
                 {AVATAR_CATEGORIES.map((cat) => {
                   const isActive = selectedAvatarCategory === cat;
+                  const label =
+                    cat === 'All'
+                      ? '🌟 All'
+                      : cat === 'Cute Animals'
+                      ? '🐾 Cute Animals'
+                      : cat === 'Love & Romance'
+                      ? '💖 Romance'
+                      : cat === 'Celestial & Cosmic'
+                      ? '🪐 Cosmic'
+                      : '✨ Vibes';
                   return (
                     <TouchableOpacity
                       key={cat}
@@ -1072,7 +1082,7 @@ export default function Profile() {
                           isActive ? 'text-white' : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {cat}
+                        {label}
                       </Text>
                     </TouchableOpacity>
                   );

@@ -2,6 +2,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useSidebar } from '@/context/SidebarContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logout, getMyProfileCached } from '@/services/authService';
+import { signOutGoogle } from '@/services/googleAuth';
 import { leaveRoom, getActiveRoom } from '@/services/roomService';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -172,25 +173,7 @@ export default function Sidebar() {
             console.log('[LOGOUT] Step 1: User confirmed logout');
             setIsLoggingOut(true);
             try {
-              try {
-                const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-                  if (!isExpoGo) {
-                    const { GoogleSignin } = require("@react-native-google-signin/google-signin");
-                    GoogleSignin.configure({
-                      webClientId: "950734388938-qm61e894mghl4dnsi2jb27aglo1eqhbm.apps.googleusercontent.com",
-                      iosClientId: "950734388938-8hldjaul248pmbdcjpj0o65m8s8o03qp.apps.googleusercontent.com",
-                      offlineAccess: false,
-                    });
-                    try { await GoogleSignin.signInSilently(); } catch (e) {}
-                    await GoogleSignin.signOut();
-                    console.log("[LOGOUT] Google session cleared.");
-                    try { await GoogleSignin.revokeAccess(); } catch (e) {}
-                  } else {
-                    console.log("[LOGOUT] Skipping Google logout (Expo Go mode).");
-                  }
-              } catch (googleErr) {
-                console.log('[LOGOUT] Google sign out error (ignoring):', googleErr);
-              }
+              await signOutGoogle();
 
               console.log('[LOGOUT] Step 1.5: Unregistering Push Token from backend...');
               try {
