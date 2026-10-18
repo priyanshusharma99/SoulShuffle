@@ -52,6 +52,7 @@ import { ANIMATED_AVATARS } from "@/constants/avatars";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import CountdownTimer from "@/components/CountdownTimer";
+import { HomeRoomSkeleton, HomePickedSkeleton, HomeMomentsSkeleton } from "@/components/HomeSkeleton";
 
 class ErrorBoundary extends React.Component<
   any,
@@ -1575,7 +1576,9 @@ export default function Dashboard() {
               </View>
 
               {/* Continue Together / Couple Room Connect */}
-              {!activeRoom ? (
+              {roomLoading && !activeRoom ? (
+                <HomeRoomSkeleton isDark={isDark} />
+              ) : !activeRoom ? (
                 <View className="px-5 mb-8">
                   <View className="bg-white dark:bg-[#241318] p-6 rounded-[32px] border border-rose-100 dark:border-rose-950/30 shadow-sm overflow-hidden relative">
                     <View className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-900/10" />
@@ -1695,7 +1698,9 @@ export default function Dashboard() {
                                 }} 
                               />
                 {/* Recent Moments */}
-              {cardSends && cardSends.length > 0 && (
+              {roomLoading && (!cardSends || cardSends.length === 0) ? (
+                <HomeMomentsSkeleton isDark={isDark} />
+              ) : cardSends && cardSends.length > 0 ? (
                 <View className="mb-8">
                   <View className="flex-row items-center justify-between px-5 mb-4">
                     <Text className="text-slate-900 dark:text-white text-lg font-bold">Recent Moments</Text>
@@ -1784,10 +1789,12 @@ export default function Dashboard() {
                     )})}
                   </ScrollView>
                 </View>
-              )}
+              ) : null}
 
               {/* Picked for You 💕 — Dynamic from user's deck */}
-              {(() => {
+              {roomLoading && (!deckCards || deckCards.length === 0) ? (
+                <HomePickedSkeleton isDark={isDark} />
+              ) : (() => {
                 // Pick top 1 card per category, max 3 categories
                 const seen = new Set<string>();
                 const pickedCards: any[] = [];

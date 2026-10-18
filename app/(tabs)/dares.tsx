@@ -13,6 +13,7 @@ import { useSidebar } from '@/context/SidebarContext';
 import { fetchStoreBundles, CardBundle } from '@/services/storeService';
 import { useUserAvatar } from '@/hooks/use-user-avatar';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+import DaresSkeleton from '@/components/DaresSkeleton';
 
 const sunsetPicnic = require('@/assets/images/sunset_picnic.jpeg');
 
@@ -991,11 +992,8 @@ export default function Dares() {
         </View>
       </View>
 
-      {loading && dares.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: bgColor }}>
-          <ActivityIndicator size="large" color="#FF296D" />
-          <Text style={{ color: subTextColor, fontWeight: '600', fontSize: 14, marginTop: 12 }}>Loading dares...</Text>
-        </View>
+      {(loading && dares.length === 0) || (loading && !room) ? (
+        <DaresSkeleton isDark={isDark} />
       ) : room && room.status === 'ACTIVE' ? (
         <ScrollView 
           showsVerticalScrollIndicator={false} 
