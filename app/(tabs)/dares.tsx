@@ -73,6 +73,7 @@ type Dare = ChallengePayload & {
   id: string | number;
   stars: number;
   isPaid: boolean;
+  categoryImage?: string | null;
 };
 
 // Helper to map card structure from Supabase
@@ -85,9 +86,20 @@ const mapCardToDare = (card: any): Dare => {
   const stars = card.attributes?.stars || 2;
   const description = card.power_description || card.attributes?.description || 'No description available.';
 
+  // Extract actual database category image URL
+  const categoryImageUrl =
+    card.category_image ||
+    card.card_categories?.icon_url ||
+    card.card_categories?.image_url ||
+    card.category_icon_url ||
+    card.category_icon ||
+    null;
+
   let image = sunsetPicnic;
   if (card.image_url) {
     image = { uri: card.image_url };
+  } else if (categoryImageUrl) {
+    image = { uri: categoryImageUrl };
   } else {
     if (cleanCategory.includes('ROMANCE') || cleanCategory.includes('ROMANTIC')) {
       image = require('@/assets/images/couple_cover.jpeg');
@@ -102,6 +114,7 @@ const mapCardToDare = (card: any): Dare => {
     id: card.deck_card_id || card.id,
     title: card.card_name || card.name,
     category: cleanCategory,
+    categoryImage: categoryImageUrl,
     difficulty,
     stars,
     time,
@@ -442,6 +455,7 @@ export default function Dares() {
   const [note, setNote] = useState<string>('');
   const [limits, setLimits] = useState<SendLimits | null>(memoryCachedLimits);
   const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
+  const [categoryDbImages, setCategoryDbImages] = useState<Record<string, string>>({});
   const lastDaresFetchRef = React.useRef<number>(0);
 
   useEffect(() => {
@@ -547,6 +561,27 @@ export default function Dares() {
           cachedLimits: fetchedLimits,
           roomId: activeRoom.id
         })).catch(() => {});
+
+        // Silently fetch master categories to extract actual database icon URLs
+        fetchCards().then(masterCards => {
+          if (Array.isArray(masterCards)) {
+            const catImages: Record<string, string> = {};
+            masterCards.forEach((mc: any) => {
+              const catName = mc.card_categories?.name || mc.category_name;
+              const icon = mc.card_categories?.icon_url || mc.card_categories?.image_url;
+              if (catName && icon) {
+                const clean = catName.split('_')[0].trim().toUpperCase();
+                catImages[clean] = icon;
+                catImages[catName.toUpperCase()] = icon;
+                const firstWord = clean.split(/[^A-Za-z0-9]/)[0];
+                if (firstWord) catImages[firstWord.toUpperCase()] = icon;
+              }
+            });
+            if (Object.keys(catImages).length > 0) {
+              setCategoryDbImages(prev => ({ ...prev, ...catImages }));
+            }
+          }
+        }).catch(() => {});
       } else {
         memoryCachedDares = [];
         memoryCachedLimits = null;
@@ -903,22 +938,37 @@ export default function Dares() {
           {(() => {
             // Dynamically calculate available categories based on current deck
             const catMap = new Map();
-            dares.forEach(d => {
+            dares.forEach((d: any) => {
               const c = d.category || 'GENERAL';
-              if (!catMap.has(c)) catMap.set(c, { id: c, count: 1 });
-              else catMap.get(c).count++;
+              const catImg = d.categoryImage || (typeof d.image === 'object' && d.image?.uri ? d.image.uri : null);
+              if (!catMap.has(c)) {
+                catMap.set(c, { id: c, count: 1, image: catImg });
+              } else {
+                catMap.get(c).count++;
+                if (!catMap.get(c).image && catImg) {
+                  catMap.get(c).image = catImg;
+                }
+              }
             });
 
             const dynamicCategories = Array.from(catMap.values()).map(cat => {
               let color = '#3A86FF';
-              let image = require('@/assets/images/bundle_cozy.jpg');
+              let defaultImage: any = require('@/assets/images/bundle_cozy.jpg');
               const nameLower = cat.id.toLowerCase();
-              if(nameLower.includes('romanc')) { color = '#FF296D'; image = require('@/assets/images/bundle_romantic.jpg'); }
-              else if(nameLower.includes('spic')) { color = '#D90429'; image = require('@/assets/images/bundle_spicy.jpg'); }
-              else if(nameLower.includes('fun')) { color = '#9D4EDD'; image = require('@/assets/images/bundle_cozy.jpg'); }
-              else if(nameLower.includes('deep')) { color = '#3A86FF'; image = require('@/assets/images/sunset_picnic.jpeg'); }
-              else if(nameLower.includes('penalt')) { color = '#FF9F1C'; image = require('@/assets/images/bundle_spicy.jpg'); }
-              
+              if(nameLower.includes('romanc')) { color = '#FF296D'; defaultImage = require('@/assets/images/bundle_romantic.jpg'); }
+              else if(nameLower.includes('spic')) { color = '#D90429'; defaultImage = require('@/assets/images/bundle_spicy.jpg'); }
+              else if(nameLower.includes('fun')) { color = '#9D4EDD'; defaultImage = require('@/assets/images/bundle_cozy.jpg'); }
+              else if(nameLower.includes('deep') || nameLower.includes('conflict')) { color = '#3A86FF'; defaultImage = require('@/assets/images/sunset_picnic.jpeg'); }
+              else if(nameLower.includes('penalt')) { color = '#FF9F1C'; defaultImage = require('@/assets/images/bundle_spicy.jpg'); }
+
+              // Check if actual database saved image exists from Supabase
+              const dbUrl = cat.image ||
+                            categoryDbImages[cat.id.toUpperCase()] ||
+                            categoryDbImages[cat.id] ||
+                            null;
+
+              const image = dbUrl ? { uri: dbUrl } : defaultImage;
+
               return {
                 id: cat.id,
                 label: cat.id.charAt(0) + cat.id.slice(1).toLowerCase(),

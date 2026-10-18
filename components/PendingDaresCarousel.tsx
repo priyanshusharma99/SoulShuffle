@@ -46,11 +46,15 @@ export default function PendingDaresCarousel({ pendingChallenges, currentUserId,
 
   if (!pendingChallenges || pendingChallenges.length === 0) return null;
 
-  const receivedChallenges = pendingChallenges.filter((c: any) => c.sender_id !== currentUserId);
-  const sentChallenges = pendingChallenges.filter((c: any) => c.sender_id === currentUserId);
+  const receivedChallenges = currentUserId
+    ? pendingChallenges.filter((c: any) => (c.receiver_id ? c.receiver_id === currentUserId : c.sender_id !== currentUserId))
+    : [];
+  const sentChallenges = currentUserId
+    ? pendingChallenges.filter((c: any) => c.sender_id === currentUserId)
+    : pendingChallenges;
 
   const renderCardContent = (send: any) => {
-    const isSentByMe = send.sender_id === currentUserId;
+    const isSentByMe = currentUserId ? send.sender_id === currentUserId : false;
     const isCompleting = !isSentByMe && (send.status === 'IN_PROGRESS' || send.status === 'ACCEPTED');
     const btnText = isSentByMe ? 'WAITING FOR THEM' : isCompleting ? 'COMPLETE THE DARE' : 'YOUR TURN TO RESPOND';
     const categoryName = send.category || send.card?.category || send.card?.card_categories?.name || 'MYSTERY DARE';

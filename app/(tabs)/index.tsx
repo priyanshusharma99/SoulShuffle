@@ -192,6 +192,7 @@ let memoryDashboardRoom: Room | null = null;
 let memoryDashboardCardSends: any[] = [];
 let memoryDashboardDeckCards: any[] = [];
 let memoryDashboardUserName = "";
+let memoryDashboardCurrentUserId: string | null = null;
 let memoryDashboardRoomHistory: any[] = [];
 
 export default function Dashboard() {
@@ -224,7 +225,7 @@ export default function Dashboard() {
   const [penaltyGiftModalVisible, setPenaltyGiftModalVisible] = useState(false);
   const [penaltyGiftCard, setPenaltyGiftCard] = useState<any>(null);
 
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(memoryDashboardCurrentUserId);
   const [userName, setUserName] = useState(memoryDashboardUserName);
   const [partnerName, setPartnerName] = useState("Partner");
   const [partnerAvatar, setPartnerAvatar] = useState<string | null>(
@@ -237,6 +238,10 @@ export default function Dashboard() {
     const loadCachedState = async () => {
       try {
         const cached = await getMyProfileCached();
+        if (cached?.id) {
+          memoryDashboardCurrentUserId = cached.id;
+          setCurrentUserId(cached.id);
+        }
         if (cached?.firstName) {
           memoryDashboardUserName = cached.firstName;
           setUserName(cached.firstName);
@@ -298,12 +303,16 @@ export default function Dashboard() {
         if (data?.card_id || data?.send_id) {
           // Attempt to find full card record in cardSends or construct instant payload
           const match = cardSends.find(
-            (c) => c.id === data.send_id || c.card_id === data.card_id,
+            (c) => (c.id === data.send_id || c.card_id === data.card_id) &&
+                   (!currentUserId || (c.receiver_id ? c.receiver_id === currentUserId : c.sender_id !== currentUserId)),
           );
           if (match) {
             setSelectedReceivedCard(match);
           } else if (data?.title || data?.cards) {
-            setSelectedReceivedCard(normalizeSendRecord(data));
+            const normalized = normalizeSendRecord(data);
+            if (!currentUserId || (normalized?.receiver_id ? normalized.receiver_id === currentUserId : normalized?.sender_id !== currentUserId)) {
+              setSelectedReceivedCard(normalized);
+            }
           }
         }
       },
@@ -314,7 +323,7 @@ export default function Dashboard() {
       const unhandledReceivedCards = cardSends.filter(
         (c) =>
           c.status === "SENT" &&
-          c.sender_id !== currentUserId &&
+          (c.receiver_id ? c.receiver_id === currentUserId : c.sender_id !== currentUserId) &&
           !c.id.toString().startsWith("dummy"),
       );
 
@@ -1510,7 +1519,20 @@ export default function Dashboard() {
                 </View>
               </View>
               )}
-                              <PendingDaresCarousel pendingChallenges={pendingChallenges} currentUserId={currentUserId} onPressCard={(send: any) => { if (send.status === "IN_PROGRESS") { handleCompleteCard(send.id); } else { setSelectedReceivedCard(send); } }} />
+                              <PendingDaresCarousel 
+                                pendingChallenges={pendingChallenges} 
+                                currentUserId={currentUserId} 
+                                onPressCard={(send: any) => { 
+                                  if (send.status === "IN_PROGRESS") { 
+                                    handleCompleteCard(send.id); 
+                                  } else { 
+                                    const isSentByMe = currentUserId ? send.sender_id === currentUserId : false;
+                                    if (!isSentByMe) {
+                                      setSelectedReceivedCard(send); 
+                                    }
+                                  } 
+                                }} 
+                              />
                 {/* Recent Moments */}
               {cardSends && cardSends.length > 0 && (
                 <View className="mb-8">

@@ -144,19 +144,29 @@ export const sendChallenge = async (
     throw new Error('No active room found.');
   }
 
-  // Fast resolve current user ID to determine receiver (zero network roundtrip)
-  let receiverId = room.partner_id;
-  try {
-    let currentId = providedUserId;
-    if (!currentId) {
+  // Reliably resolve current user ID from all sources
+  let currentId = providedUserId;
+  if (!currentId) {
+    try {
+      currentId = await AsyncStorage.getItem('cachedUserId');
+    } catch (e) {}
+  }
+  if (!currentId) {
+    try {
       const profile = await getMyProfileCached();
-      currentId = profile?.id;
-    }
-    if (currentId && currentId === room.partner_id) {
+      currentId = profile?.id || null;
+    } catch (e) {}
+  }
+
+  // In a 2-person room: if sender is partner, receiver is host.
+  // If sender is host, receiver is partner.
+  let receiverId = room.partner_id;
+  if (currentId) {
+    if (currentId === room.partner_id) {
       receiverId = room.host_id;
+    } else if (currentId === room.host_id) {
+      receiverId = room.partner_id;
     }
-  } catch (error) {
-    // fallback
   }
 
   const response = await api.post(`/user/deck/${deckCardId}/send`, {
