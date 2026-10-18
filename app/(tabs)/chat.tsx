@@ -88,11 +88,8 @@ export default function Chat() {
     };
 
     loadActiveChallenge();
-    const intervalId = setInterval(loadActiveChallenge, 15000);
-
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
     };
   }, []);
 

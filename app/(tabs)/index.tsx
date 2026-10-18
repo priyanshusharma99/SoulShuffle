@@ -734,7 +734,7 @@ export default function Dashboard() {
 
     const pollInterval = setInterval(() => {
       fetchActiveRoom(true);
-    }, 4000);
+    }, 60000);
 
     return () => {
       clearInterval(pollInterval);

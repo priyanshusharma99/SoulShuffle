@@ -441,6 +441,7 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
 let memoryCachedDares: Dare[] = [];
 let memoryCachedLimits: any = null;
 let memoryCachedRoom: any = null;
+let memoryCachedCategoryIcons: Record<string, string> | null = null;
 
 export default function Dares() {
   const { openSidebar } = useSidebar();
@@ -562,26 +563,31 @@ export default function Dares() {
           roomId: activeRoom.id
         })).catch(() => {});
 
-        // Silently fetch master categories to extract actual database icon URLs
-        fetchCards().then(masterCards => {
-          if (Array.isArray(masterCards)) {
-            const catImages: Record<string, string> = {};
-            masterCards.forEach((mc: any) => {
-              const catName = mc.card_categories?.name || mc.category_name;
-              const icon = mc.card_categories?.icon_url || mc.card_categories?.image_url;
-              if (catName && icon) {
-                const clean = catName.split('_')[0].trim().toUpperCase();
-                catImages[clean] = icon;
-                catImages[catName.toUpperCase()] = icon;
-                const firstWord = clean.split(/[^A-Za-z0-9]/)[0];
-                if (firstWord) catImages[firstWord.toUpperCase()] = icon;
+        // Silently fetch master categories to extract actual database icon URLs (cached per session)
+        if (!memoryCachedCategoryIcons) {
+          fetchCards().then(masterCards => {
+            if (Array.isArray(masterCards)) {
+              const catImages: Record<string, string> = {};
+              masterCards.forEach((mc: any) => {
+                const catName = mc.card_categories?.name || mc.category_name;
+                const icon = mc.card_categories?.icon_url || mc.card_categories?.image_url;
+                if (catName && icon) {
+                  const clean = catName.split('_')[0].trim().toUpperCase();
+                  catImages[clean] = icon;
+                  catImages[catName.toUpperCase()] = icon;
+                  const firstWord = clean.split(/[^A-Za-z0-9]/)[0];
+                  if (firstWord) catImages[firstWord.toUpperCase()] = icon;
+                }
+              });
+              if (Object.keys(catImages).length > 0) {
+                memoryCachedCategoryIcons = catImages;
+                setCategoryDbImages(prev => ({ ...prev, ...catImages }));
               }
-            });
-            if (Object.keys(catImages).length > 0) {
-              setCategoryDbImages(prev => ({ ...prev, ...catImages }));
             }
-          }
-        }).catch(() => {});
+          }).catch(() => {});
+        } else {
+          setCategoryDbImages(prev => ({ ...prev, ...memoryCachedCategoryIcons }));
+        }
       } else {
         memoryCachedDares = [];
         memoryCachedLimits = null;

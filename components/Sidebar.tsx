@@ -11,6 +11,8 @@ import { ActivityIndicator, Alert, Image, Modal, Platform, Text, TouchableOpacit
 import { router, usePathname } from 'expo-router';
 import api from '@/services/api';
 
+let lastRelationshipStatsFetchTime = 0;
+
 import { DEFAULT_AVATAR } from '@/hooks/use-user-avatar';
 
 
@@ -98,13 +100,17 @@ export default function Sidebar() {
             setConnectionString(`Connected for ${cachedStats}`);
           }
 
-          api.get('/profile/relationship-stats').then(async (response) => {
-            const stats = response.data?.data?.stats;
-            if (stats?.formattedTime && !stats.formattedTime.toLowerCase().includes('unknown')) {
-              setConnectionString(`Connected for ${stats.formattedTime}`);
-              await AsyncStorage.setItem('relationshipStats', stats.formattedTime);
-            }
-          }).catch(() => {});
+          const now = Date.now();
+          if (now - lastRelationshipStatsFetchTime > 15 * 60 * 1000) {
+            lastRelationshipStatsFetchTime = now;
+            api.get('/profile/relationship-stats').then(async (response) => {
+              const stats = response.data?.data?.stats;
+              if (stats?.formattedTime && !stats.formattedTime.toLowerCase().includes('unknown')) {
+                setConnectionString(`Connected for ${stats.formattedTime}`);
+                await AsyncStorage.setItem('relationshipStats', stats.formattedTime);
+              }
+            }).catch(() => {});
+          }
         } else {
           setPartnerName(null);
           setConnectionString('');
