@@ -763,6 +763,10 @@ export default function Dares() {
     };
 
     const clearSub = DeviceEventEmitter.addListener('app:clearRoom', handleRoomLeft);
+    const refreshDaresSub = DeviceEventEmitter.addListener('app:refreshDares', () => {
+      lastDaresFetchRef.current = 0;
+      loadDares(false, true);
+    });
 
     GameSocket.on('partner_joined', handlePartnerJoined);
     GameSocket.on('partner_left', handleRoomLeft);
@@ -771,6 +775,7 @@ export default function Dares() {
 
     return () => {
       clearSub.remove();
+      refreshDaresSub.remove();
       GameSocket.off('partner_joined', handlePartnerJoined);
       GameSocket.off('partner_left', handleRoomLeft);
       GameSocket.off('room_left', handleRoomLeft);

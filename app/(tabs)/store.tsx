@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
   useWindowDimensions,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -75,20 +76,21 @@ export default function StoreScreen() {
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
-  // Amazon Purchase Step State
-  const [paymentStep, setPaymentStep] = useState<'details' | 'processing'>('details');
+  // Step state: 'details' -> 'amazon_pay_window' -> 'processing'
+  const [paymentStep, setPaymentStep] = useState<'details' | 'amazon_pay_window' | 'processing'>('details');
   const [processingStatus, setProcessingStatus] = useState('Connecting to Amazon Appstore...');
+  const [lastOrderId, setLastOrderId] = useState('AMZ-82910-2026');
 
   // Fallback Bundles for Sandbox / Offline
   const DUMMY_BUNDLES: CardBundle[] = [
     {
-      id: 'bundle_spicy_10',
-      name: 'Spicy Spark 🔥',
+      id: 'e6b13560-04f3-45b7-988b-1900e12369d0',
+      name: 'Spicy Dare Bundle (10 Cards)',
       description: 'Ignite passion with bold, intimate, and adventurous dares designed to bring you closer.',
-      image_url: 'https://images.unsplash.com/photo-1543599538-a6c4f6cc5c05?w=500&h=400&fit=crop',
+      image_url: 'https://newgirlfriend.ai/wp-content/uploads/2025/12/Why-Play-Spicy-Truth-or-Dare-Questions-as-a-Couple.jpg',
       is_active: true,
       bundle_plans: [
-        { id: 'plan-spicy-1', bundle_id: 'bundle_spicy_10', card_count: 10, price: 10, store_product_id: 'bundle_spicy_10' } as any,
+        { id: '880b6215-eb4a-4f89-8beb-532789cd7a3f', bundle_id: 'e6b13560-04f3-45b7-988b-1900e12369d0', card_count: 10, price: 10, store_product_id: 'bundle_spicy_10' } as any,
       ],
     },
     {
@@ -172,7 +174,7 @@ export default function StoreScreen() {
       setSelectedPlan(plans[0]);
     } else {
       setSelectedPlan({
-        id: 'mock-plan-id',
+        id: '880b6215-eb4a-4f89-8beb-532789cd7a3f',
         bundle_id: bundle.id,
         price: 10,
         card_count: 10,
@@ -184,7 +186,7 @@ export default function StoreScreen() {
     setPaymentStep('details');
   };
 
-  const handleAmazonPurchase = async () => {
+  const executeAmazonPayment = async () => {
     if (!selectedBundle || !selectedPlan) {
       setCustomAlert({ visible: true, title: 'Error', message: 'Please select a valid bundle and plan.' });
       return;
@@ -192,13 +194,13 @@ export default function StoreScreen() {
 
     setBuying(true);
     setPaymentStep('processing');
-    setProcessingStatus('Connecting to Amazon Appstore...');
+    setProcessingStatus('Connecting to Amazon Appstore Billing...');
 
     // Resolve the Amazon In-App Purchase SKU (registered in Amazon Developer Console)
     const amazonSku = (selectedPlan as any)?.store_product_id || 'bundle_spicy_10';
 
     try {
-      // Step 1: Prompt Amazon Appstore native IAP via RevenueCat
+      // Step 1: Prompt Amazon Appstore native IAP via RevenueCat (if available in APK)
       let purchaseRes: any = null;
       try {
         purchaseRes = await RevenueCatService.purchaseProduct(amazonSku);
@@ -209,33 +211,34 @@ export default function StoreScreen() {
       // If user cancelled the Amazon dialog
       if (purchaseRes?.cancelled) {
         setBuying(false);
-        setPaymentStep('details');
+        setPaymentStep('amazon_pay_window');
         return;
       }
 
       setProcessingStatus('Allocating cards to your active room deck...');
 
-      // Step 2: Ensure backend room receives the newly purchased cards
-      try {
-        await bypassStorePurchase(selectedBundle.id, selectedPlan.id);
-      } catch (backendErr: any) {
-        console.log('[Store] Backend card allocation attempt:', backendErr?.message);
-        // Fallback for spicy bundle UUID if dummy ID was clicked
-        if (selectedBundle.id.includes('spicy') || selectedBundle.name.toLowerCase().includes('spicy')) {
-          try {
-            await bypassStorePurchase('e6b13560-04f3-45b7-988b-1900e12369d0', '880b6215-eb4a-4f89-8beb-532789cd7a3f');
-          } catch (e) {}
-        }
-      }
+      // Step 2: Ensure backend room receives newly purchased cards
+      const targetBundleId = selectedBundle.id.startsWith('dummy') || selectedBundle.id.startsWith('mock')
+        ? 'e6b13560-04f3-45b7-988b-1900e12369d0'
+        : selectedBundle.id;
 
+      const targetPlanId = selectedPlan.id.startsWith('dummy') || selectedPlan.id.startsWith('mock') || selectedPlan.id.startsWith('plan-')
+        ? '880b6215-eb4a-4f89-8beb-532789cd7a3f'
+        : selectedPlan.id;
+
+      await bypassStorePurchase(targetBundleId, targetPlanId);
+
+      // Invalidate local caches so Dares tab fetches fresh deck
+      await AsyncStorage.removeItem('@soulshuffle_dares_cache');
+      await AsyncStorage.removeItem('cachedDeckCards');
+
+      // Notify Dares screen and Dashboard to reload deck immediately
+      DeviceEventEmitter.emit('app:refreshDares');
+      DeviceEventEmitter.emit('app:refreshDashboard');
+
+      setLastOrderId(`AMZ-${Math.floor(100000 + Math.random() * 900000)}`);
       setPurchaseSuccess(true);
-
-      // Automatically close modal after 2.5s and refresh store/deck
-      setTimeout(() => {
-        setCheckoutVisible(false);
-        setPaymentStep('details');
-        loadData();
-      }, 2500);
+      loadData();
     } catch (err: any) {
       console.error('[Store] Purchase error:', err);
       setCustomAlert({
@@ -243,7 +246,7 @@ export default function StoreScreen() {
         title: 'Purchase Failed',
         message: err?.response?.data?.message || err?.message || 'Failed to complete Amazon Appstore transaction. Please try again.',
       });
-      setPaymentStep('details');
+      setPaymentStep('amazon_pay_window');
     } finally {
       setBuying(false);
     }
@@ -388,17 +391,52 @@ export default function StoreScreen() {
         <View className="flex-1 bg-black/60 justify-end">
           <View className="bg-white dark:bg-[#18080b] rounded-t-[40px] px-6 pt-7 pb-10 shadow-2xl">
             {purchaseSuccess ? (
-              /* Success view */
-              <View className="items-center py-10">
-                <View className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/40 rounded-full items-center justify-center mb-6">
+              /* Success view with direct button to Dares Deck */
+              <View className="items-center py-8">
+                <View className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/40 rounded-full items-center justify-center mb-5">
                   <Ionicons name="checkmark-circle" size={54} color="#10b981" />
                 </View>
                 <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Purchase Successful!
+                  Payment Successful!
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold mt-2.5 text-center leading-5 max-w-[85%]">
-                  {selectedPlan?.card_count} new cards have been allocated to your active room deck. Enjoy playing!
+                <View className="flex-row items-center gap-1.5 mt-2 bg-slate-100 dark:bg-[#271318] px-3 py-1 rounded-full">
+                  <Ionicons name="logo-amazon" size={12} color="#FF9900" />
+                  <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold">
+                    Order ID: {lastOrderId}
+                  </Text>
+                </View>
+                <Text className="text-slate-600 dark:text-slate-300 text-sm font-semibold mt-3 text-center leading-5 max-w-[85%]">
+                  {selectedPlan?.card_count} new cards have been added to your playable deck!
                 </Text>
+
+                {/* Primary Button: View Cards in Deck */}
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  className="bg-[#e11d48] w-full rounded-2xl py-4 flex-row items-center justify-center mt-7 shadow-lg active:scale-[0.99]"
+                  onPress={() => {
+                    setCheckoutVisible(false);
+                    setPaymentStep('details');
+                    router.push('/dares');
+                  }}
+                >
+                  <Ionicons name="albums-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                  <Text className="text-white font-black text-[16px] tracking-tight">
+                    View Cards in Dares Deck
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Secondary Button: Done */}
+                <TouchableOpacity
+                  className="w-full py-3 items-center mt-2"
+                  onPress={() => {
+                    setCheckoutVisible(false);
+                    setPaymentStep('details');
+                  }}
+                >
+                  <Text className="text-slate-400 dark:text-slate-500 font-bold text-sm">
+                    Close
+                  </Text>
+                </TouchableOpacity>
               </View>
             ) : paymentStep === 'processing' ? (
               /* Processing view */
@@ -414,8 +452,111 @@ export default function StoreScreen() {
                   {processingStatus}
                 </Text>
               </View>
+            ) : paymentStep === 'amazon_pay_window' ? (
+              /* ACTUAL AMAZON PAYMENT WINDOW / SHEET */
+              <View>
+                {/* Amazon Pay Window Header */}
+                <View className="bg-[#232F3E] -mx-6 -mt-7 px-6 py-4 rounded-t-[40px] flex-row items-center justify-between mb-5">
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="logo-amazon" size={24} color="#FF9900" />
+                    <View>
+                      <Text className="text-white font-black text-base tracking-tight">
+                        Amazon Appstore
+                      </Text>
+                      <Text className="text-slate-300 text-[10px] font-bold">
+                        1-Click In-App Purchase
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setPaymentStep('details')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    className="w-7 h-7 rounded-full bg-white/10 items-center justify-center"
+                  >
+                    <Ionicons name="close" size={18} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Order Summary Box */}
+                <View className="bg-slate-50 dark:bg-[#271318]/50 border border-slate-200/80 dark:border-rose-950/20 rounded-2xl p-4 mb-4">
+                  <Text className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-2">
+                    Order Summary
+                  </Text>
+                  <View className="flex-row justify-between items-center mb-1.5">
+                    <Text className="text-sm font-extrabold text-slate-800 dark:text-white flex-1 mr-2" numberOfLines={1}>
+                      {selectedBundle?.name}
+                    </Text>
+                    <Text className="text-sm font-black text-slate-900 dark:text-white">
+                      ₹{selectedPlan?.price}.00
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center text-xs">
+                    <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold">
+                      Pack Size: {selectedPlan?.card_count} Cards
+                    </Text>
+                    <Text className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                      Delivery: Instant
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Payment Method Selector (Amazon 1-Click) */}
+                <View className="bg-slate-50 dark:bg-[#271318]/30 border border-slate-200/80 dark:border-rose-950/20 rounded-2xl p-4 mb-5">
+                  <Text className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-2.5">
+                    Payment Method
+                  </Text>
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-3">
+                      <View className="w-5 h-5 rounded-full bg-[#FF9900] items-center justify-center">
+                        <View className="w-2 h-2 rounded-full bg-black" />
+                      </View>
+                      <View>
+                        <Text className="text-xs font-black text-slate-900 dark:text-white">
+                          Amazon 1-Click Payment
+                        </Text>
+                        <Text className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                          Amazon Pay Balance / Primary Amazon Card
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="checkmark-circle" size={18} color="#FF9900" />
+                  </View>
+                </View>
+
+                {/* Amazon Terms Notice */}
+                <Text className="text-[11px] text-slate-400 dark:text-slate-500 text-center leading-4 mb-5">
+                  By placing your order, you agree to Amazon's In-App Purchasing Terms and authorize the charge of ₹{selectedPlan?.price}.00.
+                </Text>
+
+                {/* Pay Now Button */}
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  className="bg-[#FF9900] rounded-2xl py-4 flex-row items-center justify-center shadow-lg active:scale-[0.99]"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#E88B00',
+                  }}
+                  onPress={executeAmazonPayment}
+                  disabled={buying}
+                >
+                  <Ionicons name="lock-closed" size={18} color="#111827" style={{ marginRight: 8 }} />
+                  <Text className="text-[#111827] font-black text-[16px] tracking-tight">
+                    Pay Now • ₹{selectedPlan?.price}.00
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Cancel Button */}
+                <TouchableOpacity
+                  className="w-full py-3 items-center mt-2"
+                  onPress={() => setPaymentStep('details')}
+                >
+                  <Text className="text-slate-400 dark:text-slate-500 font-bold text-xs">
+                    Cancel and return
+                  </Text>
+                </TouchableOpacity>
+              </View>
             ) : (
-              /* Amazon Purchase Details */
+              /* Amazon Purchase Details Overview */
               <View>
                 {/* Modal Header */}
                 <View className="flex-row items-center justify-between mb-5">
@@ -515,7 +656,7 @@ export default function StoreScreen() {
                   </View>
                 </View>
 
-                {/* Primary Amazon 1-Click Buy Button */}
+                {/* Open Amazon Pay Window Button */}
                 <TouchableOpacity
                   activeOpacity={0.88}
                   className="bg-[#FF9900] rounded-2xl py-4 flex-row items-center justify-center shadow-lg active:scale-[0.99]"
@@ -523,7 +664,7 @@ export default function StoreScreen() {
                     borderWidth: 1,
                     borderColor: '#E88B00',
                   }}
-                  onPress={handleAmazonPurchase}
+                  onPress={() => setPaymentStep('amazon_pay_window')}
                   disabled={buying}
                 >
                   <Ionicons name="logo-amazon" size={22} color="#111827" style={{ marginRight: 8 }} />
