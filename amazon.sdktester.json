@@ -1,0 +1,9 @@
+{
+  "bundle_spicy_10": {
+    "itemType": "CONSUMABLE",
+    "price": 10.0,
+    "title": "Spicy Dare Bundle (10 Cards)",
+    "description": "Ignite passion with bold, intimate, and adventurous dares designed to bring you closer.",
+    "smallIconUrl": "https://api.mrcoder420.me/assets/icon.png"
+  }
+}

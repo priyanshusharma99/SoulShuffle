@@ -71,13 +71,24 @@ class RevenueCatService {
         throw new Error('In-app purchases are not available in this environment.');
       }
 
-      const products = await Purchases.getProducts([productIdentifier]);
-      if (!products || products.length === 0) {
-        throw new Error(`Product ${productIdentifier} not found in store.`);
+      let storeProduct: any = null;
+      try {
+        const products = await Purchases.getProducts([productIdentifier]);
+        if (products && products.length > 0) {
+          storeProduct = products[0];
+        }
+      } catch (e) {
+        console.log('[RevenueCatService] getProducts error:', e);
       }
 
-      const { customerInfo, productIdentifier: purchasedId } = await Purchases.purchaseStoreProduct(products[0]);
-      return { customerInfo, productIdentifier: purchasedId };
+      let result: any = null;
+      if (storeProduct) {
+        result = await Purchases.purchaseStoreProduct(storeProduct);
+      } else {
+        result = await Purchases.purchaseProduct(productIdentifier, null, Purchases.PURCHASE_TYPE?.INAPP);
+      }
+
+      return result;
     } catch (e: any) {
       if (e.userCancelled) {
         console.log('[RevenueCatService] User cancelled purchase');
