@@ -603,6 +603,14 @@ export default function Dares() {
     }).catch(() => {});
   }, []);
 
+  // Safety watchdog: ensure skeleton never stays stuck longer than 1 second
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const loadDares = async (silent = false, skipCache = false) => {
     try {
       if (!silent) setLoading(true);

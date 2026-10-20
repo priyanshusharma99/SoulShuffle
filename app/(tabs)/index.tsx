@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Modal,
+  RefreshControl,
 } from "react-native";
 import PendingDaresCarousel from "@/components/PendingDaresCarousel";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -208,6 +209,7 @@ export default function Dashboard() {
   // ── Room State ─────────────────────────────────────────
   const [activeRoom, setActiveRoom] = useState<Room | null>(memoryDashboardRoom);
   const [roomLoading, setRoomLoading] = useState(!memoryDashboardRoom);
+  const [refreshing, setRefreshing] = useState(false);
   const [localPendingChallenges, setLocalPendingChallenges] = useState<any[]>(
     [],
   );
@@ -336,9 +338,19 @@ export default function Dashboard() {
 
       } catch (e) {
         console.log("Failed to load cached profile or room in dashboard:", e);
+      } finally {
+        setRoomLoading(false);
       }
     };
     loadCachedState();
+  }, []);
+
+  // Safety watchdog: ensure skeletons never stay visible longer than 1 second
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRoomLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
   }, []);
   const [deflectCardsCount, setDeflectCardsCount] = useState(0);
   const [deflectCards, setDeflectCards] = useState<any[]>([]);
@@ -658,11 +670,15 @@ export default function Dashboard() {
       // silently handle
     } finally {
       isFetchingRoomRef.current = false;
-      if (!silent) {
-        setRoomLoading(false);
-      }
+      setRoomLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchActiveRoom(false);
+  }, [fetchActiveRoom]);
 
   useEffect(() => {
     fetchActiveRoom(true);
@@ -1537,6 +1553,14 @@ export default function Dashboard() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 110 }}
           style={{ flex: 1, backgroundColor: isDark ? "#0e0609" : "#FFFFFF" }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#ff2d55"
+              colors={["#ff2d55"]}
+            />
+          }
         >
               {/* Header / Greeting */}
               <View className="px-5 mt-6 mb-4 flex-row justify-between items-end">
