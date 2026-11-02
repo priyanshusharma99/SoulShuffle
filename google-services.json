@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "649494442566-1fndtrio7mcaivdokc8fcqommjesntrg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.soulshuffle.CoupleGame",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "649494442566-cf88esafumaovatfh3u43aebkr2g1itg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.soulshuffle.CoupleGame",
+            "certificate_hash": "994750a303df95e97ca62c15337c7e837d099737"
+          }
+        },
+        {
           "client_id": "649494442566-4p1lnmhgpuht1eko9kvl26h887dpqdlv.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -37,6 +53,13 @@
             {
               "client_id": "649494442566-4p1lnmhgpuht1eko9kvl26h887dpqdlv.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "649494442566-020e8g4qi89fbrgip7vvvvns26khppuf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.soulshuffle.CoupleGame"
+              }
             }
           ]
         }
