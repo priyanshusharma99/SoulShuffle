@@ -14,6 +14,7 @@ import { fetchStoreBundles, CardBundle } from '@/services/storeService';
 import { useUserAvatar } from '@/hooks/use-user-avatar';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 import DaresSkeleton from '@/components/DaresSkeleton';
+import FreePlanEndModal from '@/components/FreePlanEndModal';
 
 const sunsetPicnic = require('@/assets/images/sunset_picnic.jpeg');
 
@@ -456,6 +457,7 @@ export default function Dares() {
   const [room, setRoom] = useState<Room | null>(memoryCachedRoom);
   const [note, setNote] = useState<string>('');
   const [limits, setLimits] = useState<SendLimits | null>(memoryCachedLimits);
+  const [showPlansModal, setShowPlansModal] = useState<boolean>(false);
   const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });
   const [categoryDbImages, setCategoryDbImages] = useState<Record<string, string>>({});
   const lastDaresFetchRef = React.useRef<number>(0);
@@ -465,6 +467,13 @@ export default function Dares() {
       setNote('');
     }
   }, [selectedDare]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('app:showPlansModal', () => {
+      setShowPlansModal(true);
+    });
+    return () => sub.remove();
+  }, []);
 
   const [dares, setDares] = useState<Dare[]>(memoryCachedDares);
   const [loading, setLoading] = useState(memoryCachedDares.length === 0);
@@ -837,6 +846,11 @@ export default function Dares() {
     if (limits && limits.can_send === false) {
       isSendingRef.current = false;
       const isBlocked = limits.active_remaining <= 0;
+      if (!isBlocked && limits.daily_remaining <= 0) {
+        setSelectedDare(null);
+        setShowPlansModal(true);
+        return;
+      }
       const title = isBlocked ? 'Waiting for Partner' : 'Daily Limit Reached';
       const msg = isBlocked
         ? 'You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.'
@@ -995,7 +1009,10 @@ export default function Dares() {
           <Ionicons name="infinite" size={24} color="#FF296D" style={{ transform: [{ rotate: '-15deg' }] }} />
           <Text style={{ color: '#FF296D', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginLeft: 4 }}>SoulShuffle</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <TouchableOpacity onPress={() => router.push('/welcome-guide?from=dares')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="help-circle-outline" size={24} color={textColor} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image 
               source={{ uri: userAvatar }} 
@@ -1085,6 +1102,43 @@ export default function Dares() {
             </RNAnimated.View>
 
           </View>
+
+          {/* Free Plan Limit Ended Banner */}
+          {limits && limits.daily_remaining <= 0 && (
+            <TouchableOpacity
+              onPress={() => setShowPlansModal(true)}
+              activeOpacity={0.85}
+              style={{
+                marginHorizontal: 24,
+                marginBottom: 14,
+                padding: 14,
+                borderRadius: 18,
+                backgroundColor: isDark ? 'rgba(255,41,109,0.12)' : '#FFE4E6',
+                borderWidth: 1.5,
+                borderColor: '#FF296D',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#FF296D', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="sparkles" size={17} color="#FFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? '#FFF' : '#111' }}>
+                    Daily Free Plan Limit Ended
+                  </Text>
+                  <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#FFA3BF' : '#be123c', marginTop: 1 }}>
+                    Compare Free vs Paid to unlock unlimited dares
+                  </Text>
+                </View>
+              </View>
+              <View style={{ backgroundColor: '#FF296D', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+                <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>View Plans</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Carousel */}
           <View style={{ marginTop: 8, marginBottom: 30 }}>
@@ -1252,9 +1306,17 @@ export default function Dares() {
                     You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.
                   </Text>
                 ) : limits.daily_remaining <= 0 ? (
-                  <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
-                    Daily limit reached (0 remaining). Resets tomorrow!
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedDare(null);
+                      setShowPlansModal(true);
+                    }}
+                    style={{ paddingVertical: 4, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#FF296D', fontSize: 13, fontWeight: '800', textAlign: 'center' }}>
+                      Daily free limit reached (0 remaining). Tap to View Plans →
+                    </Text>
+                  </TouchableOpacity>
                 ) : (
                   <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
                     {limits.daily_remaining} {limits.daily_remaining === 1 ? 'card' : 'cards'} remaining to send today
@@ -1266,6 +1328,11 @@ export default function Dares() {
         </View>
       </Modal>
       <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
+      <FreePlanEndModal
+        visible={showPlansModal}
+        onClose={() => setShowPlansModal(false)}
+        reason="limit_reached"
+      />
     </SafeAreaView>
   );
 }

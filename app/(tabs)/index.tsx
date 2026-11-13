@@ -336,6 +336,13 @@ export default function Dashboard() {
           }
         }).catch(() => {});
 
+        // Check if user has seen welcome guide on their first visit
+        const hasSeenGuide = await AsyncStorage.getItem("hasSeenWelcomeGuide");
+        if (!hasSeenGuide) {
+          await AsyncStorage.setItem("hasSeenWelcomeGuide", "true");
+          router.push("/welcome-guide");
+        }
+
       } catch (e) {
         console.log("Failed to load cached profile or room in dashboard:", e);
       } finally {
@@ -1534,7 +1541,10 @@ export default function Dashboard() {
             <Ionicons name="infinite" size={24} color="#ff2d55" style={{ transform: [{ rotate: '-15deg' }] }} />
             <Text style={{ color: '#ff2d55', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginLeft: 4 }}>SoulShuffle</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <TouchableOpacity onPress={() => router.push("/welcome-guide?from=home")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="help-circle-outline" size={24} color={isDark ? "#ffffff" : "#0e0609"} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigateTo("/notifications")} style={{ position: "relative" }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="notifications-outline" size={24} color={isDark ? "#ffffff" : "#0e0609"} />
               {unreadCount > 0 && (
@@ -1641,6 +1651,28 @@ export default function Dashboard() {
                         <Text className="text-white font-bold text-[14px] ml-1.5 tracking-wide">Join</Text>
                       </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity
+                      onPress={() => router.push('/welcome-guide?from=home')}
+                      style={{
+                        marginTop: 14,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 14,
+                        backgroundColor: isDark ? 'rgba(255,41,109,0.08)' : 'rgba(255,41,109,0.05)',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(255,41,109,0.2)' : 'rgba(255,41,109,0.12)',
+                      }}
+                    >
+                      <Ionicons name="sparkles" size={14} color="#FF296D" />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#FF296D' }}>
+                        New to SoulShuffle? View the Welcome Guide →
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ) : activeRoom.status === 'WAITING' ? (

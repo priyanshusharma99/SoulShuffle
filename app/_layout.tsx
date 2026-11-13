@@ -63,6 +63,7 @@ export default function RootLayout() {
             <Stack>
               <Stack.Screen name="login" options={{ headerShown: false, gestureEnabled: false, animation: "fade" }} />
               <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="welcome-guide" options={{ headerShown: false, animation: "fade" }} />
               <Stack.Screen name="questionnaire" options={{ headerShown: false, gestureEnabled: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="notifications" options={{ headerShown: false }} />

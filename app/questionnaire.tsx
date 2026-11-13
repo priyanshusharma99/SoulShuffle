@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   fetchQuestionnaire,
   submitAnswers as submitAnswersApi,
@@ -144,11 +145,17 @@ export default function Questionnaire() {
   const currentQuestion: Question | undefined = questions[currentStep];
   const progress = questions.length > 0 ? (currentStep + 1) / questions.length : 0;
 
-  const navigateToTabs = () => {
+  const navigateToTabs = async () => {
     try {
-      router.replace('/(tabs)');
+      const hasSeen = await AsyncStorage.getItem('hasSeenWelcomeGuide');
+      if (!hasSeen) {
+        router.replace('/welcome-guide');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (err) {
       console.warn('Navigation error:', err);
+      router.replace('/(tabs)');
     }
   };
 

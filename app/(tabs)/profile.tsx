@@ -1005,6 +1005,38 @@ export default function Profile() {
               <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
             </TouchableOpacity>
 
+            <TouchableOpacity 
+              className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20"
+              onPress={() => router.push('/modal')}
+            >
+              <View className="flex-row items-center flex-1">
+                <View className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-950/40 items-center justify-center">
+                  <Ionicons name="diamond-outline" size={18} color="#FF296D" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-sm font-bold text-slate-800 dark:text-white">Compare Plans (Free vs Pro)</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">Unlimited dares, custom spice & full decks</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20"
+              onPress={() => router.push('/welcome-guide?from=settings')}
+            >
+              <View className="flex-row items-center flex-1">
+                <View className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-950/40 items-center justify-center">
+                  <Ionicons name="sparkles" size={18} color="#FF296D" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-sm font-bold text-slate-800 dark:text-white">Welcome & Game Guide</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">Rules, room pairing, dares & coin rewards</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            </TouchableOpacity>
+
             <TouchableOpacity className="flex-row items-center justify-between py-5">
               <View className="flex-row items-center flex-1">
                 <Ionicons name="people" size={18} color={isDark ? "#fff" : "#857169"} />
