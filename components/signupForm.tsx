@@ -147,13 +147,15 @@ return (
                 <Text className="text-white font-semibold text-sm ml-2">Google</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-                onPress={handleAppleLogin}
-                className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
-            >
-                <Ionicons name="logo-apple" size={18} color="white" />
-                <Text className="text-white font-semibold text-sm ml-2">Apple</Text>
-            </TouchableOpacity>
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity 
+                  onPress={handleAppleLogin}
+                  className="flex-1 bg-white/5 rounded-full py-3.5 flex-row items-center justify-center border border-white/10"
+              >
+                  <Ionicons name="logo-apple" size={18} color="white" />
+                  <Text className="text-white font-semibold text-sm ml-2">Apple</Text>
+              </TouchableOpacity>
+            )}
         </View>
 
         {/* Divider */}
