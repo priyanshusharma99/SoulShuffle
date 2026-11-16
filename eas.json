@@ -20,7 +20,7 @@
                               },
                   "production":  {
                                      "android":  {
-                                                     "buildType":  "apk"
+                                                     "buildType":  "app-bundle"
                                                  },
                                      "env":  {
                                                  "GRADLE_OPTS":  "-Dorg.gradle.jvmargs=\"-Xmx2048m -XX:MaxMetaspaceSize=512m\"",

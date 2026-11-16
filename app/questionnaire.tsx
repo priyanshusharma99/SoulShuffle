@@ -149,6 +149,7 @@ export default function Questionnaire() {
     try {
       const hasSeen = await AsyncStorage.getItem('hasSeenWelcomeGuide');
       if (!hasSeen) {
+        // @ts-ignore
         router.replace('/welcome-guide');
       } else {
         router.replace('/(tabs)');

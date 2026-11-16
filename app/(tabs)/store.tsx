@@ -76,10 +76,10 @@ export default function StoreScreen() {
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
-  // Step state: 'details' -> 'amazon_pay_window' -> 'processing'
-  const [paymentStep, setPaymentStep] = useState<'details' | 'amazon_pay_window' | 'processing'>('details');
-  const [processingStatus, setProcessingStatus] = useState('Connecting to Amazon Appstore...');
-  const [lastOrderId, setLastOrderId] = useState('AMZ-82910-2026');
+  // Step state: 'details' -> 'google_pay_window' -> 'processing'
+  const [paymentStep, setPaymentStep] = useState<'details' | 'google_pay_window' | 'processing'>('details');
+  const [processingStatus, setProcessingStatus] = useState('Connecting to Google Play Billing...');
+  const [lastOrderId, setLastOrderId] = useState('GPA.3920-5819-2049');
 
   // Fallback Bundles for Sandbox / Offline
   const DUMMY_BUNDLES: CardBundle[] = [
@@ -186,7 +186,7 @@ export default function StoreScreen() {
     setPaymentStep('details');
   };
 
-  const executeAmazonPayment = async () => {
+  const executeGooglePayment = async () => {
     if (!selectedBundle || !selectedPlan) {
       setCustomAlert({ visible: true, title: 'Error', message: 'Please select a valid bundle and plan.' });
       return;
@@ -194,24 +194,24 @@ export default function StoreScreen() {
 
     setBuying(true);
     setPaymentStep('processing');
-    setProcessingStatus('Connecting to Amazon Appstore Billing...');
+    setProcessingStatus('Connecting to Google Play Billing...');
 
-    // Resolve the Amazon In-App Purchase SKU (registered in Amazon Developer Console)
-    const amazonSku = (selectedPlan as any)?.store_product_id || 'bundle_spicy_10';
+    // Resolve the In-App Purchase SKU (registered in Google Play Console)
+    const playSku = (selectedPlan as any)?.store_product_id || 'bundle_spicy_10';
 
     try {
-      // Step 1: Prompt Amazon Appstore native IAP via RevenueCat (if available in APK)
+      // Step 1: Prompt Google Play native IAP via RevenueCat (if available in binary)
       let purchaseRes: any = null;
       try {
-        purchaseRes = await RevenueCatService.purchaseProduct(amazonSku);
+        purchaseRes = await RevenueCatService.purchaseProduct(playSku);
       } catch (rcErr: any) {
-        console.log('[Store] Native Amazon IAP call skipped/fallback:', rcErr?.message);
+        console.log('[Store] Native Google Play IAP call skipped/fallback:', rcErr?.message);
       }
 
-      // If user cancelled the Amazon dialog
+      // If user cancelled the Google Play dialog
       if (purchaseRes?.cancelled) {
         setBuying(false);
-        setPaymentStep('amazon_pay_window');
+        setPaymentStep('google_pay_window');
         return;
       }
 
@@ -236,7 +236,8 @@ export default function StoreScreen() {
       DeviceEventEmitter.emit('app:refreshDares');
       DeviceEventEmitter.emit('app:refreshDashboard');
 
-      setLastOrderId(`AMZ-${Math.floor(100000 + Math.random() * 900000)}`);
+      const randDigits = () => Math.floor(1000 + Math.random() * 9000);
+      setLastOrderId(`GPA.${randDigits()}-${randDigits()}-${randDigits()}`);
       setPurchaseSuccess(true);
       loadData();
     } catch (err: any) {
@@ -244,9 +245,9 @@ export default function StoreScreen() {
       setCustomAlert({
         visible: true,
         title: 'Purchase Failed',
-        message: err?.response?.data?.message || err?.message || 'Failed to complete Amazon Appstore transaction. Please try again.',
+        message: err?.response?.data?.message || err?.message || 'Failed to complete Google Play transaction. Please try again.',
       });
-      setPaymentStep('amazon_pay_window');
+      setPaymentStep('google_pay_window');
     } finally {
       setBuying(false);
     }
@@ -292,9 +293,9 @@ export default function StoreScreen() {
 
                 <View className="flex-row items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-rose-950/10">
                   <View className="flex-row items-center gap-1">
-                    <Ionicons name="logo-amazon" size={11} color="#FF9900" />
-                    <Text className="text-[#FF9900] font-bold text-[9px] uppercase tracking-wide">
-                      Amazon IAP
+                    <Ionicons name="logo-google-playstore" size={11} color="#01875f" />
+                    <Text className="text-[#01875f] dark:text-emerald-400 font-bold text-[9px] uppercase tracking-wide">
+                      Google Play
                     </Text>
                   </View>
                   <Text className="text-[#e11d48] dark:text-rose-400 font-extrabold text-[13px]">
@@ -352,10 +353,10 @@ export default function StoreScreen() {
             <Text className="text-[32px] leading-10 font-black text-slate-900 dark:text-white tracking-tight">
               Card Store 🛒
             </Text>
-            <View className="flex-row items-center bg-[#FF9900]/15 border border-[#FF9900]/30 px-2.5 py-1 rounded-full">
-              <Ionicons name="logo-amazon" size={13} color="#FF9900" style={{ marginRight: 4 }} />
-              <Text className="text-[#FF9900] text-[10px] font-black uppercase tracking-wider">
-                Amazon IAP
+            <View className="flex-row items-center bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+              <Ionicons name="logo-google-playstore" size={13} color="#01875f" style={{ marginRight: 4 }} />
+              <Text className="text-[#01875f] dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                Google Play Billing
               </Text>
             </View>
           </View>
@@ -376,7 +377,7 @@ export default function StoreScreen() {
         )}
       </ScrollView>
 
-      {/* Amazon IAP Checkout Modal */}
+      {/* Google Play IAP Checkout Modal */}
       <Modal
         visible={checkoutVisible}
         transparent={true}
@@ -400,8 +401,8 @@ export default function StoreScreen() {
                   Payment Successful!
                 </Text>
                 <View className="flex-row items-center gap-1.5 mt-2 bg-slate-100 dark:bg-[#271318] px-3 py-1 rounded-full">
-                  <Ionicons name="logo-amazon" size={12} color="#FF9900" />
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold">
+                  <Ionicons name="logo-google-playstore" size={12} color="#01875f" />
+                  <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold font-mono">
                     Order ID: {lastOrderId}
                   </Text>
                 </View>
@@ -441,30 +442,32 @@ export default function StoreScreen() {
             ) : paymentStep === 'processing' ? (
               /* Processing view */
               <View className="items-center py-12 justify-center">
-                <ActivityIndicator size="large" color="#FF9900" style={{ marginBottom: 20 }} />
+                <ActivityIndicator size="large" color="#01875f" style={{ marginBottom: 20 }} />
                 <View className="flex-row items-center gap-2 mb-2">
-                  <Ionicons name="logo-amazon" size={20} color="#FF9900" />
+                  <Ionicons name="logo-google-playstore" size={20} color="#01875f" />
                   <Text className="text-[17px] font-black text-slate-900 dark:text-white tracking-tight">
-                    Amazon In-App Purchasing
+                    Google Play Billing
                   </Text>
                 </View>
                 <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold text-center leading-5 max-w-[85%]">
                   {processingStatus}
                 </Text>
               </View>
-            ) : paymentStep === 'amazon_pay_window' ? (
-              /* ACTUAL AMAZON PAYMENT WINDOW / SHEET */
+            ) : paymentStep === 'google_pay_window' ? (
+              /* ACTUAL GOOGLE PLAY PAYMENT WINDOW / SHEET */
               <View>
-                {/* Amazon Pay Window Header */}
-                <View className="bg-[#232F3E] -mx-6 -mt-7 px-6 py-4 rounded-t-[40px] flex-row items-center justify-between mb-5">
-                  <View className="flex-row items-center gap-2">
-                    <Ionicons name="logo-amazon" size={24} color="#FF9900" />
+                {/* Google Pay Window Header */}
+                <View className="bg-[#1e293b] dark:bg-[#13141f] -mx-6 -mt-7 px-6 py-4 rounded-t-[40px] flex-row items-center justify-between mb-5 border-b border-white/5">
+                  <View className="flex-row items-center gap-2.5">
+                    <View className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 items-center justify-center">
+                      <Ionicons name="logo-google-playstore" size={20} color="#01875f" />
+                    </View>
                     <View>
                       <Text className="text-white font-black text-base tracking-tight">
-                        Amazon Appstore
+                        Google Play
                       </Text>
-                      <Text className="text-slate-300 text-[10px] font-bold">
-                        1-Click In-App Purchase
+                      <Text className="text-slate-400 text-[10px] font-semibold">
+                        1-Tap In-App Purchase
                       </Text>
                     </View>
                   </View>
@@ -500,48 +503,48 @@ export default function StoreScreen() {
                   </View>
                 </View>
 
-                {/* Payment Method Selector (Amazon 1-Click) */}
+                {/* Payment Method Selector (Google Play Balance & Cards) */}
                 <View className="bg-slate-50 dark:bg-[#271318]/30 border border-slate-200/80 dark:border-rose-950/20 rounded-2xl p-4 mb-5">
                   <Text className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-2.5">
                     Payment Method
                   </Text>
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-3">
-                      <View className="w-5 h-5 rounded-full bg-[#FF9900] items-center justify-center">
-                        <View className="w-2 h-2 rounded-full bg-black" />
+                      <View className="w-6 h-6 rounded-full bg-emerald-500/10 items-center justify-center border border-emerald-500/20">
+                        <Ionicons name="logo-google-playstore" size={14} color="#01875f" />
                       </View>
                       <View>
                         <Text className="text-xs font-black text-slate-900 dark:text-white">
-                          Amazon 1-Click Payment
+                          Google Play Balance & Linked Methods
                         </Text>
                         <Text className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                          Amazon Pay Balance / Primary Amazon Card
+                          UPI, Credit/Debit Cards, Netbanking
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="checkmark-circle" size={18} color="#FF9900" />
+                    <Ionicons name="checkmark-circle" size={18} color="#01875f" />
                   </View>
                 </View>
 
-                {/* Amazon Terms Notice */}
+                {/* Google Play Terms Notice */}
                 <Text className="text-[11px] text-slate-400 dark:text-slate-500 text-center leading-4 mb-5">
-                  By placing your order, you agree to Amazon's In-App Purchasing Terms and authorize the charge of ₹{selectedPlan?.price}.00.
+                  By tapping Pay Now, you agree to Google Play's Terms of Service and authorize the charge of ₹{selectedPlan?.price}.00.
                 </Text>
 
                 {/* Pay Now Button */}
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  className="bg-[#FF9900] rounded-2xl py-4 flex-row items-center justify-center shadow-lg active:scale-[0.99]"
+                  className="bg-[#01875f] rounded-2xl py-4 flex-row items-center justify-center shadow-lg active:scale-[0.99]"
                   style={{
                     borderWidth: 1,
-                    borderColor: '#E88B00',
+                    borderColor: '#017351',
                   }}
-                  onPress={executeAmazonPayment}
+                  onPress={executeGooglePayment}
                   disabled={buying}
                 >
-                  <Ionicons name="lock-closed" size={18} color="#111827" style={{ marginRight: 8 }} />
-                  <Text className="text-[#111827] font-black text-[16px] tracking-tight">
-                    Pay Now • ₹{selectedPlan?.price}.00
+                  <Ionicons name="lock-closed" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text className="text-white font-black text-[16px] tracking-tight">
+                    Pay with 1-Tap • ₹{selectedPlan?.price}.00
                   </Text>
                 </TouchableOpacity>
 
@@ -556,14 +559,14 @@ export default function StoreScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              /* Amazon Purchase Details Overview */
+              /* Google Play Purchase Details Overview */
               <View>
                 {/* Modal Header */}
                 <View className="flex-row items-center justify-between mb-5">
                   <View className="flex-row items-center gap-2">
-                    <Ionicons name="logo-amazon" size={24} color="#FF9900" />
+                    <Ionicons name="logo-google-playstore" size={24} color="#01875f" />
                     <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                      Amazon In-App Purchase
+                      Google Play In-App Purchase
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -600,53 +603,53 @@ export default function StoreScreen() {
 
                 {/* Plan Pack Toggles (if multiple plans) */}
                 {selectedBundle?.bundle_plans && selectedBundle.bundle_plans.length > 1 && (
-                  <View className="mb-4">
-                    <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-2.5">
-                      Choose Card Pack
-                    </Text>
-                    <View className="flex-row gap-2.5">
-                      {selectedBundle.bundle_plans.map((plan) => {
-                        const isSelected = selectedPlan?.id === plan.id;
-                        return (
-                          <TouchableOpacity
-                            key={plan.id}
-                            className={`flex-1 flex-row items-center border rounded-2xl px-4 py-3 active:opacity-85 ${
-                              isSelected
-                                ? 'bg-[#FF9900]/10 border-[#FF9900]'
-                                : 'bg-slate-50 dark:bg-[#271318]/30 border-slate-100 dark:border-rose-950/20'
-                            }`}
-                            onPress={() => setSelectedPlan(plan)}
-                          >
-                            <View className={`mr-2 w-4 h-4 rounded-full items-center justify-center ${
-                              isSelected ? 'bg-[#FF9900]' : 'bg-slate-300 dark:bg-[#4A232A]'
-                            }`}>
-                              <Ionicons name="checkmark" size={10} color="black" />
-                            </View>
-                            <View>
-                              <Text className="text-slate-900 dark:text-white font-bold text-[11px]">
-                                {plan.card_count} Cards
-                              </Text>
-                              <Text className="text-[#FF9900] font-extrabold text-[10px] mt-0.5">
-                                ₹{plan.price}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
+                   <View className="mb-4">
+                     <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-extrabold uppercase tracking-widest mb-2.5">
+                       Choose Card Pack
+                     </Text>
+                     <View className="flex-row gap-2.5">
+                       {selectedBundle.bundle_plans.map((plan) => {
+                         const isSelected = selectedPlan?.id === plan.id;
+                         return (
+                           <TouchableOpacity
+                             key={plan.id}
+                             className={`flex-1 flex-row items-center border rounded-2xl px-4 py-3 active:opacity-85 ${
+                               isSelected
+                                 ? 'bg-emerald-500/10 border-[#01875f]'
+                                 : 'bg-slate-50 dark:bg-[#271318]/30 border-slate-100 dark:border-rose-950/20'
+                             }`}
+                             onPress={() => setSelectedPlan(plan)}
+                           >
+                             <View className={`mr-2 w-4 h-4 rounded-full items-center justify-center ${
+                               isSelected ? 'bg-[#01875f]' : 'bg-slate-300 dark:bg-[#4A232A]'
+                             }`}>
+                               <Ionicons name="checkmark" size={10} color="white" />
+                             </View>
+                             <View>
+                               <Text className="text-slate-900 dark:text-white font-bold text-[11px]">
+                                 {plan.card_count} Cards
+                               </Text>
+                               <Text className="text-[#01875f] dark:text-emerald-400 font-extrabold text-[10px] mt-0.5">
+                                 ₹{plan.price}
+                               </Text>
+                             </View>
+                           </TouchableOpacity>
+                         );
+                       })}
+                     </View>
+                   </View>
                 )}
 
-                {/* Amazon Trust & Policy Card */}
+                {/* Google Play Trust & Policy Card */}
                 <View className="bg-slate-50 dark:bg-[#271318]/30 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 mb-6">
                   <View className="flex-row items-center gap-2 mb-1.5">
-                    <Ionicons name="shield-checkmark" size={16} color="#FF9900" />
+                    <Ionicons name="shield-checkmark" size={16} color="#01875f" />
                     <Text className="text-xs font-black text-slate-800 dark:text-white">
-                      Official Amazon Appstore In-App Purchase
+                      Official Google Play In-App Purchase
                     </Text>
                   </View>
                   <Text className="text-slate-500 dark:text-slate-400 text-[11px] font-medium leading-4">
-                    Billed directly through your Amazon Appstore Account with 1-Click. No external UPI, card details, or netbanking required.
+                    Billed directly through your Google Account with 1-Tap. Safe and protected by Google Play Protect with instant activation.
                   </Text>
                   <View className="flex-row items-center gap-1.5 mt-2.5 pt-2 border-t border-slate-200/50 dark:border-rose-950/10">
                     <Ionicons name="sparkles" size={12} color="#10b981" />
@@ -656,26 +659,26 @@ export default function StoreScreen() {
                   </View>
                 </View>
 
-                {/* Open Amazon Pay Window Button */}
+                {/* Open Google Pay Window Button */}
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  className="bg-[#FF9900] rounded-2xl py-4 flex-row items-center justify-center shadow-lg active:scale-[0.99]"
+                  className="bg-[#01875f] rounded-2xl py-4 flex-row items-center justify-center shadow-lg active:scale-[0.99]"
                   style={{
                     borderWidth: 1,
-                    borderColor: '#E88B00',
+                    borderColor: '#017351',
                   }}
-                  onPress={() => setPaymentStep('amazon_pay_window')}
+                  onPress={() => setPaymentStep('google_pay_window')}
                   disabled={buying}
                 >
-                  <Ionicons name="logo-amazon" size={22} color="#111827" style={{ marginRight: 8 }} />
-                  <Text className="text-[#111827] font-black text-[16px] tracking-tight">
-                    Buy with 1-Click • ₹{selectedPlan?.price}
+                  <Ionicons name="logo-google-playstore" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text className="text-white font-black text-[16px] tracking-tight">
+                    Buy with 1-Tap • ₹{selectedPlan?.price}
                   </Text>
                 </TouchableOpacity>
 
                 {/* Security Footer Note */}
                 <Text className="text-center text-slate-400 dark:text-slate-500 text-[10px] font-semibold mt-3">
-                  Secured by Amazon Developer Services & RevenueCat
+                  Secured by Google Play Billing & RevenueCat
                 </Text>
               </View>
             )}

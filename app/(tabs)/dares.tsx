@@ -1010,6 +1010,7 @@ export default function Dares() {
           <Text style={{ color: '#FF296D', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginLeft: 4 }}>SoulShuffle</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          {/* @ts-ignore */}
           <TouchableOpacity onPress={() => router.push('/welcome-guide?from=dares')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="help-circle-outline" size={24} color={textColor} />
           </TouchableOpacity>

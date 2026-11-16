@@ -63,6 +63,10 @@ export const promptGoogleSignIn = async (): Promise<boolean> => {
       offlineAccess: false,
     });
 
+    try {
+      await GoogleSignin.signOut();
+    } catch {}
+
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const userInfo = await GoogleSignin.signIn();
     const idToken = userInfo?.data?.idToken || userInfo?.idToken;

@@ -22,12 +22,13 @@ class RevenueCatService {
         console.log('[RevenueCatService] Skipping init in Expo Go.');
         return;
       }
+      const isAmazon = process.env.EXPO_PUBLIC_IS_AMAZON_BUILD === 'true';
       const amazonKey = process.env.EXPO_PUBLIC_REVENUECAT_AMAZON_API_KEY || process.env.EXPO_PUBLIC_AMAZON_API_KEY || 'amzn_kizSPIvqSmmcOFLROwJQMlzkmQs';
-      const isAmazon = true; // Amazon Appstore Build
+      const googleKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_API_KEY || 'goog_dummy_key';
 
       const apiKey = Platform.OS === 'ios' 
         ? (process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || 'appl_dummy_key')
-        : (isAmazon ? amazonKey : (process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || 'goog_dummy_key'));
+        : (isAmazon ? amazonKey : googleKey);
 
       if (Purchases && typeof Purchases.configure === 'function') {
         Purchases.configure({

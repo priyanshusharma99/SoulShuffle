@@ -29,11 +29,17 @@ const SignupForm = () => {
             const success = await promptGoogleSignIn();
             if (success) {
                 await AsyncStorage.setItem('rememberMe', 'true');
-                // @ts-ignore
-                router.replace('/questionnaire');
+                const hasSeen = await AsyncStorage.getItem('hasSeenWelcomeGuide');
+                if (!hasSeen) {
+                    // @ts-ignore
+                router.replace('/welcome-guide');
+                } else {
+                    router.replace('/(tabs)');
+                }
             }
         } catch (error: any) {
-            setErrorMessage(error?.message || "Google Sign-In failed");
+            const msg = error?.response?.data?.message || error?.message || "Google Sign-In failed";
+            setErrorMessage(msg);
         } finally {
             setIsLoading(false);
         }

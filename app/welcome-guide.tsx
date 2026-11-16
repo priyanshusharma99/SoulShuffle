@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 41, 109, 0.25)',
   },
   photo: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },

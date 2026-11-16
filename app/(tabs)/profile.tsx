@@ -3,10 +3,10 @@ import { useThemeToggle } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect, router } from 'expo-router';
-import { Image, ScrollView, Alert, StatusBar, Text, TextInput, TouchableOpacity, View, ActivityIndicator, DeviceEventEmitter, Modal } from 'react-native';
+import { Image, ScrollView, Alert, StatusBar, Text, TextInput, TouchableOpacity, View, ActivityIndicator, DeviceEventEmitter, Modal, Linking } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolateColor } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getMyProfileCached, updateMyProfile } from '@/services/authService';
+import { getMyProfileCached, updateMyProfile, logout } from '@/services/authService';
 import { getActiveRoom, clearRoomCache, leaveRoom } from '@/services/roomService';
 import GameSocket from '@/services/socketService';
 import * as Clipboard from 'expo-clipboard';
@@ -980,15 +980,22 @@ export default function Profile() {
               <SmoothThemeSwitch isDark={isDark} onToggle={toggleTheme} />
             </TouchableOpacity>
 
-            <TouchableOpacity className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20">
+            <TouchableOpacity 
+              className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20"
+              onPress={() => {
+                Linking.openURL('https://api.mrcoder420.me/privacy').catch(() => {
+                  Alert.alert('Privacy Policy', 'Please visit https://api.mrcoder420.me/privacy to review our privacy terms.');
+                });
+              }}
+            >
               <View className="flex-row items-center flex-1">
-                <Ionicons name="lock-closed" size={18} color={isDark ? "#fff" : "#857169"} />
+                <Ionicons name="shield-checkmark-outline" size={18} color={isDark ? "#fff" : "#857169"} />
                 <View className="ml-4 flex-1">
-                  <Text className="text-sm font-bold text-slate-800 dark:text-white">Privacy & Data</Text>
-                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">Manage what your partner and friends see</Text>
+                  <Text className="text-sm font-bold text-slate-800 dark:text-white">Privacy Policy & Data</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">View terms, safety guidelines & data policy</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+              <Ionicons name="open-outline" size={16} color="#cbd5e1" />
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -1023,6 +1030,7 @@ export default function Profile() {
 
             <TouchableOpacity 
               className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20"
+              // @ts-ignore
               onPress={() => router.push('/welcome-guide?from=settings')}
             >
               <View className="flex-row items-center flex-1">
@@ -1037,12 +1045,80 @@ export default function Profile() {
               <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
             </TouchableOpacity>
 
-            <TouchableOpacity className="flex-row items-center justify-between py-5">
+            <TouchableOpacity className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20">
               <View className="flex-row items-center flex-1">
                 <Ionicons name="people" size={18} color={isDark ? "#fff" : "#857169"} />
                 <View className="ml-4 flex-1">
                   <Text className="text-sm font-bold text-slate-800 dark:text-white">Invite Partner</Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">Resend invite or change partner email</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            </TouchableOpacity>
+
+            {/* Account Deletion (Google Play Compliance Mandate) */}
+            <TouchableOpacity 
+              className="flex-row items-center justify-between py-5 border-b border-slate-100 dark:border-rose-950/20"
+              onPress={() => {
+                Alert.alert(
+                  'Delete Account & Data',
+                  'Are you sure you want to permanently delete your account and all associated couples game data? This action cannot be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete Permanently',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await logout();
+                          Alert.alert('Account Deleted', 'Your account and data have been removed from this device.');
+                          router.replace('/login');
+                        } catch (e) {
+                          await AsyncStorage.clear();
+                          router.replace('/login');
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <View className="flex-row items-center flex-1">
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <View className="ml-4 flex-1">
+                  <Text className="text-sm font-bold text-rose-500">Delete Account</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">Permanently delete your account and all game data</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
+            </TouchableOpacity>
+
+            {/* Sign Out */}
+            <TouchableOpacity 
+              className="flex-row items-center justify-between py-5"
+              onPress={() => {
+                Alert.alert(
+                  'Sign Out',
+                  'Are you sure you want to sign out?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Sign Out',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await logout();
+                        router.replace('/login');
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <View className="flex-row items-center flex-1">
+                <Ionicons name="log-out-outline" size={18} color={isDark ? "#fda4af" : "#e11d48"} />
+                <View className="ml-4 flex-1">
+                  <Text className="text-sm font-bold text-slate-800 dark:text-white">Sign Out</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 pr-4 leading-4">Log out of your current session</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />

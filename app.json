@@ -46,6 +46,10 @@
         "NOTIFICATIONS",
         "POST_NOTIFICATIONS",
         "com.google.android.c2dm.permission.RECEIVE"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "notification": {
@@ -76,7 +80,7 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": false
           },
           "ios": {
             "useFrameworks": "static"
