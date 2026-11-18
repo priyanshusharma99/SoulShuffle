@@ -812,6 +812,7 @@ export default function Dashboard() {
           }
         }
       } else if (
+        payload.eventType === "CHALLENGE_SENT" ||
         payload.eventType === "CARD_RECEIVED" ||
         payload.eventType === "CARD_ACCEPTED" ||
         payload.eventType === "CARD_DEFLECTED" ||

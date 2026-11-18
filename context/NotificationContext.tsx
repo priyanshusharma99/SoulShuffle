@@ -328,7 +328,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                 title: notification.title || 'SoulShuffle',
                 body: notification.body || 'You received a new card update!',
                 data: notification.data || {},
-                sound: Platform.OS === 'ios' ? 'default' : undefined,
+                channelId: 'default',
+                sound: 'default',
                 badge: 1,
               },
               trigger: null, // Display immediately in system tray
