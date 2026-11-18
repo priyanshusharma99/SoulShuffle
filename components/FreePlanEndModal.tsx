@@ -185,7 +185,9 @@ export default function FreePlanEndModal({
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     onClose();
     if (reason !== 'room_30_days') {
-      router.replace('/(tabs)');
+      try {
+        router.navigate('/(tabs)');
+      } catch (e) {}
     }
   };
 
@@ -232,7 +234,9 @@ export default function FreePlanEndModal({
         if (onSuccess) {
           onSuccess();
         } else {
-          router.replace('/(tabs)');
+          try {
+            router.navigate('/(tabs)');
+          } catch (e) {}
         }
       }, 1500);
     } catch (e) {

@@ -24,7 +24,7 @@ import { getCardImage } from '@/utils/cardUtils';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from "expo-clipboard";
-import { router } from "expo-router";
+import { router, useRouter } from "expo-router";
 import {
   createRoom,
   joinRoom,
@@ -81,15 +81,34 @@ class ErrorBoundary extends React.Component<
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-            padding: 20,
+            padding: 24,
+            backgroundColor: '#0e0609',
           }}
         >
-          <Text style={{ color: "red", fontWeight: "bold", fontSize: 18 }}>
-            Dashboard Crashed
+          <Ionicons name="sparkles" size={44} color="#FF296D" style={{ marginBottom: 16 }} />
+          <Text style={{ color: "#FFFFFF", fontWeight: "bold", fontSize: 20, marginBottom: 8, textAlign: 'center' }}>
+            Reconnecting Your Dashboard
           </Text>
-          <Text style={{ color: "black", marginTop: 10 }}>
-            {this.state.error?.toString()}
+          <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", fontSize: 13, marginBottom: 24, lineHeight: 19 }}>
+            Your connection data and streaks are completely safe. Tap below to refresh your view.
           </Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: null })}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: '#FF296D',
+              paddingHorizontal: 28,
+              paddingVertical: 14,
+              borderRadius: 24,
+              shadowColor: '#FF296D',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.4,
+              shadowRadius: 10,
+              elevation: 6,
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>Reload Dashboard</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -200,6 +219,7 @@ let memoryDashboardCurrentUserId: string | null = null;
 let memoryDashboardRoomHistory: any[] = [];
 
 export default function Dashboard() {
+  const router = useRouter();
   const { openSidebar } = useSidebar();
   const { unreadCount, registerPushTokenWithBackend } = useNotifications();
   const userAvatar = useUserAvatar();
@@ -346,8 +366,7 @@ export default function Dashboard() {
         const hasSeenGuide = await AsyncStorage.getItem("hasSeenWelcomeGuide");
         if (!hasSeenGuide) {
           await AsyncStorage.setItem("hasSeenWelcomeGuide", "true");
-          // @ts-ignore
-          router.push("/welcome-guide");
+          navigateTo("/welcome-guide");
         }
 
         const savedExpiry = await AsyncStorage.getItem("lastRoomExpiryType");
@@ -1268,7 +1287,12 @@ export default function Dashboard() {
   };
 
   const navigateTo = (path: string) => {
-    router.push(path as any);
+    try {
+      const cleanPath = path.replace(/^\/\(tabs\)/, '');
+      router.push((cleanPath || '/') as any);
+    } catch (e) {
+      console.warn('[Dashboard] navigateTo notice:', e);
+    }
   };
 
   const formatRoomCodeForDisplay = (code: string | undefined | null) => {
@@ -1692,7 +1716,7 @@ export default function Dashboard() {
                   <View className="absolute bottom-5 left-5 right-5 flex-row justify-between items-end">
                     <TouchableOpacity 
                       style={{ backgroundColor: '#FF3B6E', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24, flexDirection: 'row', alignItems: 'center' }}
-                      onPress={() => router.push('/dares')}
+                      onPress={() => navigateTo('/dares')}
                     >
                       <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14, marginRight: 8 }}>Start Dare</Text>
                       <Ionicons name="arrow-forward" size={16} color="white" />
@@ -1785,8 +1809,7 @@ export default function Dashboard() {
                     )}
 
                     <TouchableOpacity
-                      // @ts-ignore
-                      onPress={() => router.push('/welcome-guide?from=home')}
+                      onPress={() => navigateTo('/welcome-guide?from=home')}
                       style={{
                         marginTop: 14,
                         paddingVertical: 10,
@@ -1884,7 +1907,7 @@ export default function Dashboard() {
                 )}
                 <View className="flex-row items-center justify-between mb-4">
                   <Text className="text-slate-900 dark:text-white text-lg font-bold">Continue Together</Text>
-                  <TouchableOpacity className="flex-row items-center" onPress={() => navigateTo("/(tabs)/dares")}>
+                  <TouchableOpacity className="flex-row items-center" onPress={() => navigateTo("/dares")}>
                     <Text className="text-[#ff2d55] text-[13px] font-bold mr-1">See all</Text>
                     <Ionicons name="chevron-forward" size={12} color="#ff2d55" />
                   </TouchableOpacity>
@@ -1902,7 +1925,7 @@ export default function Dashboard() {
                       <Text className="text-slate-500 dark:text-gray-400 text-[10px] ml-2">{actualPercent}%</Text>
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => navigateTo("/(tabs)/dares")} className="bg-[#111111] dark:bg-[#3b1723] px-4 py-2.5 rounded-full flex-row items-center ml-2">
+                  <TouchableOpacity onPress={() => navigateTo("/dares")} className="bg-[#111111] dark:bg-[#3b1723] px-4 py-2.5 rounded-full flex-row items-center ml-2">
                     <Text className="text-white font-bold text-[12px] mr-1.5">Continue</Text>
                     <Ionicons name="arrow-forward" size={12} color="white" />
                   </TouchableOpacity>
@@ -1930,7 +1953,7 @@ export default function Dashboard() {
                 <View className="mb-8">
                   <View className="flex-row items-center justify-between px-5 mb-4">
                     <Text className="text-slate-900 dark:text-white text-lg font-bold">Recent Moments</Text>
-                    <TouchableOpacity className="flex-row items-center" onPress={() => router.push('/history')}>
+                    <TouchableOpacity className="flex-row items-center" onPress={() => navigateTo('/history')}>
                       <Text className="text-[#ff2d55] text-[13px] font-bold mr-1">See all</Text>
                       <Ionicons name="chevron-forward" size={12} color="#ff2d55" />
                     </TouchableOpacity>
@@ -1974,7 +1997,7 @@ export default function Dashboard() {
                       return (
                       <TouchableOpacity 
                         key={send.id} 
-                        onPress={() => router.push('/history')} 
+                        onPress={() => navigateTo('/history')} 
                         activeOpacity={0.85} 
                         style={{ width: 130, height: 180, borderRadius: 24, overflow: 'hidden' }}
                       >
@@ -2051,7 +2074,7 @@ export default function Dashboard() {
                   <View className="mb-4">
                     <View className="flex-row items-center justify-between px-5 mb-4">
                       <Text className="text-slate-900 dark:text-white text-lg font-bold">Picked for You 💕</Text>
-                      <TouchableOpacity className="flex-row items-center" onPress={() => router.push('/(tabs)/dares')}>
+                      <TouchableOpacity className="flex-row items-center" onPress={() => navigateTo("/dares")}>
                         <Text className="text-[#ff2d55] text-[13px] font-bold mr-1">See all</Text>
                         <Ionicons name="chevron-forward" size={12} color="#ff2d55" />
                       </TouchableOpacity>
@@ -2069,7 +2092,7 @@ export default function Dashboard() {
                             activeOpacity={0.85}
                             onPress={() => {
                               // Navigate to Dares tab, then emit event to open this card
-                              router.push('/(tabs)/dares');
+                              navigateTo("/dares");
                               setTimeout(() => {
                                 DeviceEventEmitter.emit('openDareCard', { cardId: card.id || card.deck_card_id });
                               }, 400);
