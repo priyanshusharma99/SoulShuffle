@@ -1477,21 +1477,43 @@ export default function Dashboard() {
 
                 <View className="flex-row bg-[#f5eeed] dark:bg-rose-950/40 rounded-2xl p-1.5 mb-7">
                   <TouchableOpacity
-                    className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === "create" ? "bg-white dark:bg-[#271318] shadow-sm dark:shadow-none" : ""}`}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      backgroundColor: roomModalTab === "create" ? (isDark ? '#271318' : '#ffffff') : 'transparent',
+                      elevation: roomModalTab === "create" ? 1 : 0,
+                    }}
                     onPress={() => switchRoomModalTab("create")}
                   >
                     <Text
-                      className={`font-bold text-[14px] ${roomModalTab === "create" ? "text-[#af2c3b] dark:text-white" : "text-slate-400 dark:text-slate-500"}`}
+                      style={{
+                        fontWeight: '700',
+                        fontSize: 14,
+                        color: roomModalTab === "create" ? (isDark ? '#ffffff' : '#af2c3b') : (isDark ? '#94a3b8' : '#94a3b8')
+                      }}
                     >
                       Create Room
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    className={`flex-1 py-3.5 rounded-xl items-center ${roomModalTab === "join" ? "bg-white dark:bg-[#271318] shadow-sm dark:shadow-none" : ""}`}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      backgroundColor: roomModalTab === "join" ? (isDark ? '#271318' : '#ffffff') : 'transparent',
+                      elevation: roomModalTab === "join" ? 1 : 0,
+                    }}
                     onPress={() => switchRoomModalTab("join")}
                   >
                     <Text
-                      className={`font-bold text-[14px] ${roomModalTab === "join" ? "text-[#af2c3b] dark:text-white" : "text-slate-400 dark:text-slate-500"}`}
+                      style={{
+                        fontWeight: '700',
+                        fontSize: 14,
+                        color: roomModalTab === "join" ? (isDark ? '#ffffff' : '#af2c3b') : (isDark ? '#94a3b8' : '#94a3b8')
+                      }}
                     >
                       Join Room
                     </Text>
@@ -1615,11 +1637,12 @@ export default function Dashboard() {
                     ) : null}
 
                     <TouchableOpacity
-                      className={`rounded-full py-[18px] items-center shadow-lg flex-row justify-center mt-2 ${
+                      className={`rounded-full py-[18px] items-center flex-row justify-center mt-2 ${
                         joinCode.trim().length >= 5
-                          ? "bg-[#0d5f5a] dark:bg-teal-600 shadow dark:shadow-none"
-                          : "bg-slate-300 dark:bg-slate-800 shadow-sm dark:shadow-none"
+                          ? "bg-[#0d5f5a] dark:bg-teal-600"
+                          : "bg-slate-300 dark:bg-slate-800"
                       }`}
+                      style={{ elevation: 2 }}
                       activeOpacity={0.8}
                       onPress={handleJoinRoom}
                       disabled={actionLoading || joinCode.trim().length < 5}
