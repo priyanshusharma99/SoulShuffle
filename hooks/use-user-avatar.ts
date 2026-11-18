@@ -17,8 +17,12 @@ export function useUserAvatar() {
       const loadAvatar = async () => {
         try {
           const cached = await AsyncStorage.getItem('cachedUserAvatar');
-          if (cached && isMounted) {
-            setAvatar(cached);
+          if (cached && cached !== 'null' && cached !== 'undefined' && cached.trim() !== '' && !cached.includes('dicebear')) {
+            if (isMounted) setAvatar(cached);
+          } else {
+            // Automatically set and persist default avatar so user NEVER sees a blank icon
+            if (isMounted) setAvatar(DEFAULT_AVATAR);
+            AsyncStorage.setItem('cachedUserAvatar', DEFAULT_AVATAR).catch(() => {});
           }
         } catch (err) {
           console.log('Failed to load cached avatar:', err);
@@ -28,10 +32,14 @@ export function useUserAvatar() {
       loadAvatar();
 
       const sub = DeviceEventEmitter.addListener('profile:updated', (data) => {
-        if (data?.avatarUrl && isMounted) {
-          setAvatar(data.avatarUrl);
+        const newUrl = data?.avatarUrl;
+        const valid = (newUrl && newUrl !== 'null' && newUrl !== 'undefined' && newUrl.trim() !== '' && !newUrl.includes('dicebear'))
+          ? newUrl
+          : DEFAULT_AVATAR;
+        if (isMounted) {
+          setAvatar(valid);
           // Also persist to cache in case it wasn't already
-          AsyncStorage.setItem('cachedUserAvatar', data.avatarUrl).catch(() => {});
+          AsyncStorage.setItem('cachedUserAvatar', valid).catch(() => {});
         }
       });
 
@@ -42,5 +50,5 @@ export function useUserAvatar() {
     }, [])
   );
 
-  return avatar;
+  return avatar || DEFAULT_AVATAR;
 }

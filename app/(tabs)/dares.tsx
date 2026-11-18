@@ -12,6 +12,7 @@ import { fetchCards, fetchAvailableDeck, fetchSendLimits, SendLimits } from '@/s
 import { useSidebar } from '@/context/SidebarContext';
 import { fetchStoreBundles, CardBundle } from '@/services/storeService';
 import { useUserAvatar } from '@/hooks/use-user-avatar';
+import { ANIMATED_AVATARS } from '@/constants/avatars';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 import DaresSkeleton from '@/components/DaresSkeleton';
 import FreePlanEndModal from '@/components/FreePlanEndModal';
@@ -1140,13 +1141,9 @@ export default function Dares() {
           <Text style={{ color: '#FF296D', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginLeft: 4 }}>SoulShuffle</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          {/* @ts-ignore */}
-          <TouchableOpacity onPress={() => router.push('/welcome-guide?from=dares')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="help-circle-outline" size={24} color={textColor} />
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image 
-              source={{ uri: userAvatar }} 
+              source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }} 
               style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
             />
           </TouchableOpacity>

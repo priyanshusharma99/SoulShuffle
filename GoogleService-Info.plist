@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>649494442566-020e8g4qi89fbrgip7vvvvns26khppuf.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.649494442566-020e8g4qi89fbrgip7vvvvns26khppuf</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>649494442566-0vk9j59ml0n84pcbci464v0l3or2ktmm.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCJQfciZaYsDR5HzTOO8MNTRVOaZq596so</string>
+	<key>GCM_SENDER_ID</key>
+	<string>649494442566</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.soulshuffle.CoupleGame</string>
+	<key>PROJECT_ID</key>
+	<string>soulshuffle-edcd1</string>
+	<key>STORAGE_BUCKET</key>
+	<string>soulshuffle-edcd1.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:649494442566:ios:77f49f5f6b51f76a7fd047</string>
+</dict>
+</plist>

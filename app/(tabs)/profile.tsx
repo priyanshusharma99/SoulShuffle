@@ -161,7 +161,12 @@ export default function Profile() {
     const loadCachedInitialState = async () => {
       try {
         const cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
-        if (cachedAvatar) setUserAvatar(cachedAvatar);
+        if (cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear')) {
+          setUserAvatar(cachedAvatar);
+        } else {
+          setUserAvatar(ANIMATED_AVATARS[0].url);
+          await AsyncStorage.setItem('cachedUserAvatar', ANIMATED_AVATARS[0].url);
+        }
 
         const cachedName = await AsyncStorage.getItem('cachedUserName');
         if (cachedName) setUserName(cachedName);
@@ -245,7 +250,11 @@ export default function Profile() {
     let myUserId: string | undefined;
     try {
       const cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
-      if (cachedAvatar) setUserAvatar(cachedAvatar);
+      if (cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear')) {
+        setUserAvatar(cachedAvatar);
+      } else {
+        setUserAvatar(ANIMATED_AVATARS[0].url);
+      }
 
       const cachedName = await AsyncStorage.getItem('cachedUserName');
       if (cachedName) setUserName(cachedName);
@@ -256,9 +265,13 @@ export default function Profile() {
         setUserName(profile.firstName);
         await AsyncStorage.setItem('cachedUserName', profile.firstName);
       }
-      if (profile?.avatarUrl) {
+      if (profile?.avatarUrl && profile.avatarUrl !== 'null' && profile.avatarUrl !== 'undefined' && !profile.avatarUrl.includes('dicebear')) {
         setUserAvatar(profile.avatarUrl);
         await AsyncStorage.setItem('cachedUserAvatar', profile.avatarUrl);
+      } else {
+        setUserAvatar(ANIMATED_AVATARS[0].url);
+        await AsyncStorage.setItem('cachedUserAvatar', ANIMATED_AVATARS[0].url);
+        updateMyProfile({ avatar_url: ANIMATED_AVATARS[0].url }).catch(() => {});
       }
     } catch (err) {
       console.log('Profile cache read failed in profile.tsx:', err);
@@ -641,7 +654,7 @@ export default function Profile() {
                   className="bg-slate-900 dark:bg-[#200e14] rounded-2xl overflow-hidden w-36 h-36 border-2 border-rose-400/40 shadow-xl items-center justify-center p-3"
                 >
                   <Image
-                    source={{ uri: userAvatar }}
+                    source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
                     className="w-24 h-24"
                     resizeMode="contain"
                   />

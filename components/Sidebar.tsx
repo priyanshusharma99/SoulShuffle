@@ -242,7 +242,7 @@ export default function Sidebar() {
             {/* Avatar Section */}
             <View style={{ width: 68, height: 68, marginBottom: 12, borderRadius: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ff2d55' }}>
               <Image
-                source={{ uri: userAvatar }}
+                source={{ uri: userAvatar || DEFAULT_AVATAR }}
                 style={{ width: 52, height: 52, borderRadius: 26 }}
                 resizeMode="contain"
               />

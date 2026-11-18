@@ -18,20 +18,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUserAvatar } from '@/hooks/use-user-avatar';
+import { ANIMATED_AVATARS } from '@/constants/avatars';
 import { useSidebar } from '@/context/SidebarContext';
 import {
   fetchStoreBundles,
+  fetchStoreBundleById,
   fetchPurchaseHistory,
   CardBundle,
   BundlePlan,
   PurchaseRecord,
   bypassStorePurchase,
-  getCuratedBundleCards,
 } from '@/services/storeService';
+import { fetchCards, Card } from '@/services/cardService';
 import RevenueCatService from '@/services/revenueCatService';
 import { getActiveRoom } from '@/services/roomService';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 import PurchasedCardsSwipeReveal from '@/components/PurchasedCardsSwipeReveal';
+import BundleCardsSwipeCarousel from '@/components/BundleCardsSwipeCarousel';
 
 const getBundleImage = (bundleName: string, defaultUrl?: string | null) => {
   const name = (bundleName || '').toLowerCase();
@@ -69,6 +72,8 @@ export default function StoreScreen() {
   const [bundles, setBundles] = useState<CardBundle[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [isInRoom, setIsInRoom] = useState(false);
+  const [masterCards, setMasterCards] = useState<Card[]>([]);
+  const [bundlePreviewCards, setBundlePreviewCards] = useState<any[]>([]);
 
   // Purchase Modal State
   const [selectedBundle, setSelectedBundle] = useState<CardBundle | null>(null);
@@ -118,6 +123,56 @@ export default function StoreScreen() {
     },
   ];
 
+  const resolveBundleCards = (bundle: CardBundle | null, pool: any[], targetCount: number = 10) => {
+    if (!bundle) return [];
+    let initial: any[] = [];
+    if ((bundle as any).cards && Array.isArray((bundle as any).cards) && (bundle as any).cards.length > 0) {
+      initial = (bundle as any).cards;
+    } else if (bundle.bundle_cards && Array.isArray(bundle.bundle_cards) && bundle.bundle_cards.length > 0) {
+      initial = bundle.bundle_cards.map((bc: any) => bc.cards || bc).filter(Boolean);
+    }
+
+    const bName = (bundle.name || '').toLowerCase();
+
+    // Match real master cards that match this bundle's theme
+    const matched = (pool || []).filter((c: any) => {
+      const cat = (c.card_categories?.name || c.category_name || '').toLowerCase();
+      const cName = (c.name || '').toLowerCase();
+      const desc = (c.power_description || '').toLowerCase();
+
+      if (bName.includes('spicy') || bName.includes('spark') || bName.includes('night')) {
+        return cat.includes('spicy') || cat.includes('intima') || cat.includes('passion') || desc.includes('kiss') || desc.includes('touch') || desc.includes('tease') || cName.includes('freeze');
+      }
+      if (bName.includes('romance') || bName.includes('romantic') || bName.includes('getaway')) {
+        return cat.includes('romance') || cat.includes('love') || cat.includes('care') || cat.includes('repair') || desc.includes('hug') || desc.includes('date');
+      }
+      return cat.includes('fun') || cat.includes('play') || cat.includes('novelty');
+    });
+
+    const candidates = [...initial, ...matched, ...(pool || [])];
+    const seen = new Set<string>();
+    const unique = candidates.filter((c: any) => {
+      if (!c || !c.name) return false;
+      const key = String(c.id || c.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const chosen = (unique.length > 0 ? unique : pool).slice(0, targetCount);
+
+    return chosen.map((c: any, idx: number) => ({
+      id: c.id || `card-${idx}`,
+      title: c.name || 'Dare Card',
+      description: c.power_description || c.attributes?.description || 'Exclusive dare card from this bundle.',
+      category: (c.card_categories?.name || bundle.name.split(' ')[0] || 'SPICY').toUpperCase(),
+      difficulty: (c.attributes?.difficulty || 'MEDIUM').toUpperCase(),
+      time: c.attributes?.time || 'Tonight',
+      stars: c.attributes?.stars || 3,
+      image: c.image_url ? { uri: c.image_url } : getBundleImage(bundle.name, bundle.image_url),
+    }));
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -125,17 +180,24 @@ export default function StoreScreen() {
       const room = await getActiveRoom();
       setIsInRoom(!!room);
 
-      // Load bundles
-      const fetchedBundles = await fetchStoreBundles();
+      // Load bundles, purchases, and master cards in parallel
+      const [fetchedBundles, fetchedPurchases, fetchedCards] = await Promise.all([
+        fetchStoreBundles().catch(() => []),
+        fetchPurchaseHistory().catch(() => []),
+        fetchCards().catch(() => []),
+      ]);
+
       if (fetchedBundles && fetchedBundles.length > 0) {
         setBundles(fetchedBundles);
       } else {
         setBundles(DUMMY_BUNDLES);
       }
 
-      // Load purchase history
-      const fetchedPurchases = await fetchPurchaseHistory();
-      setPurchases(fetchedPurchases);
+      setPurchases(fetchedPurchases || []);
+
+      if (Array.isArray(fetchedCards) && fetchedCards.length > 0) {
+        setMasterCards(fetchedCards);
+      }
     } catch (e) {
       console.log('Failed to load store data:', e);
       setBundles(DUMMY_BUNDLES);
@@ -173,20 +235,34 @@ export default function StoreScreen() {
     }
     setSelectedBundle(bundle);
     const plans = bundle.bundle_plans || bundle.plans || [];
-    if (plans && plans.length > 0) {
-      setSelectedPlan(plans[0]);
-    } else {
-      setSelectedPlan({
-        id: '880b6215-eb4a-4f89-8beb-532789cd7a3f',
-        bundle_id: bundle.id,
-        price: 10,
-        card_count: 10,
-        store_product_id: 'bundle_spicy_10'
-      } as any);
-    }
+    const activePlan = plans && plans.length > 0 ? plans[0] : {
+      id: '880b6215-eb4a-4f89-8beb-532789cd7a3f',
+      bundle_id: bundle.id,
+      price: 10,
+      card_count: 10,
+      store_product_id: 'bundle_spicy_10'
+    } as any;
+    setSelectedPlan(activePlan);
+
+    // Compute real database cards for carousel
+    const resolved = resolveBundleCards(bundle, masterCards, activePlan.card_count || 10);
+    setBundlePreviewCards(resolved);
+
     setCheckoutVisible(true);
     setPurchaseSuccess(false);
     setPaymentStep('details');
+
+    // Async fetch full bundle details (if available from backend)
+    if (bundle.id && !bundle.id.startsWith('dummy')) {
+      fetchStoreBundleById(bundle.id).then((full) => {
+        if (full && (full as any).cards && (full as any).cards.length > 0) {
+          const fresh = resolveBundleCards(full, masterCards, activePlan.card_count || 10);
+          if (fresh.length > 0) {
+            setBundlePreviewCards(fresh);
+          }
+        }
+      }).catch(() => {});
+    }
   };
 
   const executeGooglePayment = async () => {
@@ -233,7 +309,9 @@ export default function StoreScreen() {
 
       // Prepare unlocked cards list for the reveal popup
       let cardsToReveal: any[] = [];
-      if (selectedBundle?.bundle_cards && selectedBundle.bundle_cards.length > 0) {
+      if (bundlePreviewCards.length > 0) {
+        cardsToReveal = bundlePreviewCards;
+      } else if (selectedBundle?.bundle_cards && selectedBundle.bundle_cards.length > 0) {
         cardsToReveal = selectedBundle.bundle_cards.map((bc: any, idx: number) => ({
           id: bc.cards?.id || bc.card_id || `unlocked-${idx}`,
           title: bc.cards?.name || 'Intimate Dare',
@@ -242,7 +320,7 @@ export default function StoreScreen() {
           image: getBundleImage(selectedBundle.name, selectedBundle.image_url),
         }));
       } else {
-        cardsToReveal = getCuratedBundleCards(selectedBundle.name, selectedPlan.card_count || 10);
+        cardsToReveal = resolveBundleCards(selectedBundle, masterCards, selectedPlan.card_count || 10);
       }
       setUnlockedCards(cardsToReveal);
 
@@ -372,7 +450,7 @@ export default function StoreScreen() {
           </View>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image
-              source={{ uri: userAvatar }}
+              source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
               className="w-10 h-10 rounded-full border border-rose-200 dark:border-rose-950/30"
             />
           </TouchableOpacity>
@@ -380,18 +458,18 @@ export default function StoreScreen() {
 
         {/* Title area */}
         <View className="px-6 mt-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[32px] leading-10 font-black text-slate-900 dark:text-white tracking-tight">
+          <View className="flex-row items-center justify-between flex-wrap gap-2">
+            <Text className="text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
               Card Store 🛒
             </Text>
-            <View className="flex-row items-center bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+            <View className="flex-row items-center bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full self-center">
               <Ionicons name="logo-google-playstore" size={13} color="#01875f" style={{ marginRight: 4 }} />
               <Text className="text-[#01875f] dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
                 Google Play Billing
               </Text>
             </View>
           </View>
-          <Text className="text-slate-500 dark:text-slate-400 font-semibold text-sm mt-2">
+          <Text className="text-slate-500 dark:text-slate-400 font-semibold text-xs mt-1.5">
             Unlock premium themed cards to play together.
           </Text>
         </View>
@@ -423,9 +501,9 @@ export default function StoreScreen() {
         <View className="flex-1 bg-black/70 justify-end">
           <View
             className={`bg-white dark:bg-[#18080b] rounded-t-[40px] px-6 ${
-              purchaseSuccess ? 'pt-4 pb-6' : 'pt-7 pb-10'
+              purchaseSuccess ? 'pt-4 pb-6' : 'pt-5 pb-6'
             } shadow-2xl`}
-            style={{ maxHeight: purchaseSuccess ? '95%' : undefined }}
+            style={{ maxHeight: '95%' }}
           >
             {purchaseSuccess ? (
               /* ✨ Interactive Card Swipe Reveal Modal with Exact dares.tsx Swipe Physics */
@@ -434,7 +512,7 @@ export default function StoreScreen() {
                   cards={
                     unlockedCards.length > 0
                       ? unlockedCards
-                      : getCuratedBundleCards(selectedBundle?.name || 'Spicy', selectedPlan?.card_count || 10)
+                      : (bundlePreviewCards.length > 0 ? bundlePreviewCards : resolveBundleCards(selectedBundle, masterCards, selectedPlan?.card_count || 10))
                   }
                   bundleName={selectedBundle?.name || 'Dare Card Pack'}
                   orderId={lastOrderId}
@@ -577,13 +655,13 @@ export default function StoreScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              /* Google Play Purchase Details Overview */
-              <View>
+              /* Google Play Purchase Details Overview with Exact Dares Page Swiping Carousel */
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
                 {/* Modal Header */}
-                <View className="flex-row items-center justify-between mb-5">
-                  <View className="flex-row items-center gap-2">
-                    <Ionicons name="logo-google-playstore" size={24} color="#01875f" />
-                    <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center gap-2 flex-1 mr-2">
+                    <Ionicons name="logo-google-playstore" size={22} color="#01875f" />
+                    <Text className="text-lg font-black text-slate-900 dark:text-white tracking-tight flex-1" numberOfLines={1}>
                       Google Play In-App Purchase
                     </Text>
                   </View>
@@ -598,25 +676,31 @@ export default function StoreScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Bundle Item Card */}
-                <View className="bg-slate-50 dark:bg-[#271318]/50 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 flex-row items-center mb-5">
-                  <View className="w-14 h-14 rounded-xl overflow-hidden mr-4">
-                    <Image
-                      source={getBundleImage(selectedBundle?.name || '', selectedBundle?.image_url)}
-                      className="w-full h-full object-cover"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-black text-slate-900 dark:text-white" numberOfLines={1}>
+                {/* Bundle Header & Price */}
+                <View className="flex-row items-center justify-between mb-2 px-1">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-lg font-black text-slate-900 dark:text-white" numberOfLines={1}>
                       {selectedBundle?.name}
                     </Text>
-                    <Text className="text-slate-400 dark:text-slate-500 font-bold text-[11px] uppercase tracking-wider mt-0.5">
-                      {selectedPlan?.card_count} Premium Cards
+                    <Text className="text-slate-400 dark:text-slate-500 font-bold text-[11px] uppercase tracking-wider">
+                      {selectedPlan?.card_count} Curated Dare Cards Included
                     </Text>
                   </View>
-                  <Text className="text-xl font-black text-[#e11d48] dark:text-rose-400">
+                  <Text className="text-2xl font-black text-[#FF296D] dark:text-rose-400">
                     ₹{selectedPlan?.price}
                   </Text>
+                </View>
+
+                {/* 🎴 Exact Dares Page Swiping Card Stack Carousel */}
+                <View className="mb-2">
+                  <BundleCardsSwipeCarousel
+                    cards={
+                      bundlePreviewCards.length > 0
+                        ? bundlePreviewCards
+                        : resolveBundleCards(selectedBundle, masterCards, selectedPlan?.card_count || 10)
+                    }
+                    isDark={isDark}
+                  />
                 </View>
 
                 {/* Plan Pack Toggles (if multiple plans) */}
@@ -659,7 +743,7 @@ export default function StoreScreen() {
                 )}
 
                 {/* Google Play Trust & Policy Card */}
-                <View className="bg-slate-50 dark:bg-[#271318]/30 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 mb-6">
+                <View className="bg-slate-50 dark:bg-[#271318]/30 border border-slate-100 dark:border-rose-950/20 rounded-2xl p-4 mb-5">
                   <View className="flex-row items-center gap-2 mb-1.5">
                     <Ionicons name="shield-checkmark" size={16} color="#01875f" />
                     <Text className="text-xs font-black text-slate-800 dark:text-white">
@@ -698,7 +782,7 @@ export default function StoreScreen() {
                 <Text className="text-center text-slate-400 dark:text-slate-500 text-[10px] font-semibold mt-3">
                   Secured by Google Play Billing & RevenueCat
                 </Text>
-              </View>
+              </ScrollView>
             )}
           </View>
         </View>

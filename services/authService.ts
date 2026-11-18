@@ -1,5 +1,6 @@
 import api, { setMemoryToken } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ANIMATED_AVATARS } from '@/constants/avatars';
 
 // Helper to save tokens and profile cache atomically in a single batch
 export const saveTokens = async (
@@ -26,9 +27,12 @@ export const saveTokens = async (
   if (extra?.userId) {
     entries.push(['cachedUserId', extra.userId]);
   }
-  if (extra?.avatarUrl) {
-    entries.push(['cachedUserAvatar', extra.avatarUrl]);
-  }
+  
+  // Guarantee a valid animated default avatar is set if none exists
+  const resolvedAvatar = (extra?.avatarUrl && extra.avatarUrl !== 'null' && extra.avatarUrl !== 'undefined' && extra.avatarUrl.trim() !== '' && !extra.avatarUrl.includes('dicebear'))
+    ? extra.avatarUrl
+    : ANIMATED_AVATARS[0].url;
+  entries.push(['cachedUserAvatar', resolvedAvatar]);
 
   // Atomic batch write to storage (1 disk cycle instead of 6+)
   await AsyncStorage.multiSet(entries);
@@ -173,10 +177,15 @@ export const updateMyProfile = async (updateData: { first_name?: string; last_na
 };
 
 // ── GET PROFILE WITH CACHING ─────────────────────────────
-export const getMyProfileCached = async (): Promise<{ id: string | null; firstName: string; avatarUrl: string | null }> => {
+export const getMyProfileCached = async (): Promise<{ id: string | null; firstName: string; avatarUrl: string }> => {
   const cachedName = await AsyncStorage.getItem('cachedUserName');
   const cachedId = await AsyncStorage.getItem('cachedUserId');
-  const cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
+  let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
+
+  if (!cachedAvatar || cachedAvatar === 'null' || cachedAvatar === 'undefined' || cachedAvatar.trim() === '' || cachedAvatar.includes('dicebear')) {
+    cachedAvatar = ANIMATED_AVATARS[0].url;
+    await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
+  }
 
   if (cachedName && cachedName !== 'User' && cachedId) {
     return { id: cachedId, firstName: cachedName, avatarUrl: cachedAvatar };
@@ -186,12 +195,17 @@ export const getMyProfileCached = async (): Promise<{ id: string | null; firstNa
     const profile = await getMyProfile();
     const firstName = profile?.first_name || profile?.users?.name?.split(' ')[0] || (cachedName && cachedName !== 'User' ? cachedName : '');
     const userId = profile?.id || cachedId || null;
-    const avatarUrl = profile?.avatar_url || cachedAvatar || null;
+    let avatarUrl = profile?.avatar_url || cachedAvatar;
+    if (!avatarUrl || avatarUrl === 'null' || avatarUrl === 'undefined' || avatarUrl.trim() === '' || avatarUrl.includes('dicebear')) {
+      avatarUrl = ANIMATED_AVATARS[0].url;
+      updateMyProfile({ avatar_url: avatarUrl }).catch(() => {});
+    }
+
     if (firstName && firstName !== 'User') await AsyncStorage.setItem('cachedUserName', firstName);
     if (userId) await AsyncStorage.setItem('cachedUserId', userId);
-    if (avatarUrl) await AsyncStorage.setItem('cachedUserAvatar', avatarUrl);
+    await AsyncStorage.setItem('cachedUserAvatar', avatarUrl);
     return { id: userId, firstName, avatarUrl };
   } catch {
-    return { id: cachedId ?? null, firstName: cachedName && cachedName !== 'User' ? cachedName : '', avatarUrl: cachedAvatar ?? null };
+    return { id: cachedId ?? null, firstName: cachedName && cachedName !== 'User' ? cachedName : '', avatarUrl: cachedAvatar };
   }
 };
