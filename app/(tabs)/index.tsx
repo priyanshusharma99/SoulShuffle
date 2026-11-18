@@ -51,6 +51,7 @@ import { getMyProfile, getMyProfileCached } from "@/services/authService";
 import { useUserAvatar } from "@/hooks/use-user-avatar";
 import { ANIMATED_AVATARS } from "@/constants/avatars";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "@/services/api";
 
 import CountdownTimer from "@/components/CountdownTimer";
 import { HomeRoomSkeleton, HomePickedSkeleton, HomeMomentsSkeleton } from "@/components/HomeSkeleton";
@@ -188,6 +189,7 @@ const calculateStreak = (sends: any[]) => {
 
 
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+import FreePlanEndModal from '@/components/FreePlanEndModal';
 
 // Module-level in-memory cache for instant zero-latency tab switching
 let memoryDashboardRoom: Room | null = null;
@@ -227,6 +229,10 @@ export default function Dashboard() {
   // ── Modals & UI State ──
   const [penaltyGiftModalVisible, setPenaltyGiftModalVisible] = useState(false);
   const [penaltyGiftCard, setPenaltyGiftCard] = useState<any>(null);
+  const [showPlansModal, setShowPlansModal] = useState(false);
+  const [plansModalReason, setPlansModalReason] = useState<'limit_reached' | 'plan_expired'>('plan_expired');
+  const [lastRoomExpiryType, setLastRoomExpiryType] = useState<string | null>(null);
+  const hasAutoPromptedPlanModalRef = useRef(false);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(memoryDashboardCurrentUserId);
   const [userName, setUserName] = useState(memoryDashboardUserName);
@@ -343,6 +349,9 @@ export default function Dashboard() {
           // @ts-ignore
           router.push("/welcome-guide");
         }
+
+        const savedExpiry = await AsyncStorage.getItem("lastRoomExpiryType");
+        if (savedExpiry) setLastRoomExpiryType(savedExpiry);
 
       } catch (e) {
         console.log("Failed to load cached profile or room in dashboard:", e);
@@ -624,13 +633,18 @@ export default function Dashboard() {
       if (room) {
         await AsyncStorage.setItem("cachedActiveRoom", JSON.stringify(room));
         await AsyncStorage.setItem("activeRoomId", room.id);
+        if (room.expiry_type) {
+          await AsyncStorage.setItem("lastRoomExpiryType", room.expiry_type);
+          await AsyncStorage.setItem("lastRoomId", room.id);
+          setLastRoomExpiryType(room.expiry_type);
+        }
 
         // ⚡ Fire ALL data fetches in parallel — no more waiting one-by-one
         const [sendsResult, deckResult, historyResult, deflectResult] = await Promise.allSettled([
           fetchCardSends(room.id),
           fetchAvailableDeck(room.id),
           fetchRoomHistory(room.id),
-          room.expiry_type === "30_DAYS" ? fetchDeflectCards(room.id) : Promise.resolve(null),
+          fetchDeflectCards(room.id),
         ]);
 
         if (sendsResult.status === "fulfilled") {
@@ -655,7 +669,7 @@ export default function Dashboard() {
           AsyncStorage.setItem("cachedRoomHistory", JSON.stringify(history)).catch(() => {});
         }
 
-        if (room.expiry_type === "30_DAYS" && deflectResult.status === "fulfilled" && deflectResult.value) {
+        if (deflectResult.status === "fulfilled" && deflectResult.value) {
           setDeflectCardsCount(deflectResult.value?.total || 0);
           setDeflectCards(deflectResult.value?.deflect_cards || []);
         } else {
@@ -673,6 +687,9 @@ export default function Dashboard() {
         setCardSends([]);
         setDeflectCardsCount(0);
         setDeflectCards([]);
+        AsyncStorage.getItem("lastRoomExpiryType").then(ext => {
+          if (ext) setLastRoomExpiryType(ext);
+        }).catch(() => {});
       }
     } catch (err) {
       // silently handle
@@ -901,13 +918,41 @@ export default function Dashboard() {
     try {
       setActionLoading(true);
       setActionError("");
+
+      // Gate 30-Day Room behind VIP Membership
+      if (selectedExpiry === '30_DAYS') {
+        const localVip = await AsyncStorage.getItem('@soulshuffle_vip_active');
+        if (localVip !== 'true') {
+          let hasVipBackend = false;
+          try {
+            const statusRes = await api.get('/store/purchase/status');
+            if (statusRes.data?.data?.is_vip) {
+              hasVipBackend = true;
+              await AsyncStorage.setItem('@soulshuffle_vip_active', 'true');
+            }
+          } catch {}
+
+          if (!hasVipBackend) {
+            setActionLoading(false);
+            setPlansModalReason('room_30_days' as any);
+            setShowPlansModal(true);
+            return;
+          }
+        }
+      }
+
       const room = await createRoom(selectedExpiry);
       setActiveRoom(room);
       setRoomModalVisible(false);
     } catch (err: any) {
-      setActionError(
-        err.response?.data?.message || err.message || "Failed to create room",
-      );
+      if (err.status === 402 || err.code === 'PAYMENT_REQUIRED' || err.response?.status === 402) {
+        setPlansModalReason('room_30_days' as any);
+        setShowPlansModal(true);
+      } else {
+        setActionError(
+          err.response?.data?.message || err.message || "Failed to create room",
+        );
+      }
     } finally {
       setActionLoading(false);
     }
@@ -1246,9 +1291,9 @@ export default function Dashboard() {
   const expiryLabel = (type: ExpiryType) => {
     switch (type) {
       case "7_DAYS":
-        return "7 Days";
+        return "7 Days (Free)";
       case "30_DAYS":
-        return "30 Days";
+        return "30 Days 👑 (VIP ₹99)";
     }
   };
 
@@ -1289,9 +1334,61 @@ export default function Dashboard() {
   
 
   const roomDuration = activeRoom?.expiry_type === '30_DAYS' ? 30 : 7;
-  const currentDay = Math.min(roomDuration, calculateStreak(cardSends));
+  const currentDay = Math.min(roomDuration, currentStreak);
   const actualPercent = Math.min(100, Math.round((currentDay / roomDuration) * 100));
   const progressPercent = Math.max(2, actualPercent); // so the bar is visible
+
+  const is7DayRoom = activeRoom?.expiry_type === '7_DAYS';
+  const daysElapsed = activeRoom?.created_at
+    ? (Date.now() - new Date(activeRoom.created_at).getTime()) / (1000 * 60 * 60 * 24)
+    : 0;
+  const isTimeExpired = activeRoom?.expires_at
+    ? new Date(activeRoom.expires_at).getTime() <= Date.now()
+    : false;
+  const is7DayRoomEnded = is7DayRoom && (daysElapsed >= 6 || currentStreak >= 7 || currentStreak > 6 || activeRoom?.status === 'EXPIRED' || activeRoom?.status === 'COMPLETED' || isTimeExpired);
+
+  // ── Auto-prompt Plan Modal when 7-day room ends / after 6 days ──
+  useEffect(() => {
+    const check7DayRoomEnd = async () => {
+      if (hasAutoPromptedPlanModalRef.current) return;
+
+      // Case 1: Active 7-day room that has reached/passed 6 days or ended
+      if (is7DayRoomEnded && activeRoom?.id) {
+        const alreadyPrompted = await AsyncStorage.getItem(`hasPrompted7DayEnd_${activeRoom.id}`);
+        if (!alreadyPrompted) {
+          hasAutoPromptedPlanModalRef.current = true;
+          await AsyncStorage.setItem(`hasPrompted7DayEnd_${activeRoom.id}`, "true");
+          setPlansModalReason('plan_expired');
+          setShowPlansModal(true);
+        }
+      }
+
+      // Case 2: Room is now null (expired on server), but previous was 7_DAYS
+      if (!activeRoom) {
+        const savedExpiry = await AsyncStorage.getItem("lastRoomExpiryType");
+        const savedRoomId = await AsyncStorage.getItem("lastRoomId");
+        if (savedExpiry === '7_DAYS' && savedRoomId) {
+          const alreadyPrompted = await AsyncStorage.getItem(`hasPrompted7DayEnd_${savedRoomId}`);
+          if (!alreadyPrompted) {
+            hasAutoPromptedPlanModalRef.current = true;
+            await AsyncStorage.setItem(`hasPrompted7DayEnd_${savedRoomId}`, "true");
+            setPlansModalReason('plan_expired');
+            setShowPlansModal(true);
+          }
+        }
+      }
+    };
+
+    check7DayRoomEnd();
+  }, [is7DayRoomEnded, activeRoom?.id, activeRoom]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('app:showPlansModal', (payload?: any) => {
+      if (payload?.reason) setPlansModalReason(payload.reason);
+      setShowPlansModal(true);
+    });
+    return () => sub.remove();
+  }, []);
 
 
   return (
@@ -1543,10 +1640,6 @@ export default function Dashboard() {
             <Text style={{ color: '#ff2d55', fontWeight: '900', fontSize: 20, letterSpacing: -0.5, marginLeft: 4 }}>SoulShuffle</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            {/* @ts-ignore */}
-            <TouchableOpacity onPress={() => router.push("/welcome-guide?from=home")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="help-circle-outline" size={24} color={isDark ? "#ffffff" : "#0e0609"} />
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigateTo("/notifications")} style={{ position: "relative" }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="notifications-outline" size={24} color={isDark ? "#ffffff" : "#0e0609"} />
               {unreadCount > 0 && (
@@ -1654,6 +1747,42 @@ export default function Dashboard() {
                       </TouchableOpacity>
                     </View>
 
+                    {lastRoomExpiryType === '7_DAYS' && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setPlansModalReason('plan_expired');
+                          setShowPlansModal(true);
+                        }}
+                        activeOpacity={0.85}
+                        style={{
+                          marginTop: 14,
+                          padding: 12,
+                          borderRadius: 16,
+                          backgroundColor: isDark ? 'rgba(255,41,109,0.12)' : '#FFE4E6',
+                          borderWidth: 1.5,
+                          borderColor: '#FF296D',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <Ionicons name="sparkles" size={18} color="#FF296D" />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? '#FFF' : '#111' }}>
+                              7-Day Free Plan Ended
+                            </Text>
+                            <Text style={{ fontSize: 10, fontWeight: '500', color: isDark ? '#FFA3BF' : '#be123c' }}>
+                              Upgrade to Pro to unlock unlimited cards
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={{ backgroundColor: '#FF296D', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                          <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>View Plans</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                       // @ts-ignore
                       onPress={() => router.push('/welcome-guide?from=home')}
@@ -1714,7 +1843,44 @@ export default function Dashboard() {
                   </View>
                 </View>
               ) : (
-                            <View className="px-5 mb-8">
+                <View className="px-5 mb-8">
+                {is7DayRoomEnded && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setPlansModalReason('plan_expired');
+                      setShowPlansModal(true);
+                    }}
+                    activeOpacity={0.85}
+                    style={{
+                      marginBottom: 14,
+                      padding: 14,
+                      borderRadius: 18,
+                      backgroundColor: isDark ? 'rgba(255,41,109,0.12)' : '#FFE4E6',
+                      borderWidth: 1.5,
+                      borderColor: '#FF296D',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#FF296D', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="sparkles" size={17} color="#FFF" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? '#FFF' : '#111' }}>
+                          7-Day Free Plan Ended
+                        </Text>
+                        <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#FFA3BF' : '#be123c', marginTop: 1 }}>
+                          Upgrade to Pro to unlock unlimited connection
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ backgroundColor: '#FF296D', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+                      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>View Plans</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
                 <View className="flex-row items-center justify-between mb-4">
                   <Text className="text-slate-900 dark:text-white text-lg font-bold">Continue Together</Text>
                   <TouchableOpacity className="flex-row items-center" onPress={() => navigateTo("/(tabs)/dares")}>
@@ -2042,8 +2208,8 @@ export default function Dashboard() {
                   </TouchableOpacity>
                 )}
 
-                {/* Deflect (Only 30_DAYS and only if not yet accepted) */}
-                {activeRoom?.expiry_type === "30_DAYS" && !(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
+                {/* Deflect (only if not yet accepted) */}
+                {!(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
                   <TouchableOpacity 
                     style={{ backgroundColor: isDark ? '#210d11' : '#FFF7ED', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#3d1620' : '#FFEDD5' }}
                     onPress={() => {
@@ -2061,7 +2227,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Deflect Dropdown (if toggled) */}
-                {showDeflectDropdown && activeRoom?.expiry_type === "30_DAYS" && deflectCards.length > 0 && !(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
+                {showDeflectDropdown && deflectCards.length > 0 && !(selectedReceivedCard?.status === 'IN_PROGRESS' || selectedReceivedCard?.status === 'ACCEPTED') && (
                   <View style={{ backgroundColor: isDark ? '#2a1217' : '#F9FAFB', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#4a1b26' : '#E5E7EB' }}>
                     <Text style={{ color: isDark ? '#ff8fab' : '#C2410C', fontSize: 12, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>SELECT A CARD TO SEND BACK</Text>
                     {deflectCards.map((dc: any) => (
@@ -2160,6 +2326,25 @@ export default function Dashboard() {
           </View>
         </Modal>
         <CustomAlertModal config={customAlert} onClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))} />
+        <FreePlanEndModal
+          visible={showPlansModal}
+          onClose={() => setShowPlansModal(false)}
+          onSuccess={async () => {
+            if (selectedExpiry === '30_DAYS' && roomModalVisible) {
+              try {
+                setActionLoading(true);
+                const room = await createRoom('30_DAYS');
+                setActiveRoom(room);
+                setRoomModalVisible(false);
+              } catch (err: any) {
+                setActionError(err.response?.data?.message || err.message || 'Failed to create 30-day room');
+              } finally {
+                setActionLoading(false);
+              }
+            }
+          }}
+          reason={plansModalReason}
+        />
         </SafeAreaView>
       </ErrorBoundary>
     );

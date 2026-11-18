@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -14,14 +14,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import RevenueCatService from '@/services/revenueCatService';
 import { bypassStorePurchase } from '@/services/storeService';
+import api from '@/services/api';
 
 export interface FreePlanEndModalProps {
   visible: boolean;
   onClose: () => void;
-  reason?: 'limit_reached' | 'plan_expired' | 'manual';
+  onSuccess?: () => void;
+  reason?: 'limit_reached' | 'plan_expired' | 'manual' | 'room_30_days';
 }
 
 interface PlanOption {
@@ -32,25 +35,19 @@ interface PlanOption {
   badge?: string;
   savings?: string;
   productId: string;
+  enabled?: boolean;
 }
 
-const PLANS: PlanOption[] = [
-  {
-    id: 'annual',
-    name: 'Annual Pass',
-    price: '$3.99',
-    period: '/ month',
-    badge: 'BEST VALUE',
-    savings: 'Save 50% ($47.99/yr)',
-    productId: 'soulshuffle_pro_annual',
-  },
+const DEFAULT_PLANS: PlanOption[] = [
   {
     id: 'monthly',
-    name: 'Monthly Pass',
-    price: '$7.99',
+    name: 'Monthly VIP Pass',
+    price: '₹99',
     period: '/ month',
-    savings: 'Billed monthly, cancel anytime',
-    productId: 'soulshuffle_pro_monthly',
+    badge: 'MOST POPULAR',
+    savings: 'Full 30-Day Room Access & All 700+ Cards',
+    productId: 'soulshuffle_monthly_99',
+    enabled: true,
   },
 ];
 
@@ -61,64 +58,117 @@ interface FeatureRow {
   highlight?: boolean;
 }
 
-const COMPARISON_FEATURES: FeatureRow[] = [
+const DEFAULT_COMPARISON_FEATURES: FeatureRow[] = [
   {
-    name: 'Daily Dare Cards',
-    free: '3 / day',
-    paid: 'Unlimited',
+    name: 'Intimacy Room Duration',
+    free: '7 Days Only',
+    paid: 'Full 30 Days Active 💖',
+    highlight: true,
+  },
+  {
+    name: 'Dare Cards Deck',
+    free: 'Starter Pool (40 Cards)',
+    paid: 'Full Library (700+ Cards) 🔥',
     highlight: true,
   },
   {
     name: 'Spice Spectrum',
-    free: 'Mild only',
-    paid: 'Mild to Wild 🔥',
+    free: 'Level 1 & 2 Only',
+    paid: 'All Levels (Wild & Steamy 🔥)',
     highlight: true,
   },
   {
     name: 'Deflect Shields',
     free: '1 / week',
-    paid: 'Unlimited 🛡️',
+    paid: 'Unlimited / 5 per Game 🛡️',
+    highlight: false,
   },
   {
     name: 'Timed Deadlines',
-    free: '24h only',
-    paid: '12h, 24h, 48h, 7d',
-  },
-  {
-    name: 'Decision Coin Toss',
-    free: 'Basic Heads/Tails',
-    paid: 'Custom Choices 🪙',
-  },
-  {
-    name: 'Themed Decks',
-    free: 'Starter Only',
-    paid: 'All 10+ Packs Unlocked',
-    highlight: true,
+    free: 'Fixed 24 Hours',
+    paid: 'Flexible (12h, 24h, 48h, 7d)',
+    highlight: false,
   },
   {
     name: 'Streak Protection',
     free: 'None',
-    paid: 'Never Lose Streaks',
+    paid: 'Never Lose Streaks ✨',
+    highlight: false,
   },
   {
     name: 'Sync & Performance',
     free: 'Standard',
-    paid: 'Priority Real-Time ⚡',
+    paid: 'VIP Priority ⚡',
+    highlight: false,
   },
 ];
 
 export default function FreePlanEndModal({
   visible,
   onClose,
+  onSuccess,
   reason = 'limit_reached',
 }: FreePlanEndModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { height: SCREEN_HEIGHT } = useWindowDimensions();
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('annual');
+  const [plans, setPlans] = useState<PlanOption[]>(DEFAULT_PLANS);
+  const [features, setFeatures] = useState<FeatureRow[]>(DEFAULT_COMPARISON_FEATURES);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('monthly');
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+
+  // Fetch dynamic plans & comparison features from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDynamicPlans = async () => {
+      try {
+        const res = await api.get('/plans/membership');
+        if (isMounted && res.data?.data) {
+          const { active_plans, features: fetchedFeatures } = res.data.data;
+          
+          if (active_plans && Object.keys(active_plans).length > 0) {
+            const planList: PlanOption[] = Object.values(active_plans).map((p: any) => ({
+              id: p.id || 'monthly',
+              name: p.name || 'Monthly VIP Pass',
+              price: p.price || `₹${p.price_numeric || 99}`,
+              period: p.period || '/ month',
+              badge: p.badge,
+              savings: p.savings || 'Full 30-Day Room Access & All 700+ Cards',
+              productId: p.productId || 'soulshuffle_monthly_99',
+              enabled: p.enabled !== false,
+            }));
+
+            // Strictly filter out disabled plans (NEVER show yearly if disabled)
+            const visiblePlans = planList.filter((p) => p.enabled);
+            if (visiblePlans.length > 0) {
+              setPlans(visiblePlans);
+              // If current selection is not in visible plans, default to first available
+              if (!visiblePlans.some((p) => p.id === selectedPlanId)) {
+                setSelectedPlanId(visiblePlans[0].id);
+              }
+            }
+          }
+
+          if (Array.isArray(fetchedFeatures) && fetchedFeatures.length > 0) {
+            setFeatures(fetchedFeatures);
+          }
+        }
+      } catch (e) {
+        // Fallback to DEFAULT_PLANS (₹99 monthly)
+        console.log('[FreePlanEndModal] Using default plans fallback:', e);
+      }
+    };
+
+    if (visible) {
+      fetchDynamicPlans();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -129,33 +179,48 @@ export default function FreePlanEndModal({
   };
 
   /**
-   * CRITICAL USER REQUIREMENT:
-   * "If user closes pop-up, show Home page"
+   * Dismiss Handler
    */
   const handleDismissToHome = () => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     onClose();
-    // Redirect user directly to the Home tab
-    router.replace('/(tabs)');
+    if (reason !== 'room_30_days') {
+      router.replace('/(tabs)');
+    }
   };
 
   const handlePurchase = async () => {
-    const plan = PLANS.find((p) => p.id === selectedPlanId);
+    const plan = plans.find((p) => p.id === selectedPlanId) || plans[0];
     if (!plan) return;
 
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setIsProcessing(true);
 
     try {
-      // Attempt RevenueCat in-app purchase
+      // 1. Attempt RevenueCat in-app purchase
       const res = await RevenueCatService.purchaseProduct(plan.productId).catch(() => null);
       if (res && res.cancelled) {
         setIsProcessing(false);
         return;
       }
 
-      // Fallback sandbox / bypass purchase
-      await bypassStorePurchase('e6b13560-04f3-45b7-988b-1900e12369d0', '880b6215-eb4a-4f89-8beb-532789cd7a3f').catch(() => {});
+      // 2. Activate membership on backend
+      try {
+        await api.post('/store/purchase/membership', {
+          planId: plan.id,
+          productId: plan.productId,
+          paymentSource: Platform.OS === 'android' ? 'google_play' : 'apple_store',
+        });
+      } catch (backendErr) {
+        console.log('[FreePlanEndModal] Backend membership activation notice:', backendErr);
+      }
+
+      // 3. Mark VIP active locally
+      await AsyncStorage.setItem('@soulshuffle_vip_active', 'true');
+      await AsyncStorage.setItem(
+        '@soulshuffle_vip_expires_at',
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      );
 
       setPurchaseSuccess(true);
       triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
@@ -164,7 +229,11 @@ export default function FreePlanEndModal({
         setIsProcessing(false);
         setPurchaseSuccess(false);
         onClose();
-        router.replace('/(tabs)');
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.replace('/(tabs)');
+        }
       }, 1500);
     } catch (e) {
       console.log('Purchase error:', e);
@@ -203,7 +272,11 @@ export default function FreePlanEndModal({
             <View style={styles.badgeRow}>
               <View style={styles.glowingDot} />
               <Text style={styles.badgeText}>
-                {reason === 'plan_expired' ? 'FREE PLAN EXPIRED' : 'DAILY FREE LIMIT REACHED'}
+                {reason === 'room_30_days'
+                  ? '30-DAY VIP ROOM ACCESS'
+                  : reason === 'plan_expired'
+                  ? 'FREE PLAN EXPIRED'
+                  : 'DAILY FREE LIMIT REACHED'}
               </Text>
             </View>
 
@@ -229,10 +302,18 @@ export default function FreePlanEndModal({
                 <Ionicons name="sparkles" size={24} color="#FF296D" />
               </View>
               <Text style={[styles.mainTitle, { color: textColor }]}>
-                Upgrade to <Text style={{ color: '#FF296D' }}>SoulShuffle Pro</Text>
+                {reason === 'room_30_days' ? (
+                  <>Unlock <Text style={{ color: '#FF296D' }}>30-Day Couple Room</Text></>
+                ) : (
+                  <>Upgrade to <Text style={{ color: '#FF296D' }}>SoulShuffle Pro</Text></>
+                )}
               </Text>
               <Text style={[styles.mainSubtitle, { color: subTextColor }]}>
-                Your free daily dare limit has ended. Keep the intimacy burning with unlimited challenges & custom decks.
+                {reason === 'room_30_days'
+                  ? 'A 30-day intimate connection journey requires a VIP Pass. Keep the spark burning for a full month with unlimited dares & custom decks.'
+                  : reason === 'plan_expired'
+                  ? 'Your 7-day free connection journey has ended. Keep the intimacy burning with unlimited challenges & custom decks.'
+                  : 'Your free daily dare limit has ended. Keep the intimacy burning with unlimited challenges & custom decks.'}
               </Text>
             </View>
 
@@ -259,12 +340,12 @@ export default function FreePlanEndModal({
                 </View>
               </View>
 
-              {/* Table Body Rows */}
-              {COMPARISON_FEATURES.map((row, idx) => {
+              {/* Table Body Rows (Dynamic from DB / Admin Panel) */}
+              {features.map((row, idx) => {
                 const isEven = idx % 2 === 0;
                 return (
                   <View
-                    key={row.name}
+                    key={row.name || idx}
                     style={[
                       styles.tableRow,
                       {
@@ -316,7 +397,7 @@ export default function FreePlanEndModal({
             </Text>
 
             <View style={styles.planOptionsContainer}>
-              {PLANS.map((plan) => {
+              {plans.map((plan) => {
                 const isSelected = selectedPlanId === plan.id;
                 return (
                   <TouchableOpacity
@@ -413,7 +494,7 @@ export default function FreePlanEndModal({
                   <>
                     <Ionicons name="sparkles" size={17} color="#FFFFFF" />
                     <Text style={styles.upgradeBtnText}>
-                      Upgrade to Pro Now
+                      {reason === 'room_30_days' ? 'Unlock 30-Day Room (₹99)' : 'Upgrade to Pro Now'}
                     </Text>
                     <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                   </>
@@ -428,7 +509,7 @@ export default function FreePlanEndModal({
               style={styles.backHomeBtn}
             >
               <Text style={[styles.backHomeText, { color: subTextColor }]}>
-                Continue with Free Plan (Return to Home)
+                {reason === 'room_30_days' ? 'Stay with 7-Day Free Room' : 'Continue with Free Plan (Return to Home)'}
               </Text>
             </TouchableOpacity>
           </View>
