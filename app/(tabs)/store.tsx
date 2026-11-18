@@ -26,10 +26,12 @@ import {
   BundlePlan,
   PurchaseRecord,
   bypassStorePurchase,
+  getCuratedBundleCards,
 } from '@/services/storeService';
 import RevenueCatService from '@/services/revenueCatService';
 import { getActiveRoom } from '@/services/roomService';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+import PurchasedCardsSwipeReveal from '@/components/PurchasedCardsSwipeReveal';
 
 const getBundleImage = (bundleName: string, defaultUrl?: string | null) => {
   const name = (bundleName || '').toLowerCase();
@@ -74,6 +76,7 @@ export default function StoreScreen() {
   const [checkoutVisible, setCheckoutVisible] = useState(false);
   const [buying, setBuying] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+  const [unlockedCards, setUnlockedCards] = useState<any[]>([]);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
   // Step state: 'details' -> 'google_pay_window' -> 'processing'
@@ -228,12 +231,40 @@ export default function StoreScreen() {
 
       await bypassStorePurchase(targetBundleId, targetPlanId);
 
+      // Prepare unlocked cards list for the reveal popup
+      let cardsToReveal: any[] = [];
+      if (selectedBundle?.bundle_cards && selectedBundle.bundle_cards.length > 0) {
+        cardsToReveal = selectedBundle.bundle_cards.map((bc: any, idx: number) => ({
+          id: bc.cards?.id || bc.card_id || `unlocked-${idx}`,
+          title: bc.cards?.name || 'Intimate Dare',
+          description: bc.cards?.power_description || 'A special dare unlocked from your card bundle.',
+          category: (bc.cards?.card_categories?.name || selectedBundle.name.split(' ')[0]).toUpperCase(),
+          image: getBundleImage(selectedBundle.name, selectedBundle.image_url),
+        }));
+      } else {
+        cardsToReveal = getCuratedBundleCards(selectedBundle.name, selectedPlan.card_count || 10);
+      }
+      setUnlockedCards(cardsToReveal);
+
+      // Save unlocked bundle details for Dares screen & NEW badges
+      const newlyUnlocked = {
+        bundleId: targetBundleId,
+        bundleName: selectedBundle.name,
+        bundleImage: selectedBundle.image_url,
+        bundleCategory: (selectedBundle.name || 'SPICY').split(' ')[0].toUpperCase(),
+        cardCount: selectedPlan.card_count || cardsToReveal.length,
+        cardIds: cardsToReveal.map(c => String(c.id)),
+        cards: cardsToReveal,
+        unlockedAt: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem('@soulshuffle_last_unlocked_pack', JSON.stringify(newlyUnlocked));
+
       // Invalidate local caches so Dares tab fetches fresh deck
       await AsyncStorage.removeItem('@soulshuffle_dares_cache');
       await AsyncStorage.removeItem('cachedDeckCards');
 
       // Notify Dares screen and Dashboard to reload deck immediately
-      DeviceEventEmitter.emit('app:refreshDares');
+      DeviceEventEmitter.emit('app:refreshDares', { newlyUnlockedPack: newlyUnlocked });
       DeviceEventEmitter.emit('app:refreshDashboard');
 
       const randDigits = () => Math.floor(1000 + Math.random() * 9000);
@@ -389,56 +420,43 @@ export default function StoreScreen() {
           }
         }}
       >
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-white dark:bg-[#18080b] rounded-t-[40px] px-6 pt-7 pb-10 shadow-2xl">
+        <View className="flex-1 bg-black/70 justify-end">
+          <View
+            className={`bg-white dark:bg-[#18080b] rounded-t-[40px] px-6 ${
+              purchaseSuccess ? 'pt-4 pb-6' : 'pt-7 pb-10'
+            } shadow-2xl`}
+            style={{ maxHeight: purchaseSuccess ? '95%' : undefined }}
+          >
             {purchaseSuccess ? (
-              /* Success view with direct button to Dares Deck */
-              <View className="items-center py-8">
-                <View className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/40 rounded-full items-center justify-center mb-5">
-                  <Ionicons name="checkmark-circle" size={54} color="#10b981" />
-                </View>
-                <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Payment Successful!
-                </Text>
-                <View className="flex-row items-center gap-1.5 mt-2 bg-slate-100 dark:bg-[#271318] px-3 py-1 rounded-full">
-                  <Ionicons name="logo-google-playstore" size={12} color="#01875f" />
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold font-mono">
-                    Order ID: {lastOrderId}
-                  </Text>
-                </View>
-                <Text className="text-slate-600 dark:text-slate-300 text-sm font-semibold mt-3 text-center leading-5 max-w-[85%]">
-                  {selectedPlan?.card_count} new cards have been added to your playable deck!
-                </Text>
-
-                {/* Primary Button: View Cards in Deck */}
-                <TouchableOpacity
-                  activeOpacity={0.88}
-                  className="bg-[#e11d48] w-full rounded-2xl py-4 flex-row items-center justify-center mt-7 shadow-lg active:scale-[0.99]"
-                  onPress={() => {
+              /* ✨ Interactive Card Swipe Reveal Modal with Exact dares.tsx Swipe Physics */
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+                <PurchasedCardsSwipeReveal
+                  cards={
+                    unlockedCards.length > 0
+                      ? unlockedCards
+                      : getCuratedBundleCards(selectedBundle?.name || 'Spicy', selectedPlan?.card_count || 10)
+                  }
+                  bundleName={selectedBundle?.name || 'Dare Card Pack'}
+                  orderId={lastOrderId}
+                  isDark={isDark}
+                  onPlayNow={() => {
                     setCheckoutVisible(false);
                     setPaymentStep('details');
-                    router.push('/dares');
+                    const targetId =
+                      selectedBundle?.id.startsWith('dummy') || selectedBundle?.id.startsWith('mock')
+                        ? 'e6b13560-04f3-45b7-988b-1900e12369d0'
+                        : selectedBundle?.id;
+                    router.push({
+                      pathname: '/dares',
+                      params: { selectedCategory: `PACK_${targetId}` },
+                    });
                   }}
-                >
-                  <Ionicons name="albums-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                  <Text className="text-white font-black text-[16px] tracking-tight">
-                    View Cards in Dares Deck
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Secondary Button: Done */}
-                <TouchableOpacity
-                  className="w-full py-3 items-center mt-2"
-                  onPress={() => {
+                  onClose={() => {
                     setCheckoutVisible(false);
                     setPaymentStep('details');
                   }}
-                >
-                  <Text className="text-slate-400 dark:text-slate-500 font-bold text-sm">
-                    Close
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                />
+              </ScrollView>
             ) : paymentStep === 'processing' ? (
               /* Processing view */
               <View className="items-center py-12 justify-center">

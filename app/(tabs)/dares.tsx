@@ -4,7 +4,7 @@ import { View, Easing, Text, ScrollView, Dimensions, Image, TouchableOpacity, Pl
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getActiveRoom, sendChallenge, ChallengePayload, Room, SentChallenge } from '@/services/roomService';
 import GameSocket from '@/services/socketService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -144,8 +144,9 @@ const getCatColor = (cat: string) => {
   return '#3A86FF';
 };
 
-const CarouselItemUI = ({ item, isDark, onSelectDare }: any) => {
+const CarouselItemUI = ({ item, isDark, onSelectDare, isNewCard }: any) => {
   const categoryColor = getCatColor(item.category);
+  const showNew = isNewCard || item.isNew;
   return (
     <TouchableOpacity
       activeOpacity={0.95}
@@ -153,11 +154,11 @@ const CarouselItemUI = ({ item, isDark, onSelectDare }: any) => {
       className="w-full h-full rounded-[28px] overflow-hidden shadow-2xl"
       style={{ 
         backgroundColor: isDark ? '#1C1721' : '#FFFFFF',
-        borderWidth: 1,
-        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-        shadowColor: isDark ? '#000' : '#FF296D', 
+        borderWidth: showNew ? 2 : 1,
+        borderColor: showNew ? '#FF296D' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'),
+        shadowColor: showNew ? '#FF296D' : (isDark ? '#000' : '#FF296D'), 
         shadowOffset: { width: 0, height: 10 }, 
-        shadowOpacity: isDark ? 0.6 : 0.1, 
+        shadowOpacity: showNew ? 0.75 : (isDark ? 0.6 : 0.1), 
         shadowRadius: 20 
       }}
     >
@@ -165,12 +166,35 @@ const CarouselItemUI = ({ item, isDark, onSelectDare }: any) => {
       
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '70%', backgroundColor: 'rgba(0,0,0,0.5)' }} />
 
-      <View className="absolute top-5 left-5 right-5 flex-row justify-between items-start">
+      <View className="absolute top-5 left-5 right-5 flex-row justify-between items-center">
         {item.category ? (
           <View className="px-3 py-1.5 rounded-full" style={{ backgroundColor: categoryColor }}>
              <Text className="text-white text-[11px] font-black tracking-widest uppercase">{item.category}</Text>
           </View>
         ) : <View />}
+
+        {showNew && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FF296D',
+              paddingHorizontal: 9,
+              paddingVertical: 4.5,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.4)',
+              shadowColor: '#FF296D',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.9,
+              shadowRadius: 8,
+              elevation: 5,
+            }}
+          >
+            <Ionicons name="sparkles" size={11} color="#FFF" style={{ marginRight: 3.5 }} />
+            <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900', letterSpacing: 0.6 }}>NEW</Text>
+          </View>
+        )}
       </View>
 
       <View className="absolute bottom-6 left-5 right-5">
@@ -191,7 +215,7 @@ const CarouselItemUI = ({ item, isDark, onSelectDare }: any) => {
   );
 };
 
-const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
+const DareCarousel = ({ data, isDark, onSelectDare, newCardIds }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   
   const { Animated, PanResponder } = require('react-native');
@@ -389,7 +413,12 @@ const DareCarousel = ({ data, isDark, onSelectDare }: any) => {
           ]}
           {...panHandlers}
         >
-          <CarouselItemUI item={item} isDark={isDark} onSelectDare={onSelectDare} />
+          <CarouselItemUI
+            item={item}
+            isDark={isDark}
+            onSelectDare={onSelectDare}
+            isNewCard={newCardIds?.has(String(item.id)) || item.isNew}
+          />
         </Animated.View>
       );
     }).reverse();
@@ -449,6 +478,8 @@ export default function Dares() {
   const { openSidebar } = useSidebar();
   const userAvatar = useUserAvatar();
   const router = useRouter();
+  const params = useLocalSearchParams<{ selectedCategory?: string }>();
+  const [unlockedPack, setUnlockedPack] = useState<any>(null);
   const [selectedDare, setSelectedDare] = useState<Dare | null>(null);
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = React.useRef(false);
@@ -468,6 +499,45 @@ export default function Dares() {
     }
   }, [selectedDare]);
 
+  // Load last unlocked pack from storage on mount
+  useEffect(() => {
+    AsyncStorage.getItem('@soulshuffle_last_unlocked_pack').then(val => {
+      if (val) {
+        try {
+          const parsed = JSON.parse(val);
+          setUnlockedPack(parsed);
+        } catch (e) {}
+      }
+    });
+  }, []);
+
+  // Listen for refresh events (including new purchases from store)
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('app:refreshDares', (eventData?: any) => {
+      loadDares(true, true);
+      if (eventData?.newlyUnlockedPack) {
+        setUnlockedPack(eventData.newlyUnlockedPack);
+        setSelectedCategory(`PACK_${eventData.newlyUnlockedPack.bundleId}`);
+      } else {
+        AsyncStorage.getItem('@soulshuffle_last_unlocked_pack').then(val => {
+          if (val) {
+            try {
+              setUnlockedPack(JSON.parse(val));
+            } catch (e) {}
+          }
+        });
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Sync route params when navigating directly to a category (e.g. from store)
+  useEffect(() => {
+    if (params?.selectedCategory) {
+      setSelectedCategory(params.selectedCategory);
+    }
+  }, [params?.selectedCategory]);
+
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('app:showPlansModal', () => {
       setShowPlansModal(true);
@@ -482,6 +552,33 @@ export default function Dares() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const searchBarAnim = React.useRef(new RNAnimated.Value(0)).current;
+
+  // New card IDs set for displaying the "✨ NEW" badge
+  const newCardIds = useMemo(() => {
+    if (!unlockedPack?.cardIds) return new Set<string>();
+    return new Set<string>(unlockedPack.cardIds.map((id: any) => String(id)));
+  }, [unlockedPack]);
+
+  // Merge newly unlocked bundle cards into the visible deck
+  const mergedDares = useMemo(() => {
+    if (!unlockedPack?.cards || unlockedPack.cards.length === 0) return dares;
+    const existingIds = new Set(dares.map((d: any) => String(d.id)));
+    const additional = unlockedPack.cards
+      .filter((c: any) => !existingIds.has(String(c.id)))
+      .map((c: any) => ({
+        id: c.id,
+        title: c.title || c.name,
+        category: c.category || 'SPICY',
+        difficulty: c.difficulty || 'HIGH',
+        stars: c.stars || 3,
+        time: c.time || 'Tonight',
+        image: c.image || require('@/assets/images/bundle_spicy.jpg'),
+        description: c.description || c.power_description,
+        isPaid: true,
+        isNew: true,
+      }));
+    return [...additional, ...dares];
+  }, [dares, unlockedPack]);
 
   const toggleSearch = () => {
     if (searchOpen) {
@@ -512,13 +609,44 @@ export default function Dares() {
   }, [searchQuery]);
 
   const filteredDares = useMemo(() => {
-    const base = selectedCategory === 'ALL' ? dares : dares.filter((d: any) => d.category === selectedCategory);
+    let base = mergedDares;
+    if (selectedCategory.startsWith('PACK_')) {
+      const packBundleId = selectedCategory.replace('PACK_', '');
+      if (unlockedPack && (unlockedPack.bundleId === packBundleId || unlockedPack.bundle_id === packBundleId)) {
+        const packCardIds = new Set((unlockedPack.cardIds || []).map(String));
+        const matched = mergedDares.filter((d: any) => packCardIds.has(String(d.id)));
+        base = matched.length > 0 ? matched : (unlockedPack.cards || []);
+      }
+    } else if (selectedCategory !== 'ALL') {
+      base = mergedDares.filter((d: any) => d.category === selectedCategory);
+    }
     return getFilteredDares(base);
-  }, [dares, selectedCategory, getFilteredDares]);
+  }, [mergedDares, selectedCategory, getFilteredDares, unlockedPack]);
 
   const dynamicCategories = useMemo(() => {
+    const list: any[] = [];
+
+    // Feature 3: Dedicated Category Pill for Purchased Bundle
+    if (unlockedPack) {
+      const packId = `PACK_${unlockedPack.bundleId}`;
+      const count = unlockedPack.cards?.length || unlockedPack.cardCount || 10;
+      let packImage = require('@/assets/images/bundle_spicy.jpg');
+      const nameLower = (unlockedPack.bundleName || '').toLowerCase();
+      if (nameLower.includes('romanc')) packImage = require('@/assets/images/bundle_romantic.jpg');
+      else if (nameLower.includes('cozy')) packImage = require('@/assets/images/bundle_cozy.jpg');
+
+      list.push({
+        id: packId,
+        label: `✨ ${unlockedPack.bundleName}`,
+        count,
+        color: '#FF296D',
+        image: unlockedPack.bundleImage ? { uri: unlockedPack.bundleImage } : packImage,
+        isPurchasedPack: true,
+      });
+    }
+
     const catMap = new Map();
-    dares.forEach((d: any) => {
+    mergedDares.forEach((d: any) => {
       const c = d.category || 'GENERAL';
       const catImg = d.categoryImage || (typeof d.image === 'object' && d.image?.uri ? d.image.uri : null);
       if (!catMap.has(c)) {
@@ -531,7 +659,7 @@ export default function Dares() {
       }
     });
 
-    return Array.from(catMap.values()).map(cat => {
+    const regularCategories = Array.from(catMap.values()).map(cat => {
       let color = '#3A86FF';
       let defaultImage: any = require('@/assets/images/bundle_cozy.jpg');
       const nameLower = cat.id.toLowerCase();
@@ -556,10 +684,12 @@ export default function Dares() {
         image
       };
     });
-  }, [dares, categoryDbImages]);
+
+    return [...list, ...regularCategories];
+  }, [mergedDares, unlockedPack, categoryDbImages]);
 
   useEffect(() => {
-    if (selectedCategory !== 'ALL' && dynamicCategories.length > 0 && !dynamicCategories.some(c => c.id === selectedCategory)) {
+    if (selectedCategory !== 'ALL' && !selectedCategory.startsWith('PACK_') && dynamicCategories.length > 0 && !dynamicCategories.some(c => c.id === selectedCategory)) {
       setSelectedCategory('ALL');
     }
   }, [selectedCategory, dynamicCategories]);
@@ -1062,9 +1192,11 @@ export default function Dares() {
             <Text style={{ color: subTextColor, fontSize: 15, fontWeight: '500', letterSpacing: -0.2 }}>
               {searchQuery.trim()
                 ? `Showing results for "${searchQuery}"`
-                : selectedCategory === 'ALL'
-                  ? "Step out, connect, and make memories 💖"
-                  : `${selectedCategory.charAt(0) + selectedCategory.slice(1).toLowerCase()} dares to explore`}
+                : selectedCategory.startsWith('PACK_')
+                  ? `Showing newly unlocked cards from ${unlockedPack?.bundleName || 'Purchased Pack'} 🔥`
+                  : selectedCategory === 'ALL'
+                    ? "Step out, connect, and make memories 💖"
+                    : `${selectedCategory.charAt(0) + selectedCategory.slice(1).toLowerCase()} dares to explore`}
             </Text>
 
             {/* Animated Search Bar - always mounted, animation drives visibility */}
@@ -1147,6 +1279,7 @@ export default function Dares() {
                 data={filteredDares} 
                 isDark={isDark} 
                 onSelectDare={setSelectedDare} 
+                newCardIds={newCardIds}
               />
           </View>
 
@@ -1175,11 +1308,11 @@ export default function Dares() {
                       overflow: 'hidden',
                       marginRight: 14,
                       alignItems: 'center',
-                      borderWidth: 2,
-                      borderColor: selectedCategory === cat.id ? cat.color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                      shadowColor: cat.color,
+                      borderWidth: cat.isPurchasedPack ? 2.5 : 2,
+                      borderColor: selectedCategory === cat.id ? cat.color : cat.isPurchasedPack ? '#FF296D' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                      shadowColor: cat.isPurchasedPack ? '#FF296D' : cat.color,
                       shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: selectedCategory === cat.id ? 0.4 : (isDark ? 0.3 : 0.05),
+                      shadowOpacity: selectedCategory === cat.id ? 0.4 : cat.isPurchasedPack ? 0.35 : (isDark ? 0.3 : 0.05),
                       shadowRadius: 10,
                       elevation: 3
                     }}
@@ -1187,6 +1320,28 @@ export default function Dares() {
                     <View style={{ width: '100%', height: '65%', position: 'relative' }}>
                         <Image source={cat.image} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                         
+                        {/* Purchased Pack Badge */}
+                        {cat.isPurchasedPack && (
+                          <View style={{ 
+                            position: 'absolute', 
+                            top: 6, 
+                            left: 6, 
+                            backgroundColor: '#FF296D', 
+                            borderRadius: 8, 
+                            paddingHorizontal: 6,
+                            paddingVertical: 2.5,
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.4)',
+                            shadowColor: '#FF296D',
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.8,
+                            shadowRadius: 4,
+                            elevation: 4
+                          }}>
+                            <Text style={{ color: 'white', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.4 }}>NEW PACK</Text>
+                          </View>
+                        )}
+
                         {/* Top Right Card Count Badge */}
                         <View style={{ 
                           position: 'absolute', 
