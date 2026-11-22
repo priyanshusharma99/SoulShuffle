@@ -1900,9 +1900,10 @@ export default function Dashboard() {
                       style={{
                         marginTop: 16,
                         marginBottom: 6,
-                        marginHorizontal: 8,
+                        marginHorizontal: 4,
                         paddingVertical: 12,
-                        paddingHorizontal: 22,
+                        paddingLeft: 34,
+                        paddingRight: 34,
                         borderRadius: 9999,
                         backgroundColor: isDark ? 'rgba(255,41,109,0.08)' : 'rgba(255,41,109,0.05)',
                         flexDirection: 'row',
@@ -1917,8 +1918,8 @@ export default function Dashboard() {
                       <Text 
                         numberOfLines={1}
                         adjustsFontSizeToFit
-                        minimumFontScale={0.85}
-                        style={{ fontSize: 12, fontWeight: '700', color: '#FF296D', textAlign: 'center' }}
+                        minimumFontScale={0.8}
+                        style={{ fontSize: 12, fontWeight: '700', color: '#FF296D', textAlign: 'center', flexShrink: 1 }}
                       >
                         New to SoulShuffle? View the Welcome Guide
                       </Text>

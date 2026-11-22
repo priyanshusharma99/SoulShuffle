@@ -61,6 +61,8 @@ let memoryCachedRoomInfo: {
   partnerName: string;
   partnerAvatar: string | null;
   status: string;
+  expiry_type?: string;
+  planDuration?: number;
 } | null = null;
 let memoryCachedUserId: string | null = null;
 
@@ -291,8 +293,12 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
       return s === 'COMPLETED' || s === 'CONFIRMED' || s === 'COMPLETED_BY_RECEIVER';
     }).length;
 
-    const total = staticTotal > 0 ? staticTotal : deduped.length;
-    let completionRate = total > 0 ? Math.round((daresMastered / total) * 100) : 0;
+    // Room plan target: 30 days for 30-day plan, 7 days for 7-day plan
+    const planTotal = staticTotal > 0
+      ? staticTotal
+      : (memoryCachedRoomInfo?.planDuration || (memoryCachedRoomInfo?.expiry_type === '7_DAYS' ? 7 : 30));
+
+    let completionRate = planTotal > 0 ? Math.round((daresMastered / planTotal) * 100) : 0;
     if (completionRate > 100) completionRate = 100;
 
     let currentStreak = 0;
@@ -319,7 +325,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
       }
     }
 
-    const statsObj = { completionRate, currentStreak, daresMastered, totalCards: total };
+    const statsObj = { completionRate, currentStreak, daresMastered, totalCards: planTotal };
     memoryCachedStats = statsObj;
     setStats(statsObj);
   };
@@ -444,12 +450,19 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
         ? (activeRoom.partner_avatar || activeRoom.partner?.avatar_url)
         : (activeRoom.host_avatar || activeRoom.host?.avatar_url);
 
+      const is30Days = activeRoom?.expiry_type === '30_DAYS' ||
+        (activeRoom?.expires_at && activeRoom?.created_at &&
+         (new Date(activeRoom.expires_at).getTime() - new Date(activeRoom.created_at).getTime()) / (1000 * 60 * 60 * 24) > 14);
+      const planDuration = is30Days ? 30 : (activeRoom?.expiry_type === '7_DAYS' ? 7 : 30);
+
       const currentRoomData = {
         id: activeRoomId,
         code: activeRoom.code || 'GAME',
         partnerName: partnerName || 'Partner',
         partnerAvatar: partnerAvatar || null,
         status: activeRoom.status || 'ACTIVE',
+        expiry_type: is30Days ? '30_DAYS' : (activeRoom?.expiry_type === '7_DAYS' ? '7_DAYS' : '30_DAYS'),
+        planDuration,
       };
 
       memoryCachedRoomInfo = currentRoomData;
@@ -526,7 +539,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
             if (merged.length > 0) {
               memoryCachedHistory = merged;
               setChallengeHistory(merged);
-              calculateStats(merged, 0);
+              calculateStats(merged, planDuration);
               setLoading(false);
             }
           }
@@ -569,7 +582,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
           const merged = deduplicateChallenges([...enrichedServer, ...prevHistory]);
 
           memoryCachedHistory = merged;
-          calculateStats(merged, 0);
+          calculateStats(merged, planDuration);
           AsyncStorage.setItem(cacheKey, JSON.stringify(merged)).catch(() => {});
           AsyncStorage.setItem('cachedRoomHistory', JSON.stringify(merged)).catch(() => {});
           return merged;
@@ -618,7 +631,8 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
           }
           const deduped = deduplicateChallenges(updatedList);
           memoryCachedHistory = deduped;
-          calculateStats(deduped, 0);
+          const targetPlan = memoryCachedRoomInfo?.planDuration || 30;
+          calculateStats(deduped, targetPlan);
           return deduped;
         });
       }
@@ -1151,16 +1165,21 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
             <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 2 }}>
               Completion
             </Text>
-            <Text style={{ fontSize: 24, fontWeight: '900', color: isDark ? '#FFFFFF' : '#111827', letterSpacing: -0.5 }}>
-              {stats.completionRate}%
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: isDark ? '#FFFFFF' : '#111827', letterSpacing: -0.5 }}>
+                {stats.completionRate}%
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                ({stats.daresMastered}/{stats.totalCards || (activeRoomInfo?.planDuration || 30)})
+              </Text>
+            </View>
             <View
               style={{
                 width: '100%',
                 height: 6,
                 backgroundColor: isDark ? '#26131D' : '#F1E5E8',
                 borderRadius: 999,
-                marginTop: 10,
+                marginTop: 8,
                 overflow: 'hidden',
               }}
             >
@@ -1173,6 +1192,9 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
                 }}
               />
             </View>
+            <Text style={{ fontSize: 9.5, fontWeight: '700', color: isDark ? '#FDA4AF' : '#E11D48', marginTop: 5 }}>
+              {(stats.totalCards || activeRoomInfo?.planDuration) === 7 ? '7-Day Plan' : '30-Day Plan'}
+            </Text>
           </View>
 
           {/* 2. Active Streak */}
