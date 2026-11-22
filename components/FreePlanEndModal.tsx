@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -211,9 +212,17 @@ export default function FreePlanEndModal({
         setIsProcessing(false);
         if (res.alreadySubscribed) {
           Alert.alert(
-            'Already Subscribed',
-            'Your Google Play account is already subscribed to SoulShuffle Monthly VIP.\n\nGoogle Play does not charge twice while an auto-renewing subscription is active. To make a fresh purchase, cancel your existing subscription in Google Play Store > Payments & Subscriptions.',
-            [{ text: 'OK' }]
+            'Already Subscribed in Google Play',
+            'Your device\'s Google Play account already has an active Monthly VIP subscription.\n\nGoogle Play policy blocks purchasing the same subscription twice on one Google account. To start fresh, cancel your active subscription in Google Play.',
+            [
+              { text: 'Close', style: 'cancel' },
+              {
+                text: 'Manage in Play Store',
+                onPress: () => {
+                  Linking.openURL('https://play.google.com/store/account/subscriptions').catch(() => {});
+                },
+              },
+            ]
           );
         } else if (res.error && !res.fallback) {
           Alert.alert('Payment Error', res.error, [{ text: 'OK' }]);
