@@ -546,7 +546,65 @@ export default function Profile() {
     }
   };
 
+  const executeLeaveRoom = async () => {
+    try {
+      const currentRoomId = activeRoom?.id;
+      const currentRoomCode = activeRoom?.code;
+
+      if (currentRoomCode) {
+        GameSocket.leaveRoom(currentRoomCode);
+      }
+
+      setActiveRoom(null);
+      setRoomActiveTimeText('No Active Room');
+
+      // Clear local VIP flags
+      await AsyncStorage.removeItem('@soulshuffle_vip_active');
+      await AsyncStorage.removeItem('@soulshuffle_vip_expires_at');
+      
+      if (currentRoomId) {
+        await clearRoomCache(currentRoomId);
+        await leaveRoom(currentRoomId);
+      } else {
+        await clearRoomCache();
+      }
+
+      setTimeout(() => {
+        DeviceEventEmitter.emit("app:refreshDashboard");
+      }, 500);
+    } catch (error) {
+      console.error("API Error during leaveRoom:", error);
+    }
+  };
+
   const handleLeaveRoom = () => {
+    const is30DaysRoom = activeRoom?.expiry_type === '30_DAYS';
+
+    if (is30DaysRoom) {
+      setCustomAlert({
+        visible: true,
+        title: "⚠️ Leave 30-Day VIP Room?",
+        message: "Warning: This is a paid 30-Day VIP Room. If you disconnect or leave this room, your 30-Day Room Pass will end immediately and cannot be restored or refunded.\n\nTo start a new 30-day room later, you will have to pay ₹99 again.\n\nAre you sure you want to proceed?",
+        cancelText: "Keep My Room",
+        confirmText: "I Understand, Continue",
+        onCancel: () => {},
+        onConfirm: () => {
+          setTimeout(() => {
+            setCustomAlert({
+              visible: true,
+              title: "Final Confirmation: End Pass?",
+              message: "This action is permanent and non-refundable. Your couple room will close and your ₹99 pass will be permanently cancelled.\n\nDisconnect now?",
+              cancelText: "Cancel & Stay",
+              confirmText: "Yes, Permanently Leave",
+              onCancel: () => {},
+              onConfirm: executeLeaveRoom,
+            });
+          }, 350);
+        },
+      });
+      return;
+    }
+
     setCustomAlert({
       visible: true,
       title: "Leave Room",
@@ -554,32 +612,7 @@ export default function Profile() {
       cancelText: "Cancel",
       confirmText: "Leave",
       onCancel: () => {},
-      onConfirm: async () => {
-        try {
-          const currentRoomId = activeRoom?.id;
-              const currentRoomCode = activeRoom?.code;
-
-              if (currentRoomCode) {
-                GameSocket.leaveRoom(currentRoomCode);
-              }
-
-              setActiveRoom(null);
-              setRoomActiveTimeText('No Active Room');
-              
-              if (currentRoomId) {
-                await clearRoomCache(currentRoomId);
-                await leaveRoom(currentRoomId);
-              } else {
-                await clearRoomCache();
-              }
-
-              setTimeout(() => {
-                DeviceEventEmitter.emit("app:refreshDashboard");
-              }, 500);
-            } catch (error) {
-              console.error("API Error during leaveRoom:", error);
-            }
-      }
+      onConfirm: executeLeaveRoom,
     });
   };
 
