@@ -195,6 +195,28 @@ class RevenueCatService {
         console.log('[RevenueCatService] User cancelled purchase');
         return { cancelled: true };
       }
+
+      const errStr = (e?.message || e?.code || '').toString().toLowerCase();
+      // Handle Google Play "Already Owned" (when testing multiple users on the same device)
+      if (
+        errStr.includes('already') ||
+        errStr.includes('owned') ||
+        e?.code === 'ProductAlreadyPurchasedError' ||
+        e?.code === '7'
+      ) {
+        console.log('[RevenueCatService] Item already owned on this Google Play account. Restoring...');
+        try {
+          let Purchases: any = null;
+          try {
+            Purchases = require('react-native-purchases').default || require('react-native-purchases');
+          } catch (_) {}
+          if (Purchases && typeof Purchases.restorePurchases === 'function') {
+            await Purchases.restorePurchases();
+          }
+        } catch (rErr) {}
+        return { success: true, alreadyOwned: true };
+      }
+
       console.warn('[RevenueCatService] Native purchase skipped/fallback:', e?.message || e);
       // Return safe fallback so backend activation can proceed during testing
       return { fallback: true, error: e?.message || 'Store billing error' };
