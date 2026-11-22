@@ -2054,7 +2054,21 @@ export default function Dashboard() {
                     </TouchableOpacity>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-                    {cardSends.slice(0, 5).map((send: any) => {
+                    {cardSends
+                      .filter((send: any, index: number, self: any[]) => {
+                        const sendCardId = send.card_id || send.card?.id || send.cards?.id;
+                        const sendTitle = send.title || send.card?.title || send.cards?.name;
+                        return index === self.findIndex((s: any) => {
+                          const sCardId = s.card_id || s.card?.id || s.cards?.id;
+                          const sTitle = s.title || s.card?.title || s.cards?.name;
+                          if (send.id && s.id && send.id === s.id) return true;
+                          if (sendCardId && sCardId && sendCardId === sCardId) return true;
+                          if (sendTitle && sTitle && sendTitle === sTitle && sendTitle !== 'Dare') return true;
+                          return false;
+                        });
+                      })
+                      .slice(0, 5)
+                      .map((send: any) => {
                       const isSentByMe = send.sender_id === currentUserId;
                       const partnerFirstName = partnerName.split(' ')[0] || 'Partner';
                       const rawStatus = (send.status || '').toUpperCase();

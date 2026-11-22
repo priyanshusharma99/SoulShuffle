@@ -197,19 +197,107 @@ export default function History() {
     });
   };
 
+const STATUS_RANK: Record<string, number> = {
+  COMPLETED: 5,
+  CONFIRMED: 5,
+  COMPLETED_BY_RECEIVER: 4,
+  IN_PROGRESS: 3,
+  ACCEPTED: 3,
+  DEFLECTED: 2,
+  REJECTED: 1,
+  SENT: 0,
+};
+
+const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
+  const result: SentChallenge[] = [];
+
+  for (const item of items) {
+    if (!item) continue;
+    const itemId = String(item.id || '').trim();
+    const itemCardId = String(item.card_id || '').trim();
+    const itemTitle = (item.title || '').trim().toLowerCase();
+    const itemRoom = String(item.room_id || '').trim();
+    const itemTime = new Date(item.sent_at || 0).getTime();
+
+    // Find if duplicate already exists
+    const matchIndex = result.findIndex((existing) => {
+      const exId = String(existing.id || '').trim();
+      const exCardId = String(existing.card_id || '').trim();
+      const exTitle = (existing.title || '').trim().toLowerCase();
+      const exRoom = String(existing.room_id || '').trim();
+      const exTime = new Date(existing.sent_at || 0).getTime();
+
+      // 1. Exact ID match
+      if (itemId && exId && itemId === exId) return true;
+
+      // 2. Same room + (same card_id OR same title)
+      const sameRoom = !itemRoom || !exRoom || itemRoom === exRoom;
+      const sameCard = (itemCardId && exCardId && itemCardId === exCardId) ||
+                       (itemTitle && exTitle && itemTitle === exTitle && itemTitle !== 'dare' && itemTitle !== 'card dare');
+
+      if (sameRoom && sameCard) {
+        // If one is temporary ID (numeric timestamp like 1732... or non-uuid), or timestamps are within 15 mins
+        const isOneTemp = !itemId.includes('-') || !exId.includes('-') || /^\d+$/.test(itemId) || /^\d+$/.test(exId);
+        const timeDiff = Math.abs(itemTime - exTime);
+        if (isOneTemp || timeDiff < 15 * 60 * 1000) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    if (matchIndex === -1) {
+      result.push(item);
+    } else {
+      // Merge duplicate: pick the more advanced status and real database UUID
+      const existing = result[matchIndex];
+      const rankItem = STATUS_RANK[(item.status || 'SENT').toUpperCase()] ?? 0;
+      const rankEx = STATUS_RANK[(existing.status || 'SENT').toUpperCase()] ?? 0;
+
+      // Real UUID has hyphens (e.g. 550e8400-e29b-41d4-a716-446655440000)
+      const preferItemId = itemId.includes('-') && !String(existing.id).includes('-');
+      const finalId = preferItemId ? item.id : (String(existing.id).includes('-') ? existing.id : (item.id || existing.id));
+
+      const winner = rankItem >= rankEx ? item : existing;
+      const loser = rankItem >= rankEx ? existing : item;
+
+      result[matchIndex] = {
+        ...loser,
+        ...winner,
+        id: finalId,
+        card_id: item.card_id || existing.card_id,
+        title: (winner.title && winner.title !== 'Dare') ? winner.title : (existing.title || item.title),
+        description: winner.description || loser.description,
+        image: winner.image || loser.image,
+        status: (rankItem >= rankEx ? item.status : existing.status) || 'SENT',
+        completed_at: winner.completed_at || loser.completed_at,
+        accepted_at: winner.accepted_at || loser.accepted_at,
+      };
+    }
+  }
+
+  return result.sort((a, b) => {
+    const tA = new Date(a.sent_at || 0).getTime();
+    const tB = new Date(b.sent_at || 0).getTime();
+    return tB - tA;
+  });
+};
+
   const calculateStats = (currentRoomHistory: SentChallenge[], staticTotal: number = 0) => {
-    const daresMastered = currentRoomHistory.filter((c) => {
+    const deduped = deduplicateChallenges(currentRoomHistory);
+    const daresMastered = deduped.filter((c) => {
       const s = (c.status || '').toUpperCase();
       return s === 'COMPLETED' || s === 'CONFIRMED' || s === 'COMPLETED_BY_RECEIVER';
     }).length;
 
-    const total = staticTotal > 0 ? staticTotal : currentRoomHistory.length;
+    const total = staticTotal > 0 ? staticTotal : deduped.length;
     let completionRate = total > 0 ? Math.round((daresMastered / total) * 100) : 0;
     if (completionRate > 100) completionRate = 100;
 
     let currentStreak = 0;
-    if (currentRoomHistory.length > 0) {
-      const dates = currentRoomHistory
+    if (deduped.length > 0) {
+      const dates = deduped
         .map((c) => parseDateSafely(c.sent_at || (c as any).created_at))
         .filter((d): d is Date => d !== null)
         .map((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime())
@@ -433,11 +521,7 @@ export default function History() {
               }
             });
 
-            const merged = Array.from(itemMap.values()).sort((a, b) => {
-              const tA = new Date(a.sent_at || 0).getTime();
-              const tB = new Date(b.sent_at || 0).getTime();
-              return tB - tA;
-            });
+            const merged = deduplicateChallenges(Array.from(itemMap.values()));
 
             if (merged.length > 0) {
               memoryCachedHistory = merged;
@@ -482,20 +566,7 @@ export default function History() {
         const enrichedServer = currentRoomOnly.map((item) => enrichItem(item, currentRoomData, currentUserId));
 
         setChallengeHistory((prevHistory) => {
-          const map = new Map<string, SentChallenge>();
-          enrichedServer.forEach((item) => map.set(String(item.id), item));
-          // Preserve any optimistic items that haven't propagated to backend yet
-          prevHistory.forEach((item) => {
-            if (!map.has(String(item.id))) {
-              map.set(String(item.id), item);
-            }
-          });
-
-          const merged = Array.from(map.values()).sort((a, b) => {
-            const tA = new Date(a.sent_at || 0).getTime();
-            const tB = new Date(b.sent_at || 0).getTime();
-            return tB - tA;
-          });
+          const merged = deduplicateChallenges([...enrichedServer, ...prevHistory]);
 
           memoryCachedHistory = merged;
           calculateStats(merged, 0);
@@ -534,21 +605,21 @@ export default function History() {
 
         setChallengeHistory((prev) => {
           const exists = prev.some((c) => String(c.id) === sendId);
+          let updatedList: SentChallenge[];
           if (exists) {
-            const updated = prev.map((c) =>
+            updatedList = prev.map((c) =>
               String(c.id) === sendId ? { ...c, ...data, status: newStatus } : c
             );
-            memoryCachedHistory = updated;
-            calculateStats(updated, 0);
-            return updated;
           } else if (data.title || data.card?.name || data.card_id) {
             const newCard = enrichItem(data);
-            const updated = [newCard, ...prev];
-            memoryCachedHistory = updated;
-            calculateStats(updated, 0);
-            return updated;
+            updatedList = [newCard, ...prev];
+          } else {
+            updatedList = prev;
           }
-          return prev;
+          const deduped = deduplicateChallenges(updatedList);
+          memoryCachedHistory = deduped;
+          calculateStats(deduped, 0);
+          return deduped;
         });
       }
       loadHistory(false);
@@ -596,30 +667,33 @@ export default function History() {
     };
   }, [loadHistory, enrichItem]);
 
+  // Deduplicated base history for accurate counts and display
+  const dedupedHistory = useMemo(() => deduplicateChallenges(challengeHistory), [challengeHistory]);
+
   // Counts for Category Cards
-  const allDaresCount = challengeHistory.length;
+  const allDaresCount = dedupedHistory.length;
 
   const sentByYouCount = useMemo(() => {
-    return challengeHistory.filter((item) => {
+    return dedupedHistory.filter((item) => {
       return item.is_sent_by_me ?? (myUserId ? item.sender_id === myUserId : true);
     }).length;
-  }, [challengeHistory, myUserId]);
+  }, [dedupedHistory, myUserId]);
 
   const receivedCount = useMemo(() => {
-    return challengeHistory.filter((item) => {
+    return dedupedHistory.filter((item) => {
       return !(item.is_sent_by_me ?? (myUserId ? item.sender_id === myUserId : true));
     }).length;
-  }, [challengeHistory, myUserId]);
+  }, [dedupedHistory, myUserId]);
 
   const savedDaresCount = useMemo(() => {
-    return challengeHistory.filter((item) => {
+    return dedupedHistory.filter((item) => {
       return savedDareIds.includes(String(item.id));
     }).length;
-  }, [challengeHistory, savedDareIds]);
+  }, [dedupedHistory, savedDareIds]);
 
   // Filtered History
   const filteredHistory = useMemo(() => {
-    return challengeHistory.filter((item) => {
+    return dedupedHistory.filter((item) => {
       const isSentByMe = item.is_sent_by_me ?? (myUserId ? item.sender_id === myUserId : true);
       const isSaved = savedDareIds.includes(String(item.id));
 
@@ -628,7 +702,7 @@ export default function History() {
       if (activeFilter === 'SAVED') return isSaved;
       return true; // 'ALL'
     });
-  }, [challengeHistory, activeFilter, myUserId, savedDareIds]);
+  }, [dedupedHistory, activeFilter, myUserId, savedDareIds]);
 
   // Group by Room Session, then Date
   const roomGroups = useMemo<RoomGroup[]>(() => {
