@@ -176,9 +176,10 @@ export default function StoreScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Check room status
+      // Check room status: must be ACTIVE status and partner must be joined
       const room = await getActiveRoom().catch(() => null);
-      setIsInRoom(!!room);
+      const isRoomActive = !!room && room.status === 'ACTIVE' && !!room.partner_id;
+      setIsInRoom(isRoomActive);
 
       // Load bundles, purchases, and master cards in parallel
       const [fetchedBundles, fetchedPurchases, fetchedCards] = await Promise.all([
@@ -220,19 +221,32 @@ export default function StoreScreen() {
     }
   }, [loading, bundles, buyBundleId, hasAutoOpened]);
 
-  const handleSelectBundle = (bundle: CardBundle) => {
-    if (!isInRoom) {
+  const handleSelectBundle = async (bundle: CardBundle) => {
+    // Re-verify room status before opening checkout
+    let room: any = null;
+    try {
+      room = await getActiveRoom();
+    } catch (e) {}
+
+    const isRoomActive = !!room && room.status === 'ACTIVE' && !!room.partner_id;
+    setIsInRoom(isRoomActive);
+
+    if (!isRoomActive) {
+      const isWaiting = room?.status === 'WAITING';
       setCustomAlert({
         visible: true,
-        title: 'Room Required',
-        message: 'You must create or join an active room with your partner before purchasing card bundles.',
-        confirmText: 'Go Home',
+        title: isWaiting ? 'Partner Must Join First' : 'Active Room Required',
+        message: isWaiting
+          ? 'Your room is waiting for your partner to join. Please share your room code and connect before purchasing cards so they can be unlocked in your shared game.'
+          : 'You must create or join an active room with your partner before purchasing card bundles so the cards can be added to your game.',
+        confirmText: 'Go to Home',
         cancelText: 'Cancel',
         onConfirm: () => router.push('/'),
         onCancel: () => {}
       });
       return;
     }
+
     setSelectedBundle(bundle);
     const plans = bundle.bundle_plans || bundle.plans || [];
     const activePlan = plans && plans.length > 0 ? plans[0] : {
@@ -268,6 +282,33 @@ export default function StoreScreen() {
   const executeGooglePayment = async () => {
     if (!selectedBundle || !selectedPlan) {
       setCustomAlert({ visible: true, title: 'Error', message: 'Please select a valid bundle and plan.' });
+      return;
+    }
+
+    // ── CRITICAL CHECK: Verify active room BEFORE charging user money ──
+    let currentRoom: any = null;
+    try {
+      currentRoom = await getActiveRoom();
+    } catch (e) {}
+
+    const isRoomActive = !!currentRoom && currentRoom.status === 'ACTIVE' && !!currentRoom.partner_id;
+    if (!isRoomActive) {
+      setBuying(false);
+      setPaymentStep('details');
+      setCheckoutVisible(false);
+
+      const isWaiting = currentRoom?.status === 'WAITING';
+      setCustomAlert({
+        visible: true,
+        title: isWaiting ? 'Partner Must Join First' : 'Active Room Required',
+        message: isWaiting
+          ? 'Your couple room is still waiting for your partner. Please have your partner join before purchasing card packs. No payment was charged.'
+          : 'You need an active couple room to unlock and play these cards. Please create or join a room on the Home screen first. No payment was charged.',
+        confirmText: 'Go to Home',
+        cancelText: 'Cancel',
+        onConfirm: () => router.push('/'),
+        onCancel: () => {},
+      });
       return;
     }
 
@@ -473,6 +514,44 @@ export default function StoreScreen() {
             Unlock premium themed cards to play together.
           </Text>
         </View>
+
+        {!loading && !isInRoom && (
+          <View
+            style={{
+              marginHorizontal: 24,
+              marginTop: 14,
+              backgroundColor: isDark ? 'rgba(225,29,72,0.12)' : '#fff1f2',
+              borderRadius: 16,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(225,29,72,0.25)' : '#fecdd3',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Ionicons name="alert-circle" size={18} color="#e11d48" style={{ marginRight: 6 }} />
+              <Text style={{ color: isDark ? '#fda4af' : '#9f1239', fontWeight: '800', fontSize: 13 }}>
+                Active Couple Room Required
+              </Text>
+            </View>
+            <Text style={{ color: isDark ? '#f43f5e' : '#be123c', fontSize: 11.5, lineHeight: 17, fontWeight: '500' }}>
+              You need an active room connected with your partner before purchasing card bundles so they can be unlocked in your shared game.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/')}
+              activeOpacity={0.85}
+              style={{
+                marginTop: 10,
+                alignSelf: 'flex-start',
+                backgroundColor: '#e11d48',
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 10,
+              }}
+            >
+              <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700' }}>Create or Join Room →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {loading ? (
           <View className="py-20 justify-center items-center">
