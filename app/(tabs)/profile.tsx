@@ -13,6 +13,15 @@ import * as Clipboard from 'expo-clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ANIMATED_AVATARS, AVATAR_CATEGORIES, AnimatedAvatar } from '@/constants/avatars';
 
+const normalizeAvatarUrl = (url?: string | null): string => {
+  if (!url || url === 'null' || url === 'undefined' || url.trim() === '' || url.includes('dicebear')) {
+    return ANIMATED_AVATARS[0].url;
+  }
+  return url
+    .replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/')
+    .replace('https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/assets/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/');
+};
+
 function SmoothThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   const progress = useSharedValue(isDark ? 1 : 0);
 
@@ -162,15 +171,10 @@ export default function Profile() {
     const loadCachedInitialState = async () => {
       try {
         let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
-        if (cachedAvatar && cachedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-          cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
-          await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
-        }
-        if (cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear')) {
-          setUserAvatar(cachedAvatar);
-        } else {
-          setUserAvatar(ANIMATED_AVATARS[0].url);
-          await AsyncStorage.setItem('cachedUserAvatar', ANIMATED_AVATARS[0].url);
+        const cleanAvatar = normalizeAvatarUrl(cachedAvatar);
+        setUserAvatar(cleanAvatar);
+        if (cachedAvatar !== cleanAvatar) {
+          await AsyncStorage.setItem('cachedUserAvatar', cleanAvatar);
         }
 
         const cachedName = await AsyncStorage.getItem('cachedUserName');
@@ -255,16 +259,10 @@ export default function Profile() {
     let myUserId: string | undefined;
     try {
       let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
-      if (cachedAvatar && cachedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-        cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
-        await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
-      }
-      const isCustomCachedAvatarValid = !!(cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear'));
-
-      if (isCustomCachedAvatarValid) {
-        setUserAvatar(cachedAvatar!);
-      } else {
-        setUserAvatar(ANIMATED_AVATARS[0].url);
+      const cleanAvatar = normalizeAvatarUrl(cachedAvatar);
+      setUserAvatar(cleanAvatar);
+      if (cachedAvatar !== cleanAvatar) {
+        await AsyncStorage.setItem('cachedUserAvatar', cleanAvatar);
       }
 
       const cachedName = await AsyncStorage.getItem('cachedUserName');
@@ -277,16 +275,17 @@ export default function Profile() {
         await AsyncStorage.setItem('cachedUserName', profile.firstName);
       }
       if (profile?.avatarUrl && profile.avatarUrl !== 'null' && profile.avatarUrl !== 'undefined' && !profile.avatarUrl.includes('dicebear')) {
-        setUserAvatar(profile.avatarUrl);
-        await AsyncStorage.setItem('cachedUserAvatar', profile.avatarUrl);
-      } else if (isCustomCachedAvatarValid) {
+        const cleanProfAvatar = normalizeAvatarUrl(profile.avatarUrl);
+        setUserAvatar(cleanProfAvatar);
+        await AsyncStorage.setItem('cachedUserAvatar', cleanProfAvatar);
+      } else if (cleanAvatar && cleanAvatar !== ANIMATED_AVATARS[0].url) {
         // Keep user's chosen custom avatar permanently! Do not revert to default!
-        setUserAvatar(cachedAvatar!);
-        updateMyProfile({ avatar_url: cachedAvatar! }).catch(() => {});
+        setUserAvatar(cleanAvatar);
+        updateMyProfile({ avatar_url: cleanAvatar }).catch(() => {});
       } else {
-        setUserAvatar(ANIMATED_AVATARS[0].url);
-        await AsyncStorage.setItem('cachedUserAvatar', ANIMATED_AVATARS[0].url);
-        updateMyProfile({ avatar_url: ANIMATED_AVATARS[0].url }).catch(() => {});
+        setUserAvatar(cleanAvatar || ANIMATED_AVATARS[0].url);
+        await AsyncStorage.setItem('cachedUserAvatar', cleanAvatar || ANIMATED_AVATARS[0].url);
+        updateMyProfile({ avatar_url: cleanAvatar || ANIMATED_AVATARS[0].url }).catch(() => {});
       }
     } catch (err) {
       console.log('Profile cache read failed in profile.tsx:', err);
@@ -336,21 +335,11 @@ export default function Profile() {
 
         // Partner Avatar
         let resolvedAvatar = isHost ? room.partner_avatar : room.host_avatar;
-        if (resolvedAvatar?.includes("dicebear")) resolvedAvatar = null;
-        if (resolvedAvatar && resolvedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-          resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
-        }
-
-        if (!resolvedAvatar) {
+        if (!resolvedAvatar || resolvedAvatar === "null") {
           resolvedAvatar = await AsyncStorage.getItem(`partnerAvatar_${room.id}`);
-          if (resolvedAvatar?.includes("dicebear")) resolvedAvatar = null;
-          if (resolvedAvatar && resolvedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-            resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
-          }
         }
-        if (resolvedAvatar === "null") resolvedAvatar = null;
         
-        const finalPartnerAvatar = resolvedAvatar || ANIMATED_AVATARS[1].url;
+        const finalPartnerAvatar = normalizeAvatarUrl(resolvedAvatar);
         setPartnerAvatar(finalPartnerAvatar);
         if (room.id) await AsyncStorage.setItem(`partnerAvatar_${room.id}`, finalPartnerAvatar);
 
@@ -634,7 +623,7 @@ export default function Profile() {
           <TouchableOpacity onPress={() => setIsAvatarModalOpen(true)} className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-950/40 items-center justify-center border border-rose-200 dark:border-rose-950/30 p-0.5">
             <Image
               source={{ uri: userAvatar }}
-              style={{ width: 24, height: 24 }}
+              className="w-6 h-6"
               resizeMode="contain"
             />
           </TouchableOpacity>
@@ -656,7 +645,7 @@ export default function Profile() {
                   >
                     <Image
                       source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
-                      style={{ width: 96, height: 96 }}
+                      className="w-24 h-24"
                       resizeMode="contain"
                     />
                     {/* Overlay with animated avatar edit icon */}
@@ -676,7 +665,7 @@ export default function Profile() {
                   <View className="absolute left-1/2 ml-[-12px] bg-teal-950/80 dark:bg-[#132321] rounded-t-[40px] rounded-bl-[40px] rounded-br-[10px] overflow-hidden w-40 h-40 border-2 border-teal-400/40 shadow-xl items-center justify-center p-3">
                     <Image
                       source={{ uri: partnerAvatar || ANIMATED_AVATARS[1].url }}
-                      style={{ width: 96, height: 96 }}
+                      className="w-24 h-24"
                       resizeMode="contain"
                     />
                   </View>
@@ -709,7 +698,7 @@ export default function Profile() {
                 >
                   <Image
                     source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
-                    style={{ width: 96, height: 96 }}
+                    className="w-24 h-24"
                     resizeMode="contain"
                   />
                   {/* Overlay with animated avatar edit icon */}
@@ -1289,14 +1278,11 @@ export default function Profile() {
                             : 'bg-rose-50 dark:bg-[#200e14] border-slate-200/80 dark:border-rose-950/40'
                         }`}
                       >
-                        <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 44, position: 'absolute' }}>{item.emoji}</Text>
-                          <Image
-                            source={{ uri: item.url }}
-                            style={{ width: 80, height: 80 }}
-                            resizeMode="contain"
-                          />
-                        </View>
+                        <Image
+                          source={{ uri: item.url }}
+                          className="w-20 h-20"
+                          resizeMode="contain"
+                        />
 
                         {/* Emoji Tag */}
                         <View className="absolute top-2.5 left-2.5 bg-black/40 dark:bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full flex-row items-center">

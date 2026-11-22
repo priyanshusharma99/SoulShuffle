@@ -230,20 +230,9 @@ export default function NotificationCenter() {
         <Text className={`text-lg font-black tracking-tight ${isDark ? 'text-white' : 'text-[#1A1A1A]'}`}>
           Notifications
         </Text>
-        <View className="flex-row items-center gap-1.5 -mr-2">
-          <TouchableOpacity
-            onPress={async () => {
-              await sendTestNotification();
-              Alert.alert('Test Notification Sent', 'A test alert was sent. Check your top notification bar now!');
-            }}
-            className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20"
-          >
-            <Text className="text-[11px] font-bold text-rose-500">Test Bar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={markAllAsRead} className="p-2">
-            <Ionicons name="checkmark-done" size={22} color={isDark ? "#D36B93" : "#481639"} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={markAllAsRead} className="p-2 -mr-2">
+          <Ionicons name="checkmark-done" size={22} color={isDark ? "#D36B93" : "#481639"} />
+        </TouchableOpacity>
       </View>
 
       {/* List */}
