@@ -1839,25 +1839,28 @@ export default function Dashboard() {
 
                     <TouchableOpacity
                       onPress={() => navigateTo('/welcome-guide?from=home')}
+                      activeOpacity={0.8}
                       style={{
-                        marginTop: 14,
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 14,
+                        marginTop: 16,
+                        marginBottom: 6,
+                        marginHorizontal: 2,
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 16,
                         backgroundColor: isDark ? 'rgba(255,41,109,0.08)' : 'rgba(255,41,109,0.05)',
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 6,
+                        gap: 8,
                         borderWidth: 1,
-                        borderColor: isDark ? 'rgba(255,41,109,0.2)' : 'rgba(255,41,109,0.12)',
+                        borderColor: isDark ? 'rgba(255,41,109,0.25)' : 'rgba(255,41,109,0.15)',
                       }}
                     >
-                      <Ionicons name="sparkles" size={14} color="#FF296D" />
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#FF296D' }}>
+                      <Ionicons name="sparkles" size={15} color="#FF296D" />
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#FF296D', textAlign: 'center' }}>
                         New to SoulShuffle? View the Welcome Guide
                       </Text>
-                      <Ionicons name="arrow-forward" size={12} color="#FF296D" />
+                      <Ionicons name="arrow-forward" size={13} color="#FF296D" />
                     </TouchableOpacity>
                   </View>
                 </View>
