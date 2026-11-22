@@ -214,7 +214,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
         Constants?.easConfig?.projectId ??
-        '700a805a-f330-491e-bbef-7be4cf40a047';
+        'a8229d2a-b2bf-4176-a245-2016dc5e11f1';
 
       try {
         let tokenResult: any = null;
