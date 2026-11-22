@@ -72,6 +72,19 @@ export default function StoreScreen() {
   const [bundles, setBundles] = useState<CardBundle[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [isInRoom, setIsInRoom] = useState(false);
+  const [roomStatus, setRoomStatus] = useState<{
+    hasRoom: boolean;
+    isActive: boolean;
+    isWaiting: boolean;
+    is30Days: boolean;
+    expiryType: string | null;
+  }>({
+    hasRoom: false,
+    isActive: false,
+    isWaiting: false,
+    is30Days: false,
+    expiryType: null,
+  });
   const [masterCards, setMasterCards] = useState<Card[]>([]);
   const [bundlePreviewCards, setBundlePreviewCards] = useState<any[]>([]);
 
@@ -176,10 +189,18 @@ export default function StoreScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Check room status: must be ACTIVE status and partner must be joined
+      // Check room status: must be ACTIVE 30-DAY room and partner must be joined
       const room = await getActiveRoom().catch(() => null);
       const isRoomActive = !!room && room.status === 'ACTIVE' && !!room.partner_id;
-      setIsInRoom(isRoomActive);
+      const is30Days = isRoomActive && room?.expiry_type === '30_DAYS';
+      setIsInRoom(is30Days);
+      setRoomStatus({
+        hasRoom: !!room,
+        isActive: isRoomActive,
+        isWaiting: room?.status === 'WAITING',
+        is30Days,
+        expiryType: room?.expiry_type || null,
+      });
 
       // Load bundles, purchases, and master cards in parallel
       const [fetchedBundles, fetchedPurchases, fetchedCards] = await Promise.all([
@@ -229,20 +250,51 @@ export default function StoreScreen() {
     } catch (e) {}
 
     const isRoomActive = !!room && room.status === 'ACTIVE' && !!room.partner_id;
-    setIsInRoom(isRoomActive);
+    const is30Days = isRoomActive && room?.expiry_type === '30_DAYS';
+    setIsInRoom(is30Days);
+    setRoomStatus({
+      hasRoom: !!room,
+      isActive: isRoomActive,
+      isWaiting: room?.status === 'WAITING',
+      is30Days,
+      expiryType: room?.expiry_type || null,
+    });
 
-    if (!isRoomActive) {
-      const isWaiting = room?.status === 'WAITING';
+    if (!room) {
       setCustomAlert({
         visible: true,
-        title: isWaiting ? 'Partner Must Join First' : 'Active Room Required',
-        message: isWaiting
-          ? 'Your room is waiting for your partner to join. Please share your room code and connect before purchasing cards so they can be unlocked in your shared game.'
-          : 'You must create or join an active room with your partner before purchasing card bundles so the cards can be added to your game.',
+        title: '30-Day Room Required',
+        message: 'Card bundles are exclusive to 30-Day VIP Rooms. Create or join an active 30-Day room with your partner to unlock and play custom card packs.',
         confirmText: 'Go to Home',
         cancelText: 'Cancel',
         onConfirm: () => router.push('/'),
-        onCancel: () => {}
+        onCancel: () => {},
+      });
+      return;
+    }
+
+    if (room.status === 'WAITING') {
+      setCustomAlert({
+        visible: true,
+        title: 'Partner Must Join First',
+        message: 'Your 30-Day room is waiting for your partner to join. Please share your room code and connect before purchasing cards so they can be unlocked in your shared game.',
+        confirmText: 'Go to Home',
+        cancelText: 'Cancel',
+        onConfirm: () => router.push('/'),
+        onCancel: () => {},
+      });
+      return;
+    }
+
+    if (room.expiry_type !== '30_DAYS') {
+      setCustomAlert({
+        visible: true,
+        title: 'Exclusive to 30-Day Rooms',
+        message: 'Card bundles cannot be purchased in 7-Day Free Rooms. Upgrade to an active 30-Day VIP Room (₹99) with your partner to unlock and play custom card packs!',
+        confirmText: 'Go to Home to Upgrade',
+        cancelText: 'Cancel',
+        onConfirm: () => router.push('/'),
+        onCancel: () => {},
       });
       return;
     }
@@ -285,30 +337,49 @@ export default function StoreScreen() {
       return;
     }
 
-    // ── CRITICAL CHECK: Verify active room BEFORE charging user money ──
+    // ── CRITICAL CHECK: Verify active 30-DAY room BEFORE charging user money ──
     let currentRoom: any = null;
     try {
       currentRoom = await getActiveRoom();
     } catch (e) {}
 
-    const isRoomActive = !!currentRoom && currentRoom.status === 'ACTIVE' && !!currentRoom.partner_id;
-    if (!isRoomActive) {
+    const is30DaysActive = !!currentRoom && currentRoom.status === 'ACTIVE' && !!currentRoom.partner_id && currentRoom.expiry_type === '30_DAYS';
+    if (!is30DaysActive) {
       setBuying(false);
       setPaymentStep('details');
       setCheckoutVisible(false);
 
-      const isWaiting = currentRoom?.status === 'WAITING';
-      setCustomAlert({
-        visible: true,
-        title: isWaiting ? 'Partner Must Join First' : 'Active Room Required',
-        message: isWaiting
-          ? 'Your couple room is still waiting for your partner. Please have your partner join before purchasing card packs. No payment was charged.'
-          : 'You need an active couple room to unlock and play these cards. Please create or join a room on the Home screen first. No payment was charged.',
-        confirmText: 'Go to Home',
-        cancelText: 'Cancel',
-        onConfirm: () => router.push('/'),
-        onCancel: () => {},
-      });
+      if (!currentRoom) {
+        setCustomAlert({
+          visible: true,
+          title: 'Active 30-Day Room Required',
+          message: 'You need an active 30-Day couple room to unlock and play these cards. No payment was charged.',
+          confirmText: 'Go to Home',
+          cancelText: 'Cancel',
+          onConfirm: () => router.push('/'),
+          onCancel: () => {},
+        });
+      } else if (currentRoom.status === 'WAITING') {
+        setCustomAlert({
+          visible: true,
+          title: 'Partner Must Join First',
+          message: 'Your room is still waiting for your partner. Please have your partner connect before purchasing card packs. No payment was charged.',
+          confirmText: 'Go to Home',
+          cancelText: 'Cancel',
+          onConfirm: () => router.push('/'),
+          onCancel: () => {},
+        });
+      } else {
+        setCustomAlert({
+          visible: true,
+          title: 'Exclusive to 30-Day Rooms',
+          message: 'Card bundles cannot be purchased in 7-Day Free Rooms. Upgrade to a 30-Day VIP Room with your partner first. No payment was charged.',
+          confirmText: 'Go to Home',
+          cancelText: 'Cancel',
+          onConfirm: () => router.push('/'),
+          onCancel: () => {},
+        });
+      }
       return;
     }
 
@@ -515,7 +586,7 @@ export default function StoreScreen() {
           </Text>
         </View>
 
-        {!loading && !isInRoom && (
+        {!loading && !roomStatus.is30Days && (
           <View
             style={{
               marginHorizontal: 24,
@@ -528,13 +599,26 @@ export default function StoreScreen() {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <Ionicons name="alert-circle" size={18} color="#e11d48" style={{ marginRight: 6 }} />
+              <Ionicons
+                name={roomStatus.expiryType === '7_DAYS' ? "lock-closed" : "alert-circle"}
+                size={18}
+                color="#e11d48"
+                style={{ marginRight: 6 }}
+              />
               <Text style={{ color: isDark ? '#fda4af' : '#9f1239', fontWeight: '800', fontSize: 13 }}>
-                Active Couple Room Required
+                {roomStatus.expiryType === '7_DAYS'
+                  ? 'Card Bundles Exclusive to 30-Day Rooms 👑'
+                  : roomStatus.isWaiting
+                  ? 'Partner Must Join First'
+                  : 'Active 30-Day Room Required'}
               </Text>
             </View>
             <Text style={{ color: isDark ? '#f43f5e' : '#be123c', fontSize: 11.5, lineHeight: 17, fontWeight: '500' }}>
-              You need an active room connected with your partner before purchasing card bundles so they can be unlocked in your shared game.
+              {roomStatus.expiryType === '7_DAYS'
+                ? 'You are currently in a 7-Day Free Room. Card bundles can only be purchased and unlocked in active 30-Day VIP Rooms. Upgrade to 30 Days to buy and play custom packs!'
+                : roomStatus.isWaiting
+                ? 'Your 30-Day room is waiting for your partner to join. Connect with your partner before purchasing card bundles.'
+                : 'You need an active 30-Day room with your partner before purchasing card bundles so they can be unlocked in your shared game.'}
             </Text>
             <TouchableOpacity
               onPress={() => router.push('/')}
@@ -550,7 +634,9 @@ export default function StoreScreen() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700', marginRight: 4 }}>Create or Join Room</Text>
+              <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700', marginRight: 4 }}>
+                {roomStatus.expiryType === '7_DAYS' ? 'Upgrade to 30-Day Room' : 'Go to Home'}
+              </Text>
               <Ionicons name="arrow-forward" size={13} color="#ffffff" />
             </TouchableOpacity>
           </View>
