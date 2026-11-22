@@ -178,7 +178,8 @@ export const sendChallenge = async (
     receiver_id: receiverId,
     message: message || ''
   });
-  return response.data.data;
+  const data = response.data.data;
+  return data?.send || data;
 };
 
 // ── CARD SENDS (PHASE 4 ENGINE) ────────────────────────

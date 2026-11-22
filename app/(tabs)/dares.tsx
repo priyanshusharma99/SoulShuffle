@@ -140,6 +140,7 @@ const getCatColor = (cat: string) => {
 const CarouselItemUI = ({ item, isDark, onSelectDare, isNewCard }: any) => {
   const categoryColor = getCatColor(item.category);
   const showNew = isNewCard || item.isNew;
+  const categoryImageUrl = resolveCategoryImageUrl(item);
   return (
     <TouchableOpacity
       activeOpacity={0.95}
@@ -155,7 +156,7 @@ const CarouselItemUI = ({ item, isDark, onSelectDare, isNewCard }: any) => {
         shadowRadius: 20 
       }}
     >
-      <Image source={typeof item.image === 'string' ? { uri: item.image } : item.image} style={{ width: '100%', height: '100%', position: 'absolute' }} resizeMode="cover" />
+      <Image source={{ uri: categoryImageUrl }} style={{ width: '100%', height: '100%', position: 'absolute' }} resizeMode="cover" />
       
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '70%', backgroundColor: 'rgba(0,0,0,0.5)' }} />
 
@@ -615,6 +616,7 @@ export default function Dares() {
         const idStr = String(c.id);
         if (!existingIds.has(idStr) && !existingCardIds.has(idStr)) {
           existingIds.add(idStr);
+          const catImgUrl = resolveCategoryImageUrl(c);
           additional.push({
             id: c.id,
             deck_card_id: c.deck_card_id || c.id,
@@ -624,10 +626,11 @@ export default function Dares() {
             bundle_image: pack.bundleImage,
             title: c.title || c.name,
             category: c.category || 'SPICY',
+            categoryImage: catImgUrl,
             difficulty: c.difficulty || 'HIGH',
             stars: c.stars || 3,
             time: c.time || 'Tonight',
-            image: c.image || require('@/assets/images/bundle_spicy.jpg'),
+            image: { uri: catImgUrl },
             description: c.description || c.power_description,
             isPaid: true,
             isNew: true,
@@ -683,7 +686,14 @@ export default function Dares() {
         base = matched;
       } else {
         const pack = unlockedPacksMap[packBundleId] || (unlockedPack?.bundleId === packBundleId ? unlockedPack : null);
-        base = pack?.cards || [];
+        base = (pack?.cards || []).map((c: any) => {
+          const catImg = resolveCategoryImageUrl(c);
+          return {
+            ...c,
+            image: { uri: catImg },
+            categoryImage: catImg,
+          };
+        });
       }
     } else if (selectedCategory !== 'ALL') {
       base = mergedDares.filter((d: any) => d.category === selectedCategory);
@@ -1123,8 +1133,9 @@ export default function Dares() {
       const sentData = await sendChallenge(cardIdToSend, currentNote, activeRoom);
 
       // Create rich history item
+      const resolvedSendId = sentData?.id || sentData?.send?.id || String(Date.now());
       const newHistoryCard: SentChallenge = {
-        id: sentData?.id || String(Date.now()),
+        id: resolvedSendId,
         card_id: String(targetDare.card_id || targetDare.deck_card_id || targetDare.id),
         title: targetDare.title,
         description: targetDare.description || '',

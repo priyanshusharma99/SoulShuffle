@@ -33,6 +33,7 @@ import { fetchCards, Card } from '@/services/cardService';
 import RevenueCatService from '@/services/revenueCatService';
 import { getActiveRoom } from '@/services/roomService';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
+import { resolveCategoryImageUrl } from '@/services/categoryService';
 import PurchasedCardsSwipeReveal from '@/components/PurchasedCardsSwipeReveal';
 import BundleCardsSwipeCarousel from '@/components/BundleCardsSwipeCarousel';
 
@@ -174,16 +175,21 @@ export default function StoreScreen() {
 
     const chosen = (unique.length > 0 ? unique : pool).slice(0, targetCount);
 
-    return chosen.map((c: any, idx: number) => ({
-      id: c.id || `card-${idx}`,
-      title: c.name || 'Dare Card',
-      description: c.power_description || c.attributes?.description || 'Exclusive dare card from this bundle.',
-      category: (c.card_categories?.name || bundle.name.split(' ')[0] || 'SPICY').toUpperCase(),
-      difficulty: (c.attributes?.difficulty || 'MEDIUM').toUpperCase(),
-      time: c.attributes?.time || 'Tonight',
-      stars: c.attributes?.stars || 3,
-      image: c.image_url ? { uri: c.image_url } : getBundleImage(bundle.name, bundle.image_url),
-    }));
+    return chosen.map((c: any, idx: number) => {
+      const catName = (c.card_categories?.name || bundle.name.split(' ')[0] || 'SPICY').toUpperCase();
+      const catImgUrl = resolveCategoryImageUrl(c.card_categories?.name ? c : { category: catName, ...c });
+      return {
+        id: c.id || `card-${idx}`,
+        title: c.name || 'Dare Card',
+        description: c.power_description || c.attributes?.description || 'Exclusive dare card from this bundle.',
+        category: catName,
+        categoryImage: catImgUrl,
+        difficulty: (c.attributes?.difficulty || 'MEDIUM').toUpperCase(),
+        time: c.attributes?.time || 'Tonight',
+        stars: c.attributes?.stars || 3,
+        image: { uri: catImgUrl },
+      };
+    });
   };
 
   const loadData = async () => {
@@ -424,13 +430,18 @@ export default function StoreScreen() {
       if (bundlePreviewCards.length > 0) {
         cardsToReveal = bundlePreviewCards;
       } else if (selectedBundle?.bundle_cards && selectedBundle.bundle_cards.length > 0) {
-        cardsToReveal = selectedBundle.bundle_cards.map((bc: any, idx: number) => ({
-          id: bc.cards?.id || bc.card_id || `unlocked-${idx}`,
-          title: bc.cards?.name || 'Intimate Dare',
-          description: bc.cards?.power_description || 'A special dare unlocked from your card bundle.',
-          category: (bc.cards?.card_categories?.name || selectedBundle.name.split(' ')[0]).toUpperCase(),
-          image: getBundleImage(selectedBundle.name, selectedBundle.image_url),
-        }));
+        cardsToReveal = selectedBundle.bundle_cards.map((bc: any, idx: number) => {
+          const catName = (bc.cards?.card_categories?.name || selectedBundle.name.split(' ')[0]).toUpperCase();
+          const catImgUrl = resolveCategoryImageUrl(bc.cards || { category: catName });
+          return {
+            id: bc.cards?.id || bc.card_id || `unlocked-${idx}`,
+            title: bc.cards?.name || 'Intimate Dare',
+            description: bc.cards?.power_description || 'A special dare unlocked from your card bundle.',
+            category: catName,
+            categoryImage: catImgUrl,
+            image: { uri: catImgUrl },
+          };
+        });
       } else {
         cardsToReveal = resolveBundleCards(selectedBundle, masterCards, selectedPlan.card_count || 10);
       }
