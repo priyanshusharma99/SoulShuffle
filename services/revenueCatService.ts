@@ -31,15 +31,14 @@ class RevenueCatService {
         : (isAmazon ? amazonKey : googleKey);
 
       if (Purchases && typeof Purchases.configure === 'function') {
+        const customLogger = (logLevel: any, message: string) => {
+          // Log cleanly as info to prevent Metro terminal RedBox or NamelessError popups
+          console.log('[RevenueCat]', message);
+        };
+
         try {
-          if (typeof Purchases.setLogLevel === 'function') {
-            Purchases.setLogLevel(Purchases.LOG_LEVEL?.INFO ?? 'INFO');
-          }
           if (typeof Purchases.setLogHandler === 'function') {
-            Purchases.setLogHandler((logLevel: any, message: string) => {
-              // Log cleanly as standard info log to prevent Metro terminal RedBox popups
-              console.log('[RevenueCat]', message);
-            });
+            Purchases.setLogHandler(customLogger);
           }
         } catch (logErr) {}
 
@@ -48,6 +47,16 @@ class RevenueCatService {
           appUserID: userId || undefined,
           useAmazon: isAmazon && Platform.OS === 'android',
         });
+
+        try {
+          if (typeof Purchases.setLogHandler === 'function') {
+            Purchases.setLogHandler(customLogger);
+          }
+          if (typeof Purchases.setLogLevel === 'function') {
+            Purchases.setLogLevel(Purchases.LOG_LEVEL?.INFO ?? 'INFO');
+          }
+        } catch (logErr) {}
+
         this.isConfigured = true;
       }
     } catch (e) {

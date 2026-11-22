@@ -13,7 +13,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useEffect, useRef } from 'react';
-import { DeviceEventEmitter } from 'react-native';
+import { DeviceEventEmitter, LogBox } from 'react-native';
+
+LogBox.ignoreLogs([
+  '[RevenueCat]',
+  'Purchases',
+  'NamelessError',
+  'There is no user identifier',
+  'Billing service disconnected',
+]);
 import RevenueCatService from '@/services/revenueCatService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
