@@ -419,10 +419,20 @@ export default function Dashboard() {
 
   const getGreetingTime = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning,';
-    if (hour < 18) return 'Good afternoon,';
-    return 'Good evening,';
+    if (hour >= 5 && hour < 12) return 'Good morning,';
+    if (hour >= 12 && hour < 17) return 'Good afternoon,';
+    if (hour >= 17 && hour < 22) return 'Good evening,';
+    return 'Good night,';
   };
+
+  const [greetingText, setGreetingText] = useState(getGreetingTime);
+
+  useEffect(() => {
+    const updateGreeting = () => setGreetingText(getGreetingTime());
+    updateGreeting();
+    const interval = setInterval(updateGreeting, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const handleNextCouplePhoto = useCallback(() => {
     setCurrentPhotoIndex((prev) => (prev + 1) % COUPLE_PHOTOS.length);
@@ -1772,7 +1782,7 @@ export default function Dashboard() {
               <View className="px-5 mt-6 mb-4 flex-row justify-between items-end">
                 <View style={{ flex: 1, marginRight: 16, overflow: "hidden" }}>
                   <Text className="text-slate-500 dark:text-gray-400 text-sm font-medium mb-1">
-                      {getGreetingTime()}
+                      {greetingText}
                     </Text>
                   <Text className="text-slate-900 dark:text-white" style={{ fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }} numberOfLines={1} ellipsizeMode="tail">
                     {userName}{activeRoom && partnerName && partnerName !== "Partner" ? ` & ${partnerName}` : ''} 💕
