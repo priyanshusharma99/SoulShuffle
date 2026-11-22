@@ -124,11 +124,20 @@ export default function CoinToss() {
 
   // Refs for tracking focus & duplicate processing
   const isScreenFocusedRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Completion trigger ref
   const onFlipEndCallbackRef = useRef<((finalResult: CoinFace, context?: any) => void) | null>(null);
 
   const triggerFlipComplete = useCallback((finalResult: CoinFace) => {
+    if (!isMountedRef.current) return;
     if (onFlipEndCallbackRef.current) {
       onFlipEndCallbackRef.current(finalResult);
     }

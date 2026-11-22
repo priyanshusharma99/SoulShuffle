@@ -1,6 +1,6 @@
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation, interpolateColor } from 'react-native-reanimated';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Easing, Text, ScrollView, Dimensions, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter, Animated as RNAnimated } from 'react-native';
+import { View, Easing, Text, ScrollView, Dimensions, Image, TouchableOpacity, Platform, StatusBar, TextInput, Modal, ActivityIndicator, Alert, RefreshControl, DeviceEventEmitter, Animated as RNAnimated, PanResponder } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -218,8 +218,7 @@ const CarouselItemUI = ({ item, isDark, onSelectDare, isNewCard }: any) => {
 
 const DareCarousel = ({ data, isDark, onSelectDare, newCardIds }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
-  
-  const { Animated, PanResponder } = require('react-native');
+  const Animated = RNAnimated;
   // We store a separate Animated.ValueXY for EVERY card ID so they don't share position.
   // This completely eliminates the 1-frame flash when swapping cards!
   const positionCache = React.useRef<{ [key: string]: any }>({});

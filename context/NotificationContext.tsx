@@ -276,18 +276,20 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     let responseSubscription: any;
     try {
       responseSubscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
-        try {
-          const data = response?.notification?.request?.content?.data;
-          if (data?.room_id || data?.send_id || data?.card_id) {
-            router.push('/(tabs)');
-            const { DeviceEventEmitter } = require('react-native');
-            DeviceEventEmitter.emit('app:openCardSend', data);
-          } else {
-            router.push('/notifications');
+        setTimeout(() => {
+          try {
+            const data = response?.notification?.request?.content?.data;
+            if (data?.room_id || data?.send_id || data?.card_id) {
+              router.push('/(tabs)');
+              const { DeviceEventEmitter } = require('react-native');
+              DeviceEventEmitter.emit('app:openCardSend', data);
+            } else {
+              router.push('/notifications');
+            }
+          } catch (err) {
+            console.warn('[Notifications] notification tap navigation error:', err);
           }
-        } catch (err) {
-          // silently fallback
-        }
+        }, 500);
       });
     } catch (subErr) {
       console.warn('[Notifications] addNotificationResponseReceivedListener error:', subErr);
@@ -303,6 +305,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   // ── Socket: listen for new_notification event (foreground live count & system tray notification) ──
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
+    let attempts = 0;
 
     const setupSocketListener = () => {
       const socket = GameSocket.socket;
@@ -347,15 +350,17 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       });
 
       listenerRegistered.current = true;
+      if (interval) clearInterval(interval);
     };
 
-    // Try immediately, then poll every 2s until socket is ready
+    // Try immediately, then poll every 2s until socket is ready (max 15 attempts / 30s)
     setupSocketListener();
     interval = setInterval(() => {
+      attempts++;
       if (GameSocket.socket && !listenerRegistered.current) {
         setupSocketListener();
       }
-      if (listenerRegistered.current) {
+      if (listenerRegistered.current || attempts >= 15) {
         clearInterval(interval);
       }
     }, 2000);

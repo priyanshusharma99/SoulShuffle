@@ -177,7 +177,7 @@ export default function StoreScreen() {
     try {
       setLoading(true);
       // Check room status
-      const room = await getActiveRoom();
+      const room = await getActiveRoom().catch(() => null);
       setIsInRoom(!!room);
 
       // Load bundles, purchases, and master cards in parallel

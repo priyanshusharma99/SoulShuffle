@@ -2,7 +2,7 @@ import { useSidebar } from '@/context/SidebarContext';
 import { useThemeToggle } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Image, ScrollView, Alert, StatusBar, Text, TextInput, TouchableOpacity, View, ActivityIndicator, DeviceEventEmitter, Modal, Linking } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolateColor } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -142,6 +142,7 @@ import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 
 export default function Profile() {
   const { openSidebar } = useSidebar();
+  const router = useRouter();
   const { colorScheme, toggleTheme } = useThemeToggle();
   const isDark = colorScheme === 'dark';
   const [customAlert, setCustomAlert] = useState<AlertConfig>({ visible: false, title: '', message: '' });

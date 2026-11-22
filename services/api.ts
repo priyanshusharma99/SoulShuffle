@@ -61,43 +61,49 @@ const addRefreshSubscriber = (callback: (token: string | null) => void) => {
 };
 
 const refreshAccessToken = async (): Promise<string | null> => {
-  const refreshToken = await AsyncStorage.getItem('refreshToken');
-  if (!refreshToken) return null;
-
-  const res = await axios.post(`${BASE_URL}/auth/refresh-token`, { refreshToken });
-  const newAccessToken = res.data.data.accessToken;
-  const newRefreshToken = res.data.data.refreshToken;
-
-  memoryAccessToken = newAccessToken;
-  await AsyncStorage.setItem('accessToken', newAccessToken);
-  await AsyncStorage.setItem('refreshToken', newRefreshToken);
-
   try {
-    const GameSocket = (await import('./socketService')).default;
-    GameSocket.updateToken(newAccessToken);
-  } catch (e) {
-    // Ignore if socket not loaded
-  }
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    if (!refreshToken) return null;
 
-  return newAccessToken;
+    const res = await axios.post(`${BASE_URL}/auth/refresh-token`, { refreshToken }, { timeout: 10000 });
+    const newAccessToken = res.data?.data?.accessToken;
+    const newRefreshToken = res.data?.data?.refreshToken;
+
+    if (!newAccessToken) return null;
+
+    memoryAccessToken = newAccessToken;
+    await AsyncStorage.setItem('accessToken', newAccessToken);
+    if (newRefreshToken) {
+      await AsyncStorage.setItem('refreshToken', newRefreshToken);
+    }
+
+    try {
+      const GameSocket = (await import('./socketService')).default;
+      GameSocket.updateToken(newAccessToken);
+    } catch (e) {
+      // Ignore if socket not loaded
+    }
+
+    return newAccessToken;
+  } catch (err) {
+    console.warn('[api] Failed to refresh token:', err);
+    return null;
+  }
 };
 
-// Clear only auth tokens (not all app data) and redirect to login
+// Clear only auth tokens (not all app data) and redirect to login safely
 const handleAuthFailure = async () => {
   memoryAccessToken = null;
-  await AsyncStorage.removeItem('accessToken');
-  await AsyncStorage.removeItem('refreshToken');
-  // Lazy import to avoid circular dependency with expo-router
+  try {
+    await AsyncStorage.removeItem('accessToken');
+    await AsyncStorage.removeItem('refreshToken');
+  } catch {}
+
   try {
     const { DeviceEventEmitter } = await import('react-native');
     DeviceEventEmitter.emit('app:logout');
-  } catch {
-    try {
-      const { router } = await import('expo-router');
-      router.replace('/');
-    } catch {
-      // Router not ready yet
-    }
+  } catch (e) {
+    console.warn('[api] handleAuthFailure event error:', e);
   }
 };
 

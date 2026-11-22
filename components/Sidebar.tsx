@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Platform, Text, TouchableOpacity, View, DeviceEventEmitter, ScrollView, NativeModules } from 'react-native';
-import { router, usePathname } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import api from '@/services/api';
 
 let lastRelationshipStatsFetchTime = 0;
@@ -66,6 +66,7 @@ const MenuItem = ({ icon, label, onPress, isActive = false, isLogout = false, is
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isOpen, closeSidebar } = useSidebar();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';

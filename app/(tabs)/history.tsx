@@ -565,6 +565,20 @@ export default function History() {
     const histSub = DeviceEventEmitter.addListener('app:refreshHistory', handleEvent);
     const dashSub = DeviceEventEmitter.addListener('app:refreshDashboard', handleEvent);
 
+    const resetHistoryState = () => {
+      memoryCachedHistory = [];
+      memoryCachedStats = { completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 };
+      memoryCachedRoomInfo = null;
+      memoryCachedUserId = null;
+      setChallengeHistory([]);
+      setStats({ completionRate: 0, currentStreak: 0, daresMastered: 0, totalCards: 0 });
+      setActiveRoomInfo(null);
+      setMyUserId(null);
+    };
+
+    const logoutSub = DeviceEventEmitter.addListener('app:logout', resetHistoryState);
+    const clearRoomSub = DeviceEventEmitter.addListener('app:clearRoom', resetHistoryState);
+
     return () => {
       GameSocket.off('game_event', handleEvent);
       GameSocket.off('partner_joined', handleEvent);
@@ -576,6 +590,8 @@ export default function History() {
       GameSocket.off('card_rejected', handleEvent);
       histSub.remove();
       dashSub.remove();
+      logoutSub.remove();
+      clearRoomSub.remove();
     };
   }, [loadHistory, enrichItem]);
 

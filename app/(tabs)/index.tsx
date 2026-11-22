@@ -366,7 +366,13 @@ export default function Dashboard() {
         const hasSeenGuide = await AsyncStorage.getItem("hasSeenWelcomeGuide");
         if (!hasSeenGuide) {
           await AsyncStorage.setItem("hasSeenWelcomeGuide", "true");
-          navigateTo("/welcome-guide");
+          setTimeout(() => {
+            try {
+              navigateTo("/welcome-guide");
+            } catch (err) {
+              console.warn("[Dashboard] Welcome guide nav error:", err);
+            }
+          }, 600);
         }
 
         const savedExpiry = await AsyncStorage.getItem("lastRoomExpiryType");

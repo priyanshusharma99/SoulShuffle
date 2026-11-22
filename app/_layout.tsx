@@ -3,7 +3,7 @@ import { enableFreeze } from 'react-native-screens';
 // Activate native screen freezing across tabs so blurred tabs consume 0% CPU
 enableFreeze(true);
 
-import { Stack, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { Stack, DarkTheme, DefaultTheme, ThemeProvider, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import '../global.css';
@@ -12,9 +12,8 @@ import { NotificationProvider } from '@/context/NotificationContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
-import { router } from 'expo-router';
 import RevenueCatService from '@/services/revenueCatService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -30,6 +29,7 @@ const CustomDarkTheme = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('app:logout', () => {
@@ -38,7 +38,7 @@ export default function RootLayout() {
       router.replace('/login');
     });
     return () => sub.remove();
-  }, []);
+  }, [router]);
 
 
   useEffect(() => {
