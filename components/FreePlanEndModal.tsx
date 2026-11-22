@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Alert,
   Platform,
   useWindowDimensions,
 } from 'react-native';
@@ -203,6 +204,20 @@ export default function FreePlanEndModal({
       const res = await RevenueCatService.purchaseProduct(plan.productId).catch(() => null);
       if (res && res.cancelled) {
         setIsProcessing(false);
+        return;
+      }
+
+      if (res && (res.alreadySubscribed || (res.error && !res.fallback))) {
+        setIsProcessing(false);
+        if (res.alreadySubscribed) {
+          Alert.alert(
+            'Already Subscribed',
+            'Your Google Play account is already subscribed to SoulShuffle Monthly VIP.\n\nGoogle Play does not charge twice while an auto-renewing subscription is active. To make a fresh purchase, cancel your existing subscription in Google Play Store > Payments & Subscriptions.',
+            [{ text: 'OK' }]
+          );
+        } else if (res.error && !res.fallback) {
+          Alert.alert('Payment Error', res.error, [{ text: 'OK' }]);
+        }
         return;
       }
 

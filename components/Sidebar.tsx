@@ -263,7 +263,9 @@ export default function Sidebar() {
               <MenuItem isDark={isDark} icon="cart" label="Store" onPress={() => navigateTo("/store")} isActive={pathname === '/store'} />
               <MenuItem isDark={isDark} icon="pricetag" label="Coin Toss" onPress={() => navigateTo("/coin-toss")} isActive={pathname === '/coin-toss'} />
               <MenuItem isDark={isDark} icon="diamond-outline" label="Plans & Pricing" onPress={() => navigateTo("/modal")} isActive={pathname === '/modal'} />
+              {/* TEMPORARILY HIDDEN: Welcome Guide option in navigation drawer/toolbar
               <MenuItem isDark={isDark} icon="sparkles" label="Welcome Guide" onPress={() => navigateTo("/welcome-guide?from=sidebar")} isActive={pathname === '/welcome-guide'} />
+              */}
               <MenuItem isDark={isDark} icon="settings" label="Settings" onPress={() => navigateTo("/profile")} isActive={pathname === '/profile'} />
               <MenuItem isDark={isDark} icon="log-out-outline" label="Log Out" onPress={handleLogout} isLogout={true} />
             </View>

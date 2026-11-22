@@ -197,24 +197,19 @@ class RevenueCatService {
       }
 
       const errStr = (e?.message || e?.code || '').toString().toLowerCase();
-      // Handle Google Play "Already Owned" (when testing multiple users on the same device)
+      // Detect Google Play "Already Subscribed / Already Owned"
       if (
         errStr.includes('already') ||
         errStr.includes('owned') ||
         e?.code === 'ProductAlreadyPurchasedError' ||
         e?.code === '7'
       ) {
-        console.log('[RevenueCatService] Item already owned on this Google Play account. Restoring...');
-        try {
-          let Purchases: any = null;
-          try {
-            Purchases = require('react-native-purchases').default || require('react-native-purchases');
-          } catch (_) {}
-          if (Purchases && typeof Purchases.restorePurchases === 'function') {
-            await Purchases.restorePurchases();
-          }
-        } catch (rErr) {}
-        return { success: true, alreadyOwned: true };
+        console.log('[RevenueCatService] Item already subscribed on Google Play account.');
+        return {
+          success: false,
+          alreadySubscribed: true,
+          error: 'You are already subscribed to SoulShuffle Monthly VIP on your Google Play account.',
+        };
       }
 
       console.warn('[RevenueCatService] Native purchase skipped/fallback:', e?.message || e);
