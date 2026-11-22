@@ -16,6 +16,7 @@ import { ANIMATED_AVATARS } from '@/constants/avatars';
 import CustomAlertModal, { AlertConfig } from '@/components/CustomAlertModal';
 import DaresSkeleton from '@/components/DaresSkeleton';
 import FreePlanEndModal from '@/components/FreePlanEndModal';
+import { resolveCategoryImageUrl, syncCategoryImages } from '@/services/categoryService';
 
 const sunsetPicnic = require('@/assets/images/sunset_picnic.jpeg');
 
@@ -79,7 +80,7 @@ type Dare = ChallengePayload & {
   categoryImage?: string | null;
 };
 
-// Helper to map card structure from Supabase
+// Helper to map card structure from Supabase strictly using category image
 const mapCardToDare = (card: any): Dare => {
   const rawCategory = card.category_name || card.card_categories?.name || 'GENERAL';
   const cleanCategory = rawCategory.split('_')[0].toUpperCase();
@@ -89,29 +90,9 @@ const mapCardToDare = (card: any): Dare => {
   const stars = card.attributes?.stars || 2;
   const description = card.power_description || card.attributes?.description || 'No description available.';
 
-  // Extract actual database category image URL
-  const categoryImageUrl =
-    card.category_image ||
-    card.card_categories?.icon_url ||
-    card.card_categories?.image_url ||
-    card.category_icon_url ||
-    card.category_icon ||
-    null;
-
-  let image = sunsetPicnic;
-  if (card.image_url) {
-    image = { uri: card.image_url };
-  } else if (categoryImageUrl) {
-    image = { uri: categoryImageUrl };
-  } else {
-    if (cleanCategory.includes('ROMANCE') || cleanCategory.includes('ROMANTIC')) {
-      image = require('@/assets/images/couple_cover.jpeg');
-    } else if (cleanCategory.includes('ADVENTURE') || cleanCategory.includes('ADVENTUROUS')) {
-      image = { uri: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=400&fit=crop' };
-    } else {
-      image = { uri: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=400&h=400&fit=crop' };
-    }
-  }
+  // Strictly bound to category image (zero card-specific photos or hardcoded defaults)
+  const categoryImageUrl = resolveCategoryImageUrl(card);
+  const image = { uri: categoryImageUrl };
 
   return {
     id: card.deck_card_id || card.id,
@@ -513,6 +494,8 @@ export default function Dares() {
 
   // Listen for refresh events (including new purchases from store)
   useEffect(() => {
+    syncCategoryImages().catch(() => {});
+
     const sub = DeviceEventEmitter.addListener('app:refreshDares', (eventData?: any) => {
       loadDares(true, true);
       if (eventData?.newlyUnlockedPack) {
@@ -528,7 +511,21 @@ export default function Dares() {
         });
       }
     });
-    return () => sub.remove();
+
+    const catSub = DeviceEventEmitter.addListener('app:categoriesUpdated', () => {
+      setDares((prev) =>
+        prev.map((d) => ({
+          ...d,
+          categoryImage: resolveCategoryImageUrl(d),
+          image: { uri: resolveCategoryImageUrl(d) },
+        }))
+      );
+    });
+
+    return () => {
+      sub.remove();
+      catSub.remove();
+    };
   }, []);
 
   // Sync route params when navigating directly to a category (e.g. from store)

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { fetchRoomHistory, getActiveRoom, SentChallenge } from '@/services/roomService';
 import { getMyProfileCached } from '@/services/authService';
+import { getCardImage } from '@/utils/cardUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GameSocket from '@/services/socketService';
 import { useSidebar } from '@/context/SidebarContext';
@@ -243,7 +244,7 @@ export default function History() {
     const category = item.category || (typeof catObj === 'string' ? catObj : catObj.name) || cardObj.category || 'Dare';
     const difficulty = item.difficulty || cardObj.attributes?.difficulty || cardObj.difficulty || 'Medium';
     const time = item.time || cardObj.attributes?.time || cardObj.time || cardObj.timeRequirement || 'Today';
-    const image = item.image || cardObj.image_url || cardObj.imageUrl || null;
+    const image = getCardImage(item);
     const status = (item.status || 'SENT').toUpperCase();
     const sent_at = item.sent_at || item.created_at || (item as any).createdAt || new Date().toISOString();
     const isSentByMe = item.is_sent_by_me ?? (currentUserId ? item.sender_id === currentUserId : (myUserId ? item.sender_id === myUserId : true));

@@ -21,6 +21,7 @@ import {
 import PendingDaresCarousel from "@/components/PendingDaresCarousel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getCardImage } from '@/utils/cardUtils';
+import { syncCategoryImages } from '@/services/categoryService';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from "expo-clipboard";
@@ -731,8 +732,10 @@ export default function Dashboard() {
   }, [fetchActiveRoom]);
 
   useEffect(() => {
+    syncCategoryImages().catch(() => {});
     fetchActiveRoom(true);
     const sub = DeviceEventEmitter.addListener("app:refreshDashboard", () => {
+      syncCategoryImages().catch(() => {});
       fetchActiveRoom(true);
     });
     const resetAllDashboardState = () => {
@@ -2180,10 +2183,7 @@ export default function Dashboard() {
                               }, 400);
                             }}
                           >
-                            {imgUri
-                              ? <Image source={{ uri: imgUri }} style={{ width: '100%', height: '100%' }} />
-                              : <Image source={require('@/assets/images/bundle_spicy.jpg')} style={{ width: '100%', height: '100%' }} />
-                            }
+                            <Image source={getCardImage(card)} style={{ width: '100%', height: '100%' }} />
                             <View className="absolute inset-0 bg-black/30" />
                             <View className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                             <View style={{ position: 'absolute', top: 12, left: 12, backgroundColor: color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>

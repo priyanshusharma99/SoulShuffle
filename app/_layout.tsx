@@ -23,6 +23,7 @@ LogBox.ignoreLogs([
   'Billing service disconnected',
 ]);
 import RevenueCatService from '@/services/revenueCatService';
+import { syncCategoryImages } from '@/services/categoryService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CustomDarkTheme = {
@@ -50,6 +51,8 @@ export default function RootLayout() {
 
 
   useEffect(() => {
+    syncCategoryImages().catch(() => {});
+
     const initRC = async () => {
       // Try to get cached user ID so purchases map correctly on startup
       const userId = await AsyncStorage.getItem('cachedUserId');
