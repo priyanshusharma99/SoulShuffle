@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logout, getMyProfileCached } from '@/services/authService';
 import { signOutGoogle } from '@/services/googleAuth';
 import { leaveRoom, getActiveRoom } from '@/services/roomService';
+import RevenueCatService from '@/services/revenueCatService';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from 'react';
@@ -190,6 +191,8 @@ export default function Sidebar() {
       // ─── STEP 4: Fire-and-forget background cleanup (parallel) ────────
       // User is already on login screen. These run silently in the background.
       Promise.allSettled([
+        // RevenueCat logout (clear customer session)
+        RevenueCatService.logout().catch(() => {}),
         // Unregister push token from AWS (non-blocking)
         (async () => {
           try {

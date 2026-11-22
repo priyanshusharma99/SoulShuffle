@@ -1,6 +1,7 @@
 import api, { setMemoryToken } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ANIMATED_AVATARS } from '@/constants/avatars';
+import RevenueCatService from './revenueCatService';
 
 // Helper to save tokens and profile cache atomically in a single batch
 export const saveTokens = async (
@@ -26,6 +27,7 @@ export const saveTokens = async (
   }
   if (extra?.userId) {
     entries.push(['cachedUserId', extra.userId]);
+    RevenueCatService.identify(extra.userId).catch(() => {});
   }
   
   // Guarantee a valid animated default avatar is set if none exists
@@ -50,6 +52,7 @@ export const saveTokens = async (
 // Helper to clear user cache atomically
 export const clearUserCache = async () => {
   setMemoryToken(null);
+  RevenueCatService.logout().catch(() => {});
   await AsyncStorage.multiRemove([
     'accessToken',
     'refreshToken',
