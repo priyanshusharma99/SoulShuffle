@@ -945,25 +945,22 @@ export default function Dashboard() {
       setActionLoading(true);
       setActionError("");
 
-      // Gate 30-Day Room behind VIP Membership
+      // Gate 30-Day Room behind VIP Membership (Always verify in real-time)
       if (selectedExpiry === '30_DAYS') {
-        const localVip = await AsyncStorage.getItem('@soulshuffle_vip_active');
-        if (localVip !== 'true') {
-          let hasVipBackend = false;
-          try {
-            const statusRes = await api.get('/store/purchase/status');
-            if (statusRes.data?.data?.is_vip) {
-              hasVipBackend = true;
-              await AsyncStorage.setItem('@soulshuffle_vip_active', 'true');
-            }
-          } catch {}
-
-          if (!hasVipBackend) {
-            setActionLoading(false);
-            setPlansModalReason('room_30_days' as any);
-            setShowPlansModal(true);
-            return;
+        let isVip = false;
+        try {
+          const statusRes = await api.get('/store/purchase/status');
+          if (statusRes.data?.data?.is_vip) {
+            isVip = true;
           }
+        } catch {}
+
+        if (!isVip) {
+          setActionLoading(false);
+          await AsyncStorage.removeItem('@soulshuffle_vip_active');
+          setPlansModalReason('room_30_days');
+          setShowPlansModal(true);
+          return;
         }
       }
 
@@ -1551,7 +1548,18 @@ export default function Dashboard() {
                                 ? "bg-[#af2c3b] border-[#af2c3b] dark:bg-rose-500 dark:border-rose-500"
                                 : "bg-white border-slate-100 dark:bg-[#271318] dark:border-rose-950/40"
                             }`}
-                            onPress={() => setSelectedExpiry(type)}
+                            onPress={async () => {
+                              setSelectedExpiry(type);
+                              if (type === '30_DAYS') {
+                                try {
+                                  const res = await api.get('/store/purchase/status');
+                                  if (!res.data?.data?.is_vip) {
+                                    setPlansModalReason('room_30_days');
+                                    setShowPlansModal(true);
+                                  }
+                                } catch {}
+                              }
+                            }}
                           >
                             <Text
                               className={`font-bold text-[13px] ${selectedExpiry === type ? (isDark ? "text-white" : "text-white") : "text-slate-700 dark:text-slate-100"}`}
