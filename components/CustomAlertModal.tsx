@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -7,78 +7,213 @@ export interface AlertConfig {
   visible: boolean;
   title: string;
   message: string;
-  type?: string;
+  type?: 'danger' | 'warning' | 'success' | 'info' | 'error';
   onConfirm?: () => void;
   onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
 }
 
-export default function CustomAlertModal({ config, onClose }: { config: AlertConfig, onClose: () => void }) {
+export default function CustomAlertModal({ config, onClose }: { config: AlertConfig; onClose: () => void }) {
   const isDark = useColorScheme() === 'dark';
-  
+
   if (!config.visible) return null;
 
-  const bg = isDark ? '#1C1721' : '#FFFFFF';
-  const text = isDark ? '#FFFFFF' : '#1F2937';
-  const subText = isDark ? '#9CA3AF' : '#6B7280';
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
-  const shadow = isDark ? '#000' : '#FF296D';
+  const bg = isDark ? '#1C1622' : '#FFFFFF';
+  const text = isDark ? '#FFFFFF' : '#0F172A';
+  const subText = isDark ? '#9CA3AF' : '#475569';
+  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
-  const isSuccess = config.title.toLowerCase().includes('success') || 
-                    config.title.toLowerCase().includes('sent') || 
-                    config.title.toLowerCase().includes('copi') ||
-                    config.title.toLowerCase().includes('completed') ||
-                    config.title.toLowerCase().includes('confirmed');
+  const titleLower = (config.title || '').toLowerCase();
+  const isSuccess = config.type === 'success' ||
+                    titleLower.includes('success') ||
+                    titleLower.includes('sent') ||
+                    titleLower.includes('copi') ||
+                    titleLower.includes('completed') ||
+                    titleLower.includes('confirmed');
+
+  const isDanger = config.type === 'danger' ||
+                   config.type === 'error' ||
+                   titleLower.includes('leave') ||
+                   titleLower.includes('delete') ||
+                   titleLower.includes('remove') ||
+                   titleLower.includes('disconnect') ||
+                   titleLower.includes('warning') ||
+                   titleLower.includes('cancel');
+
+  // Strip leading warning emoji from title if icon already conveys warning
+  const cleanTitle = config.title?.replace(/^⚠️\s*/, '').trim() || '';
+
+  // Determine if buttons should be stacked (when either label is long)
+  const confirmLabel = config.confirmText || 'OK';
+  const cancelLabel = config.cancelText || 'Cancel';
+  const shouldStack = Boolean(config.onCancel) && (confirmLabel.length > 11 || cancelLabel.length > 11);
 
   return (
     <Modal transparent visible={config.visible} animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+      <View style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.72)',
+        paddingHorizontal: 20
+      }}>
         <View style={{
-          width: '85%',
+          width: '100%',
+          maxWidth: 380,
           backgroundColor: bg,
           borderRadius: 28,
-          padding: 24,
+          paddingHorizontal: 24,
+          paddingTop: 28,
+          paddingBottom: 24,
           alignItems: 'center',
           borderWidth: 1,
           borderColor: border,
-          shadowColor: shadow,
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: isDark ? 0.6 : 0.1,
-          shadowRadius: 20,
-          elevation: 10
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: isDark ? 0.6 : 0.15,
+          shadowRadius: 24,
+          elevation: 12
         }}>
-          {isSuccess ? (
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: isDark ? 'rgba(255,41,109,0.2)' : '#FFE4E6', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Ionicons name="checkmark-circle" size={40} color="#FF296D" />
+          {/* Icon Badge */}
+          <View style={{
+            width: 58,
+            height: 58,
+            borderRadius: 29,
+            backgroundColor: isSuccess
+              ? 'rgba(16,185,129,0.12)'
+              : (isDanger ? 'rgba(239,68,68,0.12)' : 'rgba(255,41,109,0.12)'),
+            borderWidth: 1.5,
+            borderColor: isSuccess
+              ? 'rgba(16,185,129,0.3)'
+              : (isDanger ? 'rgba(239,68,68,0.3)' : 'rgba(255,41,109,0.3)'),
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16
+          }}>
+            <Ionicons
+              name={isSuccess ? 'checkmark-circle' : (isDanger ? 'warning' : 'information-circle')}
+              size={30}
+              color={isSuccess ? '#10B981' : (isDanger ? '#EF4444' : '#FF296D')}
+            />
+          </View>
+
+          {/* Title */}
+          <Text style={{
+            fontSize: 20,
+            fontWeight: '800',
+            color: text,
+            textAlign: 'center',
+            marginBottom: 10,
+            letterSpacing: -0.3
+          }}>
+            {cleanTitle}
+          </Text>
+
+          {/* Message */}
+          <Text style={{
+            fontSize: 14,
+            color: subText,
+            textAlign: 'center',
+            lineHeight: 21,
+            marginBottom: 24,
+            fontWeight: '400',
+            paddingHorizontal: 4
+          }}>
+            {config.message}
+          </Text>
+
+          {/* Buttons Layout */}
+          {shouldStack ? (
+            <View style={{ width: '100%', flexDirection: 'column', gap: 10 }}>
+              {/* Primary / Confirm action first with full width */}
+              <TouchableOpacity
+                style={{
+                  width: '100%',
+                  paddingVertical: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDanger ? '#E11D48' : '#FF296D',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: isDanger ? '#E11D48' : '#FF296D',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 3
+                }}
+                onPress={() => { onClose(); config.onConfirm?.(); }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 }}>
+                  {confirmLabel}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Cancel / Safe action second */}
+              <TouchableOpacity
+                style={{
+                  width: '100%',
+                  paddingVertical: 13,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onPress={() => { onClose(); config.onCancel?.(); }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#E2E8F0' : '#475569' }}>
+                  {cancelLabel}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: isDark ? 'rgba(225,29,72,0.2)' : '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Ionicons name="alert-circle" size={40} color="#E11D48" />
+            <View style={{ flexDirection: 'row', width: '100%', gap: 12 }}>
+              {config.onCancel && (
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 13,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onPress={() => { onClose(); config.onCancel?.(); }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#E2E8F0' : '#475569' }}>
+                    {cancelLabel}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 13,
+                  borderRadius: 16,
+                  backgroundColor: isDanger ? '#E11D48' : '#FF296D',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: isDanger ? '#E11D48' : '#FF296D',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 3
+                }}
+                onPress={() => { onClose(); config.onConfirm?.(); }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 }}>
+                  {confirmLabel}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
-          
-          <Text style={{ fontSize: 22, fontWeight: '900', color: text, textAlign: 'center', marginBottom: 8, letterSpacing: -0.5 }}>{config.title}</Text>
-          <Text style={{ fontSize: 15, color: subText, textAlign: 'center', lineHeight: 22, marginBottom: 24, fontWeight: '500' }}>{config.message}</Text>
-          
-          <View style={{ flexDirection: 'row', width: '100%', justifyContent: 'center', gap: 12 }}>
-            {config.onCancel && (
-              <TouchableOpacity 
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: isDark ? '#2D2433' : '#F3F4F6', alignItems: 'center' }}
-                onPress={() => { onClose(); config.onCancel?.(); }}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#D1D5DB' : '#4B5563' }}>{config.cancelText || 'Cancel'}</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity 
-              style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#FF296D', alignItems: 'center', shadowColor: '#FF296D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
-              onPress={() => { onClose(); config.onConfirm?.(); }}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: 'white', letterSpacing: 0.5 }}>{config.confirmText || 'OK'}</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>

@@ -1090,16 +1090,12 @@ export default function Dares() {
     if (limits && limits.can_send === false) {
       isSendingRef.current = false;
       const isBlocked = limits.active_remaining <= 0;
-      if (!isBlocked && limits.daily_remaining <= 0) {
-        setSelectedDare(null);
-        setShowPlansModal(true);
-        return;
-      }
+      setSelectedDare(null);
       const title = isBlocked ? 'Waiting for Partner' : 'Daily Limit Reached';
       const msg = isBlocked
         ? 'You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.'
-        : `Daily limit reached (${limits.daily_limit} cards/day). Resets tomorrow!`;
-      setCustomAlert({ visible: true, title, message: msg });
+        : `Daily limit reached (${limits.daily_limit} cards/day). Your limit resets tomorrow at midnight!`;
+      setCustomAlert({ visible: true, title, message: msg, confirmText: 'Got It' });
       return;
     }
 
@@ -1348,41 +1344,35 @@ export default function Dares() {
 
           </View>
 
-          {/* Free Plan Limit Ended Banner */}
+          {/* Daily Card Limit Reached Status */}
           {limits && limits.daily_remaining <= 0 && (
-            <TouchableOpacity
-              onPress={() => setShowPlansModal(true)}
-              activeOpacity={0.85}
+            <View
               style={{
                 marginHorizontal: 24,
                 marginBottom: 14,
-                padding: 14,
-                borderRadius: 18,
-                backgroundColor: isDark ? 'rgba(255,41,109,0.12)' : '#FFE4E6',
-                borderWidth: 1.5,
-                borderColor: '#FF296D',
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 16,
+                backgroundColor: isDark ? 'rgba(255,41,109,0.08)' : '#FFF1F2',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,41,109,0.2)' : '#FECDD3',
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                gap: 12,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#FF296D', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="sparkles" size={17} color="#FFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? '#FFF' : '#111' }}>
-                    Daily Free Plan Limit Ended
-                  </Text>
-                  <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#FFA3BF' : '#be123c', marginTop: 1 }}>
-                    Compare Free vs Paid to unlock unlimited dares
-                  </Text>
-                </View>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,41,109,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="time-outline" size={18} color="#FF296D" />
               </View>
-              <View style={{ backgroundColor: '#FF296D', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
-                <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>View Plans</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? '#FFFFFF' : '#1E293B' }}>
+                  Daily Card Limit Reached (2/2)
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: '500', color: isDark ? '#FDA4AF' : '#E11D48', marginTop: 1 }}>
+                  You’ve sent your 2 cards for today. Your limit resets at midnight.
+                </Text>
               </View>
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* Carousel */}
@@ -1574,18 +1564,11 @@ export default function Dares() {
                     You sent a card. Waiting for partner to complete action. Once partner completes action, you can send another card.
                   </Text>
                 ) : limits.daily_remaining <= 0 ? (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSelectedDare(null);
-                      setShowPlansModal(true);
-                    }}
-                    style={{ paddingVertical: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Text style={{ color: '#FF296D', fontSize: 13, fontWeight: '800', textAlign: 'center', marginRight: 4 }}>
-                      Daily free limit reached (0 remaining). Tap to View Plans
+                  <View style={{ paddingVertical: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: isDark ? '#FDA4AF' : '#E11D48', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                      Daily limit reached (2/2 cards sent). Resets tomorrow at midnight.
                     </Text>
-                    <Ionicons name="arrow-forward" size={13} color="#FF296D" />
-                  </TouchableOpacity>
+                  </View>
                 ) : (
                   <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
                     {limits.daily_remaining} {limits.daily_remaining === 1 ? 'card' : 'cards'} remaining to send today
