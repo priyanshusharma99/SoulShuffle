@@ -75,9 +75,15 @@ const FALLBACK_STORE_BUNDLES: CardBundle[] = [
 
 type Dare = ChallengePayload & {
   id: string | number;
+  deck_card_id?: string;
+  card_id?: string;
+  bundle_id?: string | null;
+  bundle_name?: string | null;
+  bundle_image?: string | null;
   stars: number;
   isPaid: boolean;
   categoryImage?: string | null;
+  isNew?: boolean;
 };
 
 // Helper to map card structure from Supabase strictly using category image
@@ -96,6 +102,11 @@ const mapCardToDare = (card: any): Dare => {
 
   return {
     id: card.deck_card_id || card.id,
+    deck_card_id: card.deck_card_id || card.id,
+    card_id: card.card_id,
+    bundle_id: card.bundle_id || null,
+    bundle_name: card.bundle_name || null,
+    bundle_image: card.bundle_image || null,
     title: card.card_name || card.name,
     category: cleanCategory,
     categoryImage: categoryImageUrl,
@@ -104,7 +115,7 @@ const mapCardToDare = (card: any): Dare => {
     time,
     image,
     description,
-    isPaid: false
+    isPaid: !!card.bundle_id
   };
 };
 
@@ -461,6 +472,7 @@ export default function Dares() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCategory?: string }>();
   const [unlockedPack, setUnlockedPack] = useState<any>(null);
+  const [unlockedPacksMap, setUnlockedPacksMap] = useState<Record<string, any>>({});
   const [selectedDare, setSelectedDare] = useState<Dare | null>(null);
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = React.useRef(false);
@@ -480,8 +492,18 @@ export default function Dares() {
     }
   }, [selectedDare]);
 
-  // Load last unlocked pack from storage on mount
+  // Load unlocked packs from storage on mount
   useEffect(() => {
+    AsyncStorage.getItem('@soulshuffle_unlocked_packs').then(val => {
+      if (val) {
+        try {
+          const parsed = JSON.parse(val);
+          if (parsed && typeof parsed === 'object') {
+            setUnlockedPacksMap(parsed);
+          }
+        } catch (e) {}
+      }
+    });
     AsyncStorage.getItem('@soulshuffle_last_unlocked_pack').then(val => {
       if (val) {
         try {
@@ -499,9 +521,22 @@ export default function Dares() {
     const sub = DeviceEventEmitter.addListener('app:refreshDares', (eventData?: any) => {
       loadDares(true, true);
       if (eventData?.newlyUnlockedPack) {
-        setUnlockedPack(eventData.newlyUnlockedPack);
-        setSelectedCategory(`PACK_${eventData.newlyUnlockedPack.bundleId}`);
+        const p = eventData.newlyUnlockedPack;
+        setUnlockedPack(p);
+        setUnlockedPacksMap(prev => ({
+          ...prev,
+          [p.bundleId]: p
+        }));
+        setSelectedCategory(`PACK_${p.bundleId}`);
       } else {
+        AsyncStorage.getItem('@soulshuffle_unlocked_packs').then(val => {
+          if (val) {
+            try {
+              const parsed = JSON.parse(val);
+              if (parsed && typeof parsed === 'object') setUnlockedPacksMap(parsed);
+            } catch (e) {}
+          }
+        });
         AsyncStorage.getItem('@soulshuffle_last_unlocked_pack').then(val => {
           if (val) {
             try {
@@ -550,32 +585,59 @@ export default function Dares() {
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const searchBarAnim = React.useRef(new RNAnimated.Value(0)).current;
 
-  // New card IDs set for displaying the "✨ NEW" badge
+  // New card IDs set for displaying the "✨ NEW" badge across all purchased packs
   const newCardIds = useMemo(() => {
-    if (!unlockedPack?.cardIds) return new Set<string>();
-    return new Set<string>(unlockedPack.cardIds.map((id: any) => String(id)));
-  }, [unlockedPack]);
+    const set = new Set<string>();
+    if (unlockedPack?.cardIds) {
+      unlockedPack.cardIds.forEach((id: any) => set.add(String(id)));
+    }
+    Object.values(unlockedPacksMap || {}).forEach((p: any) => {
+      (p?.cardIds || []).forEach((id: any) => set.add(String(id)));
+    });
+    return set;
+  }, [unlockedPack, unlockedPacksMap]);
 
   // Merge newly unlocked bundle cards into the visible deck
   const mergedDares = useMemo(() => {
-    if (!unlockedPack?.cards || unlockedPack.cards.length === 0) return dares;
     const existingIds = new Set(dares.map((d: any) => String(d.id)));
-    const additional = unlockedPack.cards
-      .filter((c: any) => !existingIds.has(String(c.id)))
-      .map((c: any) => ({
-        id: c.id,
-        title: c.title || c.name,
-        category: c.category || 'SPICY',
-        difficulty: c.difficulty || 'HIGH',
-        stars: c.stars || 3,
-        time: c.time || 'Tonight',
-        image: c.image || require('@/assets/images/bundle_spicy.jpg'),
-        description: c.description || c.power_description,
-        isPaid: true,
-        isNew: true,
-      }));
+    const existingCardIds = new Set(dares.map((d: any) => String(d.card_id || '')));
+
+    const additional: any[] = [];
+    // Collect from all unlocked packs
+    const allPacks: any[] = Object.values(unlockedPacksMap || {});
+    if (unlockedPack && !allPacks.some((p: any) => p?.bundleId === unlockedPack.bundleId)) {
+      allPacks.push(unlockedPack);
+    }
+
+    allPacks.forEach((pack: any) => {
+      if (!pack || !pack.bundleId) return;
+      (pack?.cards || []).forEach((c: any) => {
+        const idStr = String(c.id);
+        if (!existingIds.has(idStr) && !existingCardIds.has(idStr)) {
+          existingIds.add(idStr);
+          additional.push({
+            id: c.id,
+            deck_card_id: c.deck_card_id || c.id,
+            card_id: c.card_id || c.id,
+            bundle_id: pack.bundleId,
+            bundle_name: pack.bundleName,
+            bundle_image: pack.bundleImage,
+            title: c.title || c.name,
+            category: c.category || 'SPICY',
+            difficulty: c.difficulty || 'HIGH',
+            stars: c.stars || 3,
+            time: c.time || 'Tonight',
+            image: c.image || require('@/assets/images/bundle_spicy.jpg'),
+            description: c.description || c.power_description,
+            isPaid: true,
+            isNew: true,
+          });
+        }
+      });
+    });
+
     return [...additional, ...dares];
-  }, [dares, unlockedPack]);
+  }, [dares, unlockedPack, unlockedPacksMap]);
 
   const toggleSearch = () => {
     if (searchOpen) {
@@ -609,39 +671,84 @@ export default function Dares() {
     let base = mergedDares;
     if (selectedCategory.startsWith('PACK_')) {
       const packBundleId = selectedCategory.replace('PACK_', '');
-      if (unlockedPack && (unlockedPack.bundleId === packBundleId || unlockedPack.bundle_id === packBundleId)) {
-        const packCardIds = new Set((unlockedPack.cardIds || []).map(String));
-        const matched = mergedDares.filter((d: any) => packCardIds.has(String(d.id)));
-        base = matched.length > 0 ? matched : (unlockedPack.cards || []);
+      const matched = mergedDares.filter((d: any) => {
+        if (d.bundle_id && String(d.bundle_id) === String(packBundleId)) return true;
+        const pack = unlockedPacksMap[packBundleId] || (unlockedPack?.bundleId === packBundleId ? unlockedPack : null);
+        if (pack?.cardIds && pack.cardIds.map(String).includes(String(d.id))) return true;
+        if (pack?.cardIds && pack.cardIds.map(String).includes(String(d.card_id))) return true;
+        return false;
+      });
+
+      if (matched.length > 0) {
+        base = matched;
+      } else {
+        const pack = unlockedPacksMap[packBundleId] || (unlockedPack?.bundleId === packBundleId ? unlockedPack : null);
+        base = pack?.cards || [];
       }
     } else if (selectedCategory !== 'ALL') {
       base = mergedDares.filter((d: any) => d.category === selectedCategory);
     }
     return getFilteredDares(base);
-  }, [mergedDares, selectedCategory, getFilteredDares, unlockedPack]);
+  }, [mergedDares, selectedCategory, getFilteredDares, unlockedPack, unlockedPacksMap]);
 
   const dynamicCategories = useMemo(() => {
     const list: any[] = [];
 
-    // Feature 3: Dedicated Category Pill for Purchased Bundle
-    if (unlockedPack) {
-      const packId = `PACK_${unlockedPack.bundleId}`;
-      const count = unlockedPack.cards?.length || unlockedPack.cardCount || 10;
+    // Map all purchased bundles from currently active deck cards
+    const bundleMap = new Map<string, { id: string; name: string; count: number; image: any }>();
+
+    mergedDares.forEach((d: any) => {
+      if (d.bundle_id) {
+        const bId = String(d.bundle_id);
+        const bName = d.bundle_name || unlockedPacksMap[bId]?.bundleName || (unlockedPack?.bundleId === bId ? unlockedPack.bundleName : 'Card Bundle');
+        const bImg = d.bundle_image || unlockedPacksMap[bId]?.bundleImage || (unlockedPack?.bundleId === bId ? unlockedPack.bundleImage : null);
+        if (!bundleMap.has(bId)) {
+          bundleMap.set(bId, { id: bId, name: bName, count: 1, image: bImg });
+        } else {
+          bundleMap.get(bId)!.count++;
+        }
+      }
+    });
+
+    // Also include any purchased packs that might have cards in local pack cache
+    Object.values(unlockedPacksMap || {}).forEach((pack: any) => {
+      if (pack && pack.bundleId && !bundleMap.has(String(pack.bundleId))) {
+        bundleMap.set(String(pack.bundleId), {
+          id: String(pack.bundleId),
+          name: pack.bundleName || 'Card Bundle',
+          count: pack.cardCount || pack.cards?.length || 0,
+          image: pack.bundleImage || null
+        });
+      }
+    });
+
+    if (unlockedPack && unlockedPack.bundleId && !bundleMap.has(String(unlockedPack.bundleId))) {
+      bundleMap.set(String(unlockedPack.bundleId), {
+        id: String(unlockedPack.bundleId),
+        name: unlockedPack.bundleName || 'Card Bundle',
+        count: unlockedPack.cardCount || unlockedPack.cards?.length || 10,
+        image: unlockedPack.bundleImage || null
+      });
+    }
+
+    // Build dedicated pill for EVERY purchased bundle
+    bundleMap.forEach((bInfo, bId) => {
       let packImage = require('@/assets/images/bundle_spicy.jpg');
-      const nameLower = (unlockedPack.bundleName || '').toLowerCase();
+      const nameLower = (bInfo.name || '').toLowerCase();
       if (nameLower.includes('romanc')) packImage = require('@/assets/images/bundle_romantic.jpg');
       else if (nameLower.includes('cozy')) packImage = require('@/assets/images/bundle_cozy.jpg');
 
       list.push({
-        id: packId,
-        label: `✨ ${unlockedPack.bundleName}`,
-        count,
+        id: `PACK_${bId}`,
+        label: `✨ ${bInfo.name}`,
+        count: bInfo.count,
         color: '#FF296D',
-        image: unlockedPack.bundleImage ? { uri: unlockedPack.bundleImage } : packImage,
+        image: bInfo.image ? { uri: bInfo.image } : packImage,
         isPurchasedPack: true,
       });
-    }
+    });
 
+    // Regular Categories from cards
     const catMap = new Map();
     mergedDares.forEach((d: any) => {
       const c = d.category || 'GENERAL';
@@ -683,7 +790,7 @@ export default function Dares() {
     });
 
     return [...list, ...regularCategories];
-  }, [mergedDares, unlockedPack, categoryDbImages]);
+  }, [mergedDares, unlockedPack, unlockedPacksMap, categoryDbImages]);
 
   useEffect(() => {
     if (selectedCategory !== 'ALL' && !selectedCategory.startsWith('PACK_') && dynamicCategories.length > 0 && !dynamicCategories.some(c => c.id === selectedCategory)) {
@@ -1012,12 +1119,13 @@ export default function Dares() {
     }
 
     try {
-      const sentData = await sendChallenge(targetDare.id.toString(), currentNote, activeRoom);
+      const cardIdToSend = (targetDare.deck_card_id || targetDare.id).toString();
+      const sentData = await sendChallenge(cardIdToSend, currentNote, activeRoom);
 
       // Create rich history item
       const newHistoryCard: SentChallenge = {
         id: sentData?.id || String(Date.now()),
-        card_id: String(targetDare.id),
+        card_id: String(targetDare.card_id || targetDare.deck_card_id || targetDare.id),
         title: targetDare.title,
         description: targetDare.description || '',
         category: targetDare.category || 'Dare',

@@ -449,6 +449,16 @@ export default function StoreScreen() {
       };
       await AsyncStorage.setItem('@soulshuffle_last_unlocked_pack', JSON.stringify(newlyUnlocked));
 
+      try {
+        const storedPacksRaw = await AsyncStorage.getItem('@soulshuffle_unlocked_packs');
+        const packsMap = storedPacksRaw ? JSON.parse(storedPacksRaw) : {};
+        packsMap[targetBundleId] = {
+          ...newlyUnlocked,
+          cardCount: (packsMap[targetBundleId]?.cardCount || 0) + (selectedPlan.card_count || cardsToReveal.length)
+        };
+        await AsyncStorage.setItem('@soulshuffle_unlocked_packs', JSON.stringify(packsMap));
+      } catch (e) {}
+
       // Invalidate local caches so Dares tab fetches fresh deck
       await AsyncStorage.removeItem('@soulshuffle_dares_cache');
       await AsyncStorage.removeItem('cachedDeckCards');
