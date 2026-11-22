@@ -1855,8 +1855,9 @@ export default function Dashboard() {
                     >
                       <Ionicons name="sparkles" size={14} color="#FF296D" />
                       <Text style={{ fontSize: 12, fontWeight: '700', color: '#FF296D' }}>
-                        New to SoulShuffle? View the Welcome Guide →
+                        New to SoulShuffle? View the Welcome Guide
                       </Text>
+                      <Ionicons name="arrow-forward" size={12} color="#FF296D" />
                     </TouchableOpacity>
                   </View>
                 </View>

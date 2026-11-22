@@ -1463,11 +1463,12 @@ export default function Dares() {
                       setSelectedDare(null);
                       setShowPlansModal(true);
                     }}
-                    style={{ paddingVertical: 4, alignItems: 'center' }}
+                    style={{ paddingVertical: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Text style={{ color: '#FF296D', fontSize: 13, fontWeight: '800', textAlign: 'center' }}>
-                      Daily free limit reached (0 remaining). Tap to View Plans →
+                    <Text style={{ color: '#FF296D', fontSize: 13, fontWeight: '800', textAlign: 'center', marginRight: 4 }}>
+                      Daily free limit reached (0 remaining). Tap to View Plans
                     </Text>
+                    <Ionicons name="arrow-forward" size={13} color="#FF296D" />
                   </TouchableOpacity>
                 ) : (
                   <Text style={{ color: subTextColor, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>

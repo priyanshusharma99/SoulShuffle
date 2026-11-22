@@ -546,9 +546,12 @@ export default function StoreScreen() {
                 paddingHorizontal: 14,
                 paddingVertical: 7,
                 borderRadius: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
               }}
             >
-              <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700' }}>Create or Join Room →</Text>
+              <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700', marginRight: 4 }}>Create or Join Room</Text>
+              <Ionicons name="arrow-forward" size={13} color="#ffffff" />
             </TouchableOpacity>
           </View>
         )}

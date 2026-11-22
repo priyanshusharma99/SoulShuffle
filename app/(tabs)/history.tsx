@@ -1574,7 +1574,7 @@ export default function History() {
                                           }}
                                         >
                                           {isSentByMe
-                                            ? `Sent by You ➔ ${roomGroup.partnerName}`
+                                            ? `Sent by You to ${roomGroup.partnerName}`
                                             : `Received from ${roomGroup.partnerName}`}
                                         </Text>
                                       </View>

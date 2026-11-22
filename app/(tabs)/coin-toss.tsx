@@ -780,7 +780,7 @@ export default function CoinToss() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-slate-800 dark:text-white font-bold text-xs" numberOfLines={1}>
-                        {item.flipperName} picked {item.choice} → {item.result}
+                        {item.flipperName} picked {item.choice} | Landed: {item.result}
                       </Text>
                     </View>
                   </View>
