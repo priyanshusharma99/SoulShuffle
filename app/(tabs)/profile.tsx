@@ -161,7 +161,11 @@ export default function Profile() {
   useEffect(() => {
     const loadCachedInitialState = async () => {
       try {
-        const cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
+        let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
+        if (cachedAvatar && cachedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+          cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+          await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
+        }
         if (cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear')) {
           setUserAvatar(cachedAvatar);
         } else {
@@ -250,9 +254,15 @@ export default function Profile() {
     // ── Step 1: Load user name & avatar from cache & profile API ──
     let myUserId: string | undefined;
     try {
-      const cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
-      if (cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear')) {
-        setUserAvatar(cachedAvatar);
+      let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
+      if (cachedAvatar && cachedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+        cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+        await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
+      }
+      const isCustomCachedAvatarValid = !!(cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear'));
+
+      if (isCustomCachedAvatarValid) {
+        setUserAvatar(cachedAvatar!);
       } else {
         setUserAvatar(ANIMATED_AVATARS[0].url);
       }
@@ -269,6 +279,10 @@ export default function Profile() {
       if (profile?.avatarUrl && profile.avatarUrl !== 'null' && profile.avatarUrl !== 'undefined' && !profile.avatarUrl.includes('dicebear')) {
         setUserAvatar(profile.avatarUrl);
         await AsyncStorage.setItem('cachedUserAvatar', profile.avatarUrl);
+      } else if (isCustomCachedAvatarValid) {
+        // Keep user's chosen custom avatar permanently! Do not revert to default!
+        setUserAvatar(cachedAvatar!);
+        updateMyProfile({ avatar_url: cachedAvatar! }).catch(() => {});
       } else {
         setUserAvatar(ANIMATED_AVATARS[0].url);
         await AsyncStorage.setItem('cachedUserAvatar', ANIMATED_AVATARS[0].url);
@@ -323,10 +337,16 @@ export default function Profile() {
         // Partner Avatar
         let resolvedAvatar = isHost ? room.partner_avatar : room.host_avatar;
         if (resolvedAvatar?.includes("dicebear")) resolvedAvatar = null;
+        if (resolvedAvatar && resolvedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+          resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+        }
 
         if (!resolvedAvatar) {
           resolvedAvatar = await AsyncStorage.getItem(`partnerAvatar_${room.id}`);
           if (resolvedAvatar?.includes("dicebear")) resolvedAvatar = null;
+          if (resolvedAvatar && resolvedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+            resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+          }
         }
         if (resolvedAvatar === "null") resolvedAvatar = null;
         

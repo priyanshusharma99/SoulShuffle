@@ -31,9 +31,12 @@ export const saveTokens = async (
   }
   
   // Guarantee a valid animated default avatar is set if none exists
-  const resolvedAvatar = (extra?.avatarUrl && extra.avatarUrl !== 'null' && extra.avatarUrl !== 'undefined' && extra.avatarUrl.trim() !== '' && !extra.avatarUrl.includes('dicebear'))
+  let resolvedAvatar = (extra?.avatarUrl && extra.avatarUrl !== 'null' && extra.avatarUrl !== 'undefined' && extra.avatarUrl.trim() !== '' && !extra.avatarUrl.includes('dicebear'))
     ? extra.avatarUrl
     : ANIMATED_AVATARS[0].url;
+  if (resolvedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+    resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+  }
   entries.push(['cachedUserAvatar', resolvedAvatar]);
 
   // Atomic batch write to storage (1 disk cycle instead of 6+)
@@ -73,11 +76,16 @@ export const signUp = async (name: string, email: string, password: string) => {
     || data?.user?.name?.split(' ')[0] 
     || enteredFirstName;
 
+  const defaultAvatar = ANIMATED_AVATARS[0].url;
+
   await saveTokens(data.accessToken, data.refreshToken, {
     firstName,
     userId: data?.user?.id,
-    avatarUrl: data?.profile?.avatar_url,
+    avatarUrl: data?.profile?.avatar_url || defaultAvatar,
   });
+
+  // Ensure initial profile row exists on backend with default animated avatar
+  updateMyProfile({ avatar_url: defaultAvatar, first_name: firstName }).catch(() => {});
 
   return data;
 };
@@ -185,30 +193,51 @@ export const getMyProfileCached = async (): Promise<{ id: string | null; firstNa
   const cachedId = await AsyncStorage.getItem('cachedUserId');
   let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
 
-  if (!cachedAvatar || cachedAvatar === 'null' || cachedAvatar === 'undefined' || cachedAvatar.trim() === '' || cachedAvatar.includes('dicebear')) {
+  if (cachedAvatar && cachedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+    cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+    await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
+  }
+
+  const isCachedAvatarValid = !!(cachedAvatar && cachedAvatar !== 'null' && cachedAvatar !== 'undefined' && cachedAvatar.trim() !== '' && !cachedAvatar.includes('dicebear'));
+
+  if (!isCachedAvatarValid) {
     cachedAvatar = ANIMATED_AVATARS[0].url;
     await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
   }
 
   if (cachedName && cachedName !== 'User' && cachedId) {
-    return { id: cachedId, firstName: cachedName, avatarUrl: cachedAvatar };
+    return { id: cachedId, firstName: cachedName, avatarUrl: cachedAvatar! };
   }
 
   try {
     const profile = await getMyProfile();
     const firstName = profile?.first_name || profile?.users?.name?.split(' ')[0] || (cachedName && cachedName !== 'User' ? cachedName : '');
     const userId = profile?.id || cachedId || null;
-    let avatarUrl = profile?.avatar_url || cachedAvatar;
-    if (!avatarUrl || avatarUrl === 'null' || avatarUrl === 'undefined' || avatarUrl.trim() === '' || avatarUrl.includes('dicebear')) {
-      avatarUrl = ANIMATED_AVATARS[0].url;
-      updateMyProfile({ avatar_url: avatarUrl }).catch(() => {});
+
+    let backendAvatar = profile?.avatar_url;
+    if (backendAvatar && backendAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+      backendAvatar = backendAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+    }
+
+    const isBackendAvatarValid = !!(backendAvatar && backendAvatar !== 'null' && backendAvatar !== 'undefined' && backendAvatar.trim() !== '' && !backendAvatar.includes('dicebear'));
+
+    let finalAvatar: string;
+    if (isBackendAvatarValid) {
+      finalAvatar = backendAvatar;
+    } else if (isCachedAvatarValid) {
+      // User already picked an avatar locally! Keep it permanent, never overwrite with default!
+      finalAvatar = cachedAvatar!;
+      updateMyProfile({ avatar_url: finalAvatar }).catch(() => {});
+    } else {
+      finalAvatar = ANIMATED_AVATARS[0].url;
+      updateMyProfile({ avatar_url: finalAvatar }).catch(() => {});
     }
 
     if (firstName && firstName !== 'User') await AsyncStorage.setItem('cachedUserName', firstName);
     if (userId) await AsyncStorage.setItem('cachedUserId', userId);
-    await AsyncStorage.setItem('cachedUserAvatar', avatarUrl);
-    return { id: userId, firstName, avatarUrl };
+    await AsyncStorage.setItem('cachedUserAvatar', finalAvatar);
+    return { id: userId, firstName, avatarUrl: finalAvatar };
   } catch {
-    return { id: cachedId ?? null, firstName: cachedName && cachedName !== 'User' ? cachedName : '', avatarUrl: cachedAvatar };
+    return { id: cachedId ?? null, firstName: cachedName && cachedName !== 'User' ? cachedName : '', avatarUrl: cachedAvatar || ANIMATED_AVATARS[0].url };
   }
 };

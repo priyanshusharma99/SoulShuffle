@@ -6,6 +6,16 @@ import { useFocusEffect } from 'expo-router';
 
 export const DEFAULT_AVATAR = ANIMATED_AVATARS[0].url;
 
+function sanitizeAvatarUrl(url?: string | null): string {
+  if (!url || url === 'null' || url === 'undefined' || url.trim() === '' || url.includes('dicebear')) {
+    return DEFAULT_AVATAR;
+  }
+  if (url.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
+    return url.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+  }
+  return url;
+}
+
 export function useUserAvatar() {
   const [avatar, setAvatar] = useState<string>(DEFAULT_AVATAR);
 
@@ -16,13 +26,14 @@ export function useUserAvatar() {
 
       const loadAvatar = async () => {
         try {
-          const cached = await AsyncStorage.getItem('cachedUserAvatar');
-          if (cached && cached !== 'null' && cached !== 'undefined' && cached.trim() !== '' && !cached.includes('dicebear')) {
-            if (isMounted) setAvatar(cached);
-          } else {
-            // Automatically set and persist default avatar so user NEVER sees a blank icon
-            if (isMounted) setAvatar(DEFAULT_AVATAR);
-            AsyncStorage.setItem('cachedUserAvatar', DEFAULT_AVATAR).catch(() => {});
+          const rawCached = await AsyncStorage.getItem('cachedUserAvatar');
+          const cleanAvatar = sanitizeAvatarUrl(rawCached);
+
+          if (isMounted) setAvatar(cleanAvatar);
+
+          // Update cache if sanitized URL differs from stored (e.g. upgraded from jsdelivr/dicebear)
+          if (rawCached !== cleanAvatar) {
+            AsyncStorage.setItem('cachedUserAvatar', cleanAvatar).catch(() => {});
           }
         } catch (err) {
           console.log('Failed to load cached avatar:', err);
@@ -32,14 +43,10 @@ export function useUserAvatar() {
       loadAvatar();
 
       const sub = DeviceEventEmitter.addListener('profile:updated', (data) => {
-        const newUrl = data?.avatarUrl;
-        const valid = (newUrl && newUrl !== 'null' && newUrl !== 'undefined' && newUrl.trim() !== '' && !newUrl.includes('dicebear'))
-          ? newUrl
-          : DEFAULT_AVATAR;
+        const cleanAvatar = sanitizeAvatarUrl(data?.avatarUrl);
         if (isMounted) {
-          setAvatar(valid);
-          // Also persist to cache in case it wasn't already
-          AsyncStorage.setItem('cachedUserAvatar', valid).catch(() => {});
+          setAvatar(cleanAvatar);
+          AsyncStorage.setItem('cachedUserAvatar', cleanAvatar).catch(() => {});
         }
       });
 

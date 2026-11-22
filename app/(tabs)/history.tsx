@@ -994,7 +994,7 @@ export default function History() {
             source={{
               uri:
                 userAvatar ||
-                'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Crystal%20ball/3D/crystal_ball_3d.png',
+                'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Crystal%20ball/3D/crystal_ball_3d.png',
             }}
             style={{ width: 28, height: 28 }}
             resizeMode="contain"
