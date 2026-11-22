@@ -66,6 +66,7 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   registerPushTokenWithBackend: () => Promise<void>;
+  sendTestNotification: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -84,6 +85,7 @@ const setupAndroidChannel = async () => {
         lightColor: '#e11d48',
         enableVibrate: true,
         showBadge: true,
+        sound: 'default',
         lockscreenVisibility: Notifications?.AndroidNotificationVisibility?.PUBLIC ?? 1,
         bypassDnd: false,
       });
@@ -175,7 +177,6 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     }
 
     if (isRegisteringTokenRef.current) return;
-    if (lastRegisteredTokenRef.current) return;
     isRegisteringTokenRef.current = true;
 
     try {
@@ -209,35 +210,41 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         return;
       }
 
-      // 3. Obtain Expo Push Token
+      // 3. Obtain Expo Push Token using real EAS projectId
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
         Constants?.easConfig?.projectId ??
-        '75231063-db0f-42e1-9654-e92a69abe55d';
+        '700a805a-f330-491e-bbef-7be4cf40a047';
 
       try {
-        const tokenResult = await Notifications?.getExpoPushTokenAsync?.({
-          projectId,
-        });
+        let tokenResult: any = null;
+        try {
+          tokenResult = await Notifications?.getExpoPushTokenAsync?.({
+            projectId,
+          });
+        } catch (projErr) {
+          console.warn('[Notifications] getExpoPushTokenAsync with projectId failed, trying default:', projErr);
+          tokenResult = await Notifications?.getExpoPushTokenAsync?.();
+        }
 
         const pushToken = tokenResult?.data;
         console.log('[Notifications] Push Token obtained:', pushToken);
-        setExpoPushToken(pushToken);
-
         if (pushToken) {
+          setExpoPushToken(pushToken);
           await AsyncStorage.setItem('expoPushToken', pushToken);
+        }
 
-          // 4. Send token to backend if user is logged in (skip if already registered)
-          if (lastRegisteredTokenRef.current !== pushToken) {
-            const accessToken = await AsyncStorage.getItem('accessToken');
-            if (accessToken) {
-              try {
-                await api.post('/notifications/register-push-token', { pushToken });
-                lastRegisteredTokenRef.current = pushToken;
-                console.log('[Notifications] Push token successfully registered on backend');
-              } catch (apiErr) {
-                console.warn('[Notifications] Failed to send push token to backend:', apiErr);
-              }
+        // 4. Send token to backend if user is logged in
+        const tokenToSend = pushToken || (await AsyncStorage.getItem('expoPushToken'));
+        if (tokenToSend) {
+          const accessToken = await AsyncStorage.getItem('accessToken');
+          if (accessToken && lastRegisteredTokenRef.current !== tokenToSend) {
+            try {
+              await api.post('/notifications/register-push-token', { pushToken: tokenToSend });
+              lastRegisteredTokenRef.current = tokenToSend;
+              console.log('[Notifications] Push token successfully registered on backend:', tokenToSend);
+            } catch (apiErr) {
+              console.warn('[Notifications] Failed to send push token to backend:', apiErr);
             }
           }
         }
@@ -380,6 +387,33 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     };
   }, [fetchUnreadCount]);
 
+  // Send instant test notification (tests both backend push and Android local tray)
+  const sendTestNotification = useCallback(async () => {
+    try {
+      // 1. Post to backend test endpoint to test remote push delivery
+      await api.post('/notifications/send-test', {
+        title: 'SoulShuffle Test 🔔',
+        body: 'Remote push notifications are working perfectly!',
+      }).catch(() => {});
+
+      // 2. Also trigger instant notification directly in device notification bar
+      if (Notifications?.scheduleNotificationAsync) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'SoulShuffle Notification Bar 🔔',
+            body: 'If you see this in your notification bar, permissions & system tray are working!',
+            sound: 'default',
+            channelId: 'default',
+            badge: 1,
+          },
+          trigger: null,
+        });
+      }
+    } catch (e) {
+      console.warn('[NotificationContext] sendTestNotification error:', e);
+    }
+  }, []);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -393,6 +427,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         markAllAsRead,
         deleteNotification,
         registerPushTokenWithBackend,
+        sendTestNotification,
       }}
     >
       {children}
