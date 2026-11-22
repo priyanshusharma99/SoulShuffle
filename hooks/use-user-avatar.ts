@@ -11,7 +11,10 @@ function sanitizeAvatarUrl(url?: string | null): string {
     return DEFAULT_AVATAR;
   }
   if (url.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-    return url.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+    return url.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
+  }
+  if (url.includes('raw.githubusercontent.com/microsoft/fluentui-emoji/main/')) {
+    return url.replace('https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
   }
   return url;
 }

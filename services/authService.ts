@@ -35,7 +35,10 @@ export const saveTokens = async (
     ? extra.avatarUrl
     : ANIMATED_AVATARS[0].url;
   if (resolvedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-    resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+    resolvedAvatar = resolvedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
+  }
+  if (resolvedAvatar.includes('raw.githubusercontent.com/microsoft/fluentui-emoji/main/')) {
+    resolvedAvatar = resolvedAvatar.replace('https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
   }
   entries.push(['cachedUserAvatar', resolvedAvatar]);
 
@@ -194,7 +197,11 @@ export const getMyProfileCached = async (): Promise<{ id: string | null; firstNa
   let cachedAvatar = await AsyncStorage.getItem('cachedUserAvatar');
 
   if (cachedAvatar && cachedAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-    cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+    cachedAvatar = cachedAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
+    await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
+  }
+  if (cachedAvatar && cachedAvatar.includes('raw.githubusercontent.com/microsoft/fluentui-emoji/main/')) {
+    cachedAvatar = cachedAvatar.replace('https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
     await AsyncStorage.setItem('cachedUserAvatar', cachedAvatar);
   }
 
@@ -216,7 +223,10 @@ export const getMyProfileCached = async (): Promise<{ id: string | null; firstNa
 
     let backendAvatar = profile?.avatar_url;
     if (backendAvatar && backendAvatar.includes('cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/')) {
-      backendAvatar = backendAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/');
+      backendAvatar = backendAvatar.replace('https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
+    }
+    if (backendAvatar && backendAvatar.includes('raw.githubusercontent.com/microsoft/fluentui-emoji/main/')) {
+      backendAvatar = backendAvatar.replace('https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/', 'https://cdn.statically.io/gh/microsoft/fluentui-emoji/main/');
     }
 
     const isBackendAvatarValid = !!(backendAvatar && backendAvatar !== 'null' && backendAvatar !== 'undefined' && backendAvatar.trim() !== '' && !backendAvatar.includes('dicebear'));

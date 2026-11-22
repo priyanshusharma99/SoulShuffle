@@ -634,7 +634,7 @@ export default function Profile() {
           <TouchableOpacity onPress={() => setIsAvatarModalOpen(true)} className="w-8 h-8 rounded-full bg-rose-500/10 dark:bg-rose-950/40 items-center justify-center border border-rose-200 dark:border-rose-950/30 p-0.5">
             <Image
               source={{ uri: userAvatar }}
-              className="w-6 h-6"
+              style={{ width: 24, height: 24 }}
               resizeMode="contain"
             />
           </TouchableOpacity>
@@ -656,7 +656,7 @@ export default function Profile() {
                   >
                     <Image
                       source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
-                      className="w-24 h-24"
+                      style={{ width: 96, height: 96 }}
                       resizeMode="contain"
                     />
                     {/* Overlay with animated avatar edit icon */}
@@ -676,7 +676,7 @@ export default function Profile() {
                   <View className="absolute left-1/2 ml-[-12px] bg-teal-950/80 dark:bg-[#132321] rounded-t-[40px] rounded-bl-[40px] rounded-br-[10px] overflow-hidden w-40 h-40 border-2 border-teal-400/40 shadow-xl items-center justify-center p-3">
                     <Image
                       source={{ uri: partnerAvatar || ANIMATED_AVATARS[1].url }}
-                      className="w-24 h-24"
+                      style={{ width: 96, height: 96 }}
                       resizeMode="contain"
                     />
                   </View>
@@ -709,7 +709,7 @@ export default function Profile() {
                 >
                   <Image
                     source={{ uri: userAvatar || ANIMATED_AVATARS[0].url }}
-                    className="w-24 h-24"
+                    style={{ width: 96, height: 96 }}
                     resizeMode="contain"
                   />
                   {/* Overlay with animated avatar edit icon */}
@@ -1289,11 +1289,14 @@ export default function Profile() {
                             : 'bg-rose-50 dark:bg-[#200e14] border-slate-200/80 dark:border-rose-950/40'
                         }`}
                       >
-                        <Image
-                          source={{ uri: item.url }}
-                          className="w-20 h-20"
-                          resizeMode="contain"
-                        />
+                        <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 44, position: 'absolute' }}>{item.emoji}</Text>
+                          <Image
+                            source={{ uri: item.url }}
+                            style={{ width: 80, height: 80 }}
+                            resizeMode="contain"
+                          />
+                        </View>
 
                         {/* Emoji Tag */}
                         <View className="absolute top-2.5 left-2.5 bg-black/40 dark:bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full flex-row items-center">
