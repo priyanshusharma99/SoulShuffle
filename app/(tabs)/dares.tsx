@@ -710,12 +710,15 @@ export default function Dares() {
     mergedDares.forEach((d: any) => {
       if (d.bundle_id) {
         const bId = String(d.bundle_id);
-        const bName = d.bundle_name || unlockedPacksMap[bId]?.bundleName || (unlockedPack?.bundleId === bId ? unlockedPack.bundleName : 'Card Bundle');
+        const bName = d.bundle_name || unlockedPacksMap[bId]?.bundleName || (unlockedPack?.bundleId === bId ? unlockedPack.bundleName : null);
         const bImg = d.bundle_image || unlockedPacksMap[bId]?.bundleImage || (unlockedPack?.bundleId === bId ? unlockedPack.bundleImage : null);
-        if (!bundleMap.has(bId)) {
-          bundleMap.set(bId, { id: bId, name: bName, count: 1, image: bImg });
-        } else {
-          bundleMap.get(bId)!.count++;
+        // Only register genuine, meaningful bundle names (NEVER generic 'Card Bundle' or empty)
+        if (bName && bName.trim() !== '' && bName.toLowerCase() !== 'card bundle' && bName.toLowerCase() !== 'bundle') {
+          if (!bundleMap.has(bId)) {
+            bundleMap.set(bId, { id: bId, name: bName.trim(), count: 1, image: bImg });
+          } else {
+            bundleMap.get(bId)!.count++;
+          }
         }
       }
     });
@@ -723,26 +726,35 @@ export default function Dares() {
     // Also include any purchased packs that might have cards in local pack cache
     Object.values(unlockedPacksMap || {}).forEach((pack: any) => {
       if (pack && pack.bundleId && !bundleMap.has(String(pack.bundleId))) {
-        bundleMap.set(String(pack.bundleId), {
-          id: String(pack.bundleId),
-          name: pack.bundleName || 'Card Bundle',
-          count: pack.cardCount || pack.cards?.length || 0,
-          image: pack.bundleImage || null
-        });
+        const bName = pack.bundleName;
+        const count = pack.cards?.length || pack.cardCount || 0;
+        if (bName && bName.trim() !== '' && bName.toLowerCase() !== 'card bundle' && bName.toLowerCase() !== 'bundle' && count > 0) {
+          bundleMap.set(String(pack.bundleId), {
+            id: String(pack.bundleId),
+            name: bName.trim(),
+            count,
+            image: pack.bundleImage || null
+          });
+        }
       }
     });
 
     if (unlockedPack && unlockedPack.bundleId && !bundleMap.has(String(unlockedPack.bundleId))) {
-      bundleMap.set(String(unlockedPack.bundleId), {
-        id: String(unlockedPack.bundleId),
-        name: unlockedPack.bundleName || 'Card Bundle',
-        count: unlockedPack.cardCount || unlockedPack.cards?.length || 10,
-        image: unlockedPack.bundleImage || null
-      });
+      const bName = unlockedPack.bundleName;
+      const count = unlockedPack.cards?.length || unlockedPack.cardCount || 0;
+      if (bName && bName.trim() !== '' && bName.toLowerCase() !== 'card bundle' && bName.toLowerCase() !== 'bundle' && count > 0) {
+        bundleMap.set(String(unlockedPack.bundleId), {
+          id: String(unlockedPack.bundleId),
+          name: bName.trim(),
+          count,
+          image: unlockedPack.bundleImage || null
+        });
+      }
     }
 
-    // Build dedicated pill for EVERY purchased bundle
+    // Build dedicated pill for EVERY purchased bundle that has valid name & active cards
     bundleMap.forEach((bInfo, bId) => {
+      if (!bInfo.name || bInfo.name.toLowerCase() === 'card bundle' || bInfo.count <= 0) return;
       let packImage = require('@/assets/images/bundle_spicy.jpg');
       const nameLower = (bInfo.name || '').toLowerCase();
       if (nameLower.includes('romanc')) packImage = require('@/assets/images/bundle_romantic.jpg');
@@ -803,7 +815,7 @@ export default function Dares() {
   }, [mergedDares, unlockedPack, unlockedPacksMap, categoryDbImages]);
 
   useEffect(() => {
-    if (selectedCategory !== 'ALL' && !selectedCategory.startsWith('PACK_') && dynamicCategories.length > 0 && !dynamicCategories.some(c => c.id === selectedCategory)) {
+    if (selectedCategory !== 'ALL' && dynamicCategories.length > 0 && !dynamicCategories.some(c => c.id === selectedCategory)) {
       setSelectedCategory('ALL');
     }
   }, [selectedCategory, dynamicCategories]);
@@ -1109,6 +1121,48 @@ export default function Dares() {
 
     // Optimistic: remove card from visible list & update limits
     setDares(prevDares => prevDares.filter(d => d.id !== targetDare.id));
+
+    const targetIdStr = String(targetDare.id);
+    const targetCardIdStr = String(targetDare.card_id || targetDare.id);
+
+    // Optimistically update unlockedPacksMap and unlockedPack so card count decrements in pack pills
+    setUnlockedPacksMap((prev: Record<string, any>) => {
+      const next = { ...prev };
+      let changed = false;
+      Object.keys(next).forEach(bId => {
+        const p = next[bId];
+        if (p && Array.isArray(p.cards)) {
+          const filtered = p.cards.filter((c: any) => String(c.id) !== targetIdStr && String(c.card_id || c.id) !== targetCardIdStr);
+          if (filtered.length !== p.cards.length) {
+            next[bId] = {
+              ...p,
+              cards: filtered,
+              cardCount: Math.max(0, filtered.length),
+              cardIds: (p.cardIds || []).filter((id: any) => String(id) !== targetIdStr && String(id) !== targetCardIdStr),
+            };
+            changed = true;
+          }
+        }
+      });
+      if (changed) {
+        AsyncStorage.setItem('@soulshuffle_unlocked_packs', JSON.stringify(next)).catch(() => {});
+      }
+      return changed ? next : prev;
+    });
+
+    setUnlockedPack((prev: any) => {
+      if (!prev || !Array.isArray(prev.cards)) return prev;
+      const filtered = prev.cards.filter((c: any) => String(c.id) !== targetIdStr && String(c.card_id || c.id) !== targetCardIdStr);
+      if (filtered.length === prev.cards.length) return prev;
+      const updated = {
+        ...prev,
+        cards: filtered,
+        cardCount: Math.max(0, filtered.length),
+        cardIds: (prev.cardIds || []).filter((id: any) => String(id) !== targetIdStr && String(id) !== targetCardIdStr),
+      };
+      AsyncStorage.setItem('@soulshuffle_last_unlocked_pack', JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
 
     const backupLimits = limits ? { ...limits } : null;
     let newOptimisticLimits = limits ? { ...limits } : null;
