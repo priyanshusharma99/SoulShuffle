@@ -94,23 +94,58 @@ class RevenueCatService {
         return { fallback: true, success: true };
       }
 
-      // 1. Try resolving through RevenueCat Offerings (best practice)
+      // 1. Try resolving through RevenueCat Offerings (current and all registered offerings)
       try {
         const offerings = await Purchases.getOfferings();
-        if (offerings?.current?.availablePackages?.length > 0) {
-          const matchedPkg = offerings.current.availablePackages.find((pkg: any) =>
-            pkg.product?.identifier === productIdentifier ||
-            pkg.product?.identifier === `${productIdentifier}:monthly-plan` ||
-            pkg.identifier === '$rc_monthly'
-          );
+        
+        // Collect packages from current offering AND all offerings in offerings.all
+        const packagePool: any[] = [];
+        if (offerings?.current?.availablePackages) {
+          packagePool.push(...offerings.current.availablePackages);
+        }
+        if (offerings?.all) {
+          Object.values(offerings.all).forEach((offering: any) => {
+            if (offering?.availablePackages) {
+              offering.availablePackages.forEach((pkg: any) => {
+                if (!packagePool.some((existing) => existing.identifier === pkg.identifier)) {
+                  packagePool.push(pkg);
+                }
+              });
+            }
+          });
+        }
+
+        if (packagePool.length > 0) {
+          const targetLower = productIdentifier.toLowerCase();
+          const isMonthlyTarget = targetLower.includes('monthly') || targetLower.includes('99');
+
+          // Exact or flexible match
+          const matchedPkg = packagePool.find((pkg: any) => {
+            const pId = (pkg.product?.identifier || '').toLowerCase();
+            const pkgId = (pkg.identifier || '').toLowerCase();
+            const pkgType = (pkg.packageType || '').toUpperCase();
+
+            // Match exact product or package identifier
+            if (pId === targetLower || pkgId === targetLower) return true;
+            if (pId === `${targetLower}:monthly-plan`) return true;
+
+            // Match RevenueCat standard identifiers
+            if (isMonthlyTarget) {
+              if (pkgId === '$rc_monthly' || pkgId === 'monthly' || pkgType === 'MONTHLY') return true;
+              if (pkgId.includes('monthly') || pId.includes('monthly')) return true;
+            }
+
+            return false;
+          }) || (isMonthlyTarget ? packagePool[0] : null);
+
           if (matchedPkg) {
-            console.log('[RevenueCatService] Purchasing via offering package:', matchedPkg.identifier);
+            console.log('[RevenueCatService] Purchasing via matched offering package:', matchedPkg.identifier);
             const result = await Purchases.purchasePackage(matchedPkg);
             return result;
           }
         }
-      } catch (offeringErr) {
-        console.log('[RevenueCatService] Offerings lookup notice:', offeringErr);
+      } catch (offeringErr: any) {
+        console.log('[RevenueCatService] Offerings lookup notice:', offeringErr?.message || offeringErr);
       }
 
       // 2. Try fetching as Subscription (Google Play Billing v5/v6+)

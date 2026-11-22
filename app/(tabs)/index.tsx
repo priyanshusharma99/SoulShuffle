@@ -250,7 +250,7 @@ export default function Dashboard() {
   const [penaltyGiftModalVisible, setPenaltyGiftModalVisible] = useState(false);
   const [penaltyGiftCard, setPenaltyGiftCard] = useState<any>(null);
   const [showPlansModal, setShowPlansModal] = useState(false);
-  const [plansModalReason, setPlansModalReason] = useState<'limit_reached' | 'plan_expired'>('plan_expired');
+  const [plansModalReason, setPlansModalReason] = useState<'limit_reached' | 'plan_expired' | 'room_30_days'>('plan_expired');
   const [lastRoomExpiryType, setLastRoomExpiryType] = useState<string | null>(null);
   const hasAutoPromptedPlanModalRef = useRef(false);
 
@@ -2384,14 +2384,15 @@ export default function Dashboard() {
           visible={showPlansModal}
           onClose={() => setShowPlansModal(false)}
           onSuccess={async () => {
-            if (selectedExpiry === '30_DAYS' && roomModalVisible) {
+            if (plansModalReason === 'room_30_days' || selectedExpiry === '30_DAYS') {
               try {
                 setActionLoading(true);
                 const room = await createRoom('30_DAYS');
                 setActiveRoom(room);
                 setRoomModalVisible(false);
+                setSelectedExpiry('30_DAYS');
               } catch (err: any) {
-                setActionError(err.response?.data?.message || err.message || 'Failed to create 30-day room');
+                console.warn('[Dashboard] Auto create 30-day room notice:', err?.message);
               } finally {
                 setActionLoading(false);
               }
