@@ -1219,7 +1219,84 @@ export default function Dashboard() {
   };
 
   // ── Leave Room (Dashboard) ─────────────────────────────
+  const executeLeaveRoom = async () => {
+    setIsLeavingRoom(true);
+    try {
+      const currentRoomId = activeRoom?.id;
+      const currentRoomCode = activeRoom?.code;
+
+      // Immediately leave socket room
+      if (currentRoomCode) {
+        GameSocket.leaveRoom(currentRoomCode);
+      }
+
+      // Optimistically update UI immediately so 'No Room' card appears right away
+      setActiveRoom(null);
+      setCardSends([]);
+      setDeflectCardsCount(0);
+      setDeflectCards([]);
+      setLocalPendingChallenges([]);
+      setRoomHistoryData([]);
+      setPartnerName("Partner");
+      setPartnerAvatar(ANIMATED_AVATARS[1].url);
+
+      // Clear local VIP flags
+      await AsyncStorage.removeItem('@soulshuffle_vip_active');
+      await AsyncStorage.removeItem('@soulshuffle_vip_expires_at');
+
+      DeviceEventEmitter.emit("app:clearRoom");
+
+      // Thoroughly clear cache from storage
+      if (currentRoomId) {
+        await clearRoomCache(currentRoomId);
+        await leaveRoom(currentRoomId);
+      } else {
+        await clearRoomCache();
+      }
+
+      // Delay refresh slightly to ensure backend is fully updated
+      setTimeout(() => {
+        DeviceEventEmitter.emit("app:refreshDashboard");
+      }, 500);
+    } catch (error) {
+      console.error("API Error during leaveRoom:", error);
+    } finally {
+      setIsLeavingRoom(false);
+      setRoomLoading(false);
+    }
+  };
+
   const handleLeaveRoom = () => {
+    const is30DaysRoom = activeRoom?.expiry_type === '30_DAYS';
+
+    if (is30DaysRoom) {
+      // Step 1: First Serious Warning for 30-Day VIP Room
+      setCustomAlert({
+        visible: true,
+        title: "⚠️ Leave 30-Day VIP Room?",
+        message: "Warning: This is a paid 30-Day VIP Room. If you disconnect or leave this room, your 30-Day Room Pass will end immediately and cannot be restored or refunded.\n\nTo start a new 30-day room later, you will have to pay ₹99 again.\n\nAre you sure you want to proceed?",
+        cancelText: "Keep My Room",
+        confirmText: "I Understand, Continue",
+        onCancel: () => {},
+        onConfirm: () => {
+          // Step 2: Final Double Confirmation Modal
+          setTimeout(() => {
+            setCustomAlert({
+              visible: true,
+              title: "Final Confirmation: End Pass?",
+              message: "This action is permanent and non-refundable. Your couple room will close and your ₹99 pass will be permanently cancelled.\n\nDisconnect now?",
+              cancelText: "Cancel & Stay",
+              confirmText: "Yes, Permanently Leave",
+              onCancel: () => {},
+              onConfirm: executeLeaveRoom,
+            });
+          }, 350);
+        },
+      });
+      return;
+    }
+
+    // Normal Confirmation for 7-Day Free Room
     setCustomAlert({
       visible: true,
       title: "Leave Room",
@@ -1227,48 +1304,7 @@ export default function Dashboard() {
       cancelText: "Cancel",
       confirmText: "Leave",
       onCancel: () => {},
-      onConfirm: async () => {
-        setIsLeavingRoom(true);
-        try {
-          const currentRoomId = activeRoom?.id;
-          const currentRoomCode = activeRoom?.code;
-
-          // Immediately leave socket room
-          if (currentRoomCode) {
-                GameSocket.leaveRoom(currentRoomCode);
-              }
-
-              // Optimistically update UI immediately so 'No Room' card appears right away
-              setActiveRoom(null);
-              setCardSends([]);
-              setDeflectCardsCount(0);
-              setDeflectCards([]);
-              setLocalPendingChallenges([]);
-              setRoomHistoryData([]);
-              setPartnerName("Partner");
-              setPartnerAvatar(ANIMATED_AVATARS[1].url);
-
-              DeviceEventEmitter.emit("app:clearRoom");
-
-              // Thoroughly clear cache from storage
-              if (currentRoomId) {
-                await clearRoomCache(currentRoomId);
-                await leaveRoom(currentRoomId);
-              } else {
-                await clearRoomCache();
-              }
-
-              // Delay refresh slightly to ensure backend is fully updated
-              setTimeout(() => {
-                DeviceEventEmitter.emit("app:refreshDashboard");
-              }, 500);
-            } catch (error) {
-              console.error("API Error during leaveRoom:", error);
-            } finally {
-              setIsLeavingRoom(false);
-              setRoomLoading(false);
-            }
-      }
+      onConfirm: executeLeaveRoom,
     });
   };
 
@@ -1851,24 +1887,27 @@ export default function Dashboard() {
                       style={{
                         marginTop: 16,
                         marginBottom: 6,
-                        marginHorizontal: 2,
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderRadius: 16,
+                        marginHorizontal: 12,
+                        paddingVertical: 11,
+                        paddingHorizontal: 14,
+                        borderRadius: 9999,
                         backgroundColor: isDark ? 'rgba(255,41,109,0.08)' : 'rgba(255,41,109,0.05)',
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 8,
+                        gap: 7,
                         borderWidth: 1,
                         borderColor: isDark ? 'rgba(255,41,109,0.25)' : 'rgba(255,41,109,0.15)',
                       }}
                     >
-                      <Ionicons name="sparkles" size={15} color="#FF296D" />
-                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#FF296D', textAlign: 'center' }}>
+                      <Ionicons name="sparkles" size={14} color="#FF296D" />
+                      <Text 
+                        numberOfLines={1}
+                        style={{ fontSize: 12, fontWeight: '700', color: '#FF296D', textAlign: 'center' }}
+                      >
                         New to SoulShuffle? View the Welcome Guide
                       </Text>
-                      <Ionicons name="arrow-forward" size={13} color="#FF296D" />
+                      <Ionicons name="arrow-forward" size={12} color="#FF296D" />
                     </TouchableOpacity>
                   </View>
                 </View>
