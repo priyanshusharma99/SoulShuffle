@@ -74,6 +74,8 @@ export const clearRoomCache = async (roomId?: string) => {
     await AsyncStorage.removeItem('activeRoomId');
     await AsyncStorage.removeItem('relationshipStats');
     await AsyncStorage.removeItem('@soulshuffle_dares_cache');
+    await AsyncStorage.removeItem('@soulshuffle_unlocked_packs');
+    await AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack');
     await AsyncStorage.removeItem('cachedCardSends');
     await AsyncStorage.removeItem('cachedDeckCards');
     await AsyncStorage.removeItem('cachedRoomHistory');

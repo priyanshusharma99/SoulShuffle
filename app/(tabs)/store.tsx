@@ -449,6 +449,7 @@ export default function StoreScreen() {
 
       // Save unlocked bundle details for Dares screen & NEW badges
       const newlyUnlocked = {
+        roomId: currentRoom?.id || '',
         bundleId: targetBundleId,
         bundleName: selectedBundle.name,
         bundleImage: selectedBundle.image_url,

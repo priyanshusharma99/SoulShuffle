@@ -493,26 +493,46 @@ export default function Dares() {
     }
   }, [selectedDare]);
 
-  // Load unlocked packs from storage on mount
+  // Load unlocked packs from storage on mount (strictly scoped to active room)
   useEffect(() => {
-    AsyncStorage.getItem('@soulshuffle_unlocked_packs').then(val => {
-      if (val) {
-        try {
-          const parsed = JSON.parse(val);
-          if (parsed && typeof parsed === 'object') {
-            setUnlockedPacksMap(parsed);
-          }
-        } catch (e) {}
+    getActiveRoom().then(currentRoom => {
+      if (!currentRoom || currentRoom.status !== 'ACTIVE') {
+        AsyncStorage.removeItem('@soulshuffle_unlocked_packs').catch(() => {});
+        AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack').catch(() => {});
+        setUnlockedPacksMap({});
+        setUnlockedPack(null);
+        return;
       }
-    });
-    AsyncStorage.getItem('@soulshuffle_last_unlocked_pack').then(val => {
-      if (val) {
-        try {
-          const parsed = JSON.parse(val);
-          setUnlockedPack(parsed);
-        } catch (e) {}
-      }
-    });
+      AsyncStorage.getItem('@soulshuffle_unlocked_packs').then(val => {
+        if (val) {
+          try {
+            const parsed = JSON.parse(val);
+            if (parsed && typeof parsed === 'object') {
+              const filtered: Record<string, any> = {};
+              Object.keys(parsed).forEach(k => {
+                const p = parsed[k];
+                if (p && (!p.roomId || p.roomId === currentRoom.id)) {
+                  filtered[k] = p;
+                }
+              });
+              setUnlockedPacksMap(filtered);
+            }
+          } catch (e) {}
+        }
+      });
+      AsyncStorage.getItem('@soulshuffle_last_unlocked_pack').then(val => {
+        if (val) {
+          try {
+            const parsed = JSON.parse(val);
+            if (parsed && (!parsed.roomId || parsed.roomId === currentRoom.id)) {
+              setUnlockedPack(parsed);
+            } else {
+              AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack').catch(() => {});
+            }
+          } catch (e) {}
+        }
+      });
+    }).catch(() => {});
   }, []);
 
   // Listen for refresh events (including new purchases from store)
@@ -612,6 +632,8 @@ export default function Dares() {
 
     allPacks.forEach((pack: any) => {
       if (!pack || !pack.bundleId) return;
+      // Safety: If pack has a roomId and it doesn't match current active room, NEVER merge it!
+      if (pack.roomId && room?.id && pack.roomId !== room.id) return;
       (pack?.cards || []).forEach((c: any) => {
         const idStr = String(c.id);
         if (!existingIds.has(idStr) && !existingCardIds.has(idStr)) {
@@ -906,6 +928,32 @@ export default function Dares() {
       memoryCachedRoom = activeRoom;
       
       if (activeRoom && activeRoom.status === 'ACTIVE') {
+        // Filter out any stale unlocked packs that were purchased in a PREVIOUS room!
+        setUnlockedPacksMap((prev: Record<string, any>) => {
+          const filtered: Record<string, any> = {};
+          let changed = false;
+          Object.keys(prev || {}).forEach(k => {
+            const p = prev[k];
+            if (p && (!p.roomId || p.roomId === activeRoom.id)) {
+              filtered[k] = p;
+            } else {
+              changed = true;
+            }
+          });
+          if (changed) {
+            AsyncStorage.setItem('@soulshuffle_unlocked_packs', JSON.stringify(filtered)).catch(() => {});
+          }
+          return filtered;
+        });
+
+        setUnlockedPack((prev: any) => {
+          if (prev && prev.roomId && prev.roomId !== activeRoom.id) {
+            AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack').catch(() => {});
+            return null;
+          }
+          return prev;
+        });
+
         const [fetched, fetchedLimits] = await Promise.all([
           fetchAvailableDeck(activeRoom.id),
           fetchSendLimits(activeRoom.id)
@@ -954,7 +1002,12 @@ export default function Dares() {
         memoryCachedLimits = null;
         setDares([]);
         setLimits(null);
+        setUnlockedPack(null);
+        setUnlockedPacksMap({});
+        setSelectedCategory('ALL');
         AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
+        AsyncStorage.removeItem('@soulshuffle_unlocked_packs').catch(() => {});
+        AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack').catch(() => {});
       }
     } catch (error: any) {
       console.log('Failed to fetch dares from backend:', error?.message);
@@ -1016,7 +1069,12 @@ export default function Dares() {
       setRoom(null);
       setDares([]);
       setLimits(null);
+      setUnlockedPack(null);
+      setUnlockedPacksMap({});
+      setSelectedCategory('ALL');
       AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
+      AsyncStorage.removeItem('@soulshuffle_unlocked_packs').catch(() => {});
+      AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack').catch(() => {});
     };
 
     const handleGameEvent = (payload: any) => {

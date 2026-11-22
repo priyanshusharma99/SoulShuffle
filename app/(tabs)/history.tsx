@@ -63,6 +63,8 @@ let memoryCachedRoomInfo: {
   status: string;
   expiry_type?: string;
   planDuration?: number;
+  extraCards?: number;
+  totalTargetCards?: number;
 } | null = null;
 let memoryCachedUserId: string | null = null;
 
@@ -286,19 +288,23 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
   });
 };
 
-  const calculateStats = (currentRoomHistory: SentChallenge[], staticTotal: number = 0) => {
+  const calculateStats = (currentRoomHistory: SentChallenge[], targetTotal: number = 0) => {
     const deduped = deduplicateChallenges(currentRoomHistory);
     const daresMastered = deduped.filter((c) => {
       const s = (c.status || '').toUpperCase();
       return s === 'COMPLETED' || s === 'CONFIRMED' || s === 'COMPLETED_BY_RECEIVER';
     }).length;
 
-    // Room plan target: 30 days for 30-day plan, 7 days for 7-day plan
-    const planTotal = staticTotal > 0
-      ? staticTotal
-      : (memoryCachedRoomInfo?.planDuration || (memoryCachedRoomInfo?.expiry_type === '7_DAYS' ? 7 : 30));
+    // Room plan target: Base Plan (30 or 7) + extra purchased bundle cards
+    const basePlan = memoryCachedRoomInfo?.planDuration || (memoryCachedRoomInfo?.expiry_type === '7_DAYS' ? 7 : 30);
+    const extraCards = memoryCachedRoomInfo?.extraCards || 0;
+    const computedTarget = memoryCachedRoomInfo?.totalTargetCards || (basePlan + extraCards);
 
-    let completionRate = planTotal > 0 ? Math.round((daresMastered / planTotal) * 100) : 0;
+    const activeTarget = targetTotal > 0 ? targetTotal : computedTarget;
+    // Target never displays less than mastered count so completion doesn't exceed 100%
+    const finalTarget = Math.max(activeTarget, daresMastered);
+
+    let completionRate = finalTarget > 0 ? Math.round((daresMastered / finalTarget) * 100) : 0;
     if (completionRate > 100) completionRate = 100;
 
     let currentStreak = 0;
@@ -325,7 +331,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
       }
     }
 
-    const statsObj = { completionRate, currentStreak, daresMastered, totalCards: planTotal };
+    const statsObj = { completionRate, currentStreak, daresMastered, totalCards: finalTarget };
     memoryCachedStats = statsObj;
     setStats(statsObj);
   };
@@ -455,6 +461,21 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
          (new Date(activeRoom.expires_at).getTime() - new Date(activeRoom.created_at).getTime()) / (1000 * 60 * 60 * 24) > 14);
       const planDuration = is30Days ? 30 : (activeRoom?.expiry_type === '7_DAYS' ? 7 : 30);
 
+      // Check extra bundle cards from room object or locally stored packs
+      let localExtraCards = 0;
+      try {
+        const storedPacksRaw = await AsyncStorage.getItem('@soulshuffle_unlocked_packs');
+        if (storedPacksRaw) {
+          const packsMap = JSON.parse(storedPacksRaw);
+          Object.values(packsMap).forEach((p: any) => {
+            localExtraCards += Number(p?.cardCount || p?.cards?.length || 0);
+          });
+        }
+      } catch (e) {}
+
+      const extraCards = Math.max(Number((activeRoom as any)?.extra_cards || (activeRoom as any)?.purchased_cards || 0), localExtraCards);
+      const totalTargetCards = Number((activeRoom as any)?.total_target_cards || (planDuration + extraCards));
+
       const currentRoomData = {
         id: activeRoomId,
         code: activeRoom.code || 'GAME',
@@ -463,6 +484,8 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
         status: activeRoom.status || 'ACTIVE',
         expiry_type: is30Days ? '30_DAYS' : (activeRoom?.expiry_type === '7_DAYS' ? '7_DAYS' : '30_DAYS'),
         planDuration,
+        extraCards,
+        totalTargetCards,
       };
 
       memoryCachedRoomInfo = currentRoomData;
@@ -539,7 +562,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
             if (merged.length > 0) {
               memoryCachedHistory = merged;
               setChallengeHistory(merged);
-              calculateStats(merged, planDuration);
+              calculateStats(merged, totalTargetCards);
               setLoading(false);
             }
           }
@@ -582,7 +605,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
           const merged = deduplicateChallenges([...enrichedServer, ...prevHistory]);
 
           memoryCachedHistory = merged;
-          calculateStats(merged, planDuration);
+          calculateStats(merged, totalTargetCards);
           AsyncStorage.setItem(cacheKey, JSON.stringify(merged)).catch(() => {});
           AsyncStorage.setItem('cachedRoomHistory', JSON.stringify(merged)).catch(() => {});
           return merged;
@@ -631,7 +654,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
           }
           const deduped = deduplicateChallenges(updatedList);
           memoryCachedHistory = deduped;
-          const targetPlan = memoryCachedRoomInfo?.planDuration || 30;
+          const targetPlan = memoryCachedRoomInfo?.totalTargetCards || memoryCachedRoomInfo?.planDuration || 30;
           calculateStats(deduped, targetPlan);
           return deduped;
         });
@@ -650,6 +673,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
 
     const histSub = DeviceEventEmitter.addListener('app:refreshHistory', handleEvent);
     const dashSub = DeviceEventEmitter.addListener('app:refreshDashboard', handleEvent);
+    const daresSub = DeviceEventEmitter.addListener('app:refreshDares', () => loadHistory(false));
 
     const resetHistoryState = () => {
       memoryCachedHistory = [];
@@ -676,6 +700,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
       GameSocket.off('card_rejected', handleEvent);
       histSub.remove();
       dashSub.remove();
+      daresSub.remove();
       logoutSub.remove();
       clearRoomSub.remove();
     };
@@ -1170,7 +1195,7 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
                 {stats.completionRate}%
               </Text>
               <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>
-                ({stats.daresMastered}/{stats.totalCards || (activeRoomInfo?.planDuration || 30)})
+                ({stats.daresMastered}/{stats.totalCards || activeRoomInfo?.totalTargetCards || activeRoomInfo?.planDuration || 30})
               </Text>
             </View>
             <View
@@ -1193,7 +1218,9 @@ const deduplicateChallenges = (items: SentChallenge[]): SentChallenge[] => {
               />
             </View>
             <Text style={{ fontSize: 9.5, fontWeight: '700', color: isDark ? '#FDA4AF' : '#E11D48', marginTop: 5 }}>
-              {(stats.totalCards || activeRoomInfo?.planDuration) === 7 ? '7-Day Plan' : '30-Day Plan'}
+              {(activeRoomInfo?.extraCards || 0) > 0
+                ? `${activeRoomInfo?.planDuration || 30}-Day Plan (+${activeRoomInfo?.extraCards} Cards)`
+                : (activeRoomInfo?.expiry_type === '7_DAYS' || activeRoomInfo?.planDuration === 7 ? '7-Day Plan' : '30-Day Plan')}
             </Text>
           </View>
 

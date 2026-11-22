@@ -1256,6 +1256,9 @@ export default function Dashboard() {
       // Clear local VIP flags
       await AsyncStorage.removeItem('@soulshuffle_vip_active');
       await AsyncStorage.removeItem('@soulshuffle_vip_expires_at');
+      await AsyncStorage.removeItem('@soulshuffle_unlocked_packs');
+      await AsyncStorage.removeItem('@soulshuffle_last_unlocked_pack');
+      await AsyncStorage.removeItem('@soulshuffle_dares_cache');
 
       DeviceEventEmitter.emit("app:clearRoom");
 
