@@ -71,7 +71,9 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 // ─── Setup Android Notification Channel ─────────────────────────────────────
+let channelRegistered = false;
 const setupAndroidChannel = async () => {
+  if (channelRegistered) return;
   if (Platform.OS === 'android' && Notifications?.setNotificationChannelAsync) {
     try {
       await Notifications.setNotificationChannelAsync('default', {
@@ -85,6 +87,7 @@ const setupAndroidChannel = async () => {
         lockscreenVisibility: Notifications?.AndroidNotificationVisibility?.PUBLIC ?? 1,
         bypassDnd: false,
       });
+      channelRegistered = true;
       console.log('[Notifications] Android default notification channel registered');
     } catch (e) {
       console.warn('[Notifications] setupAndroidChannel error:', e);
@@ -168,11 +171,11 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   const registerPushTokenWithBackend = useCallback(async () => {
     if (Platform.OS === 'web') return;
     if (!Notifications) {
-      console.log('[Notifications] Push notifications skipped (unsupported environment).');
       return;
     }
 
     if (isRegisteringTokenRef.current) return;
+    if (lastRegisteredTokenRef.current) return;
     isRegisteringTokenRef.current = true;
 
     try {

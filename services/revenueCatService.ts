@@ -31,6 +31,18 @@ class RevenueCatService {
         : (isAmazon ? amazonKey : googleKey);
 
       if (Purchases && typeof Purchases.configure === 'function') {
+        try {
+          if (typeof Purchases.setLogLevel === 'function') {
+            Purchases.setLogLevel(Purchases.LOG_LEVEL?.INFO ?? 'INFO');
+          }
+          if (typeof Purchases.setLogHandler === 'function') {
+            Purchases.setLogHandler((logLevel: any, message: string) => {
+              // Log cleanly as standard info log to prevent Metro terminal RedBox popups
+              console.log('[RevenueCat]', message);
+            });
+          }
+        } catch (logErr) {}
+
         Purchases.configure({
           apiKey,
           appUserID: userId || undefined,
