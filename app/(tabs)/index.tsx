@@ -1887,15 +1887,15 @@ export default function Dashboard() {
                       style={{
                         marginTop: 16,
                         marginBottom: 6,
-                        marginHorizontal: 12,
-                        paddingVertical: 11,
-                        paddingHorizontal: 14,
+                        marginHorizontal: 8,
+                        paddingVertical: 12,
+                        paddingHorizontal: 22,
                         borderRadius: 9999,
                         backgroundColor: isDark ? 'rgba(255,41,109,0.08)' : 'rgba(255,41,109,0.05)',
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 7,
+                        gap: 8,
                         borderWidth: 1,
                         borderColor: isDark ? 'rgba(255,41,109,0.25)' : 'rgba(255,41,109,0.15)',
                       }}
@@ -1903,6 +1903,8 @@ export default function Dashboard() {
                       <Ionicons name="sparkles" size={14} color="#FF296D" />
                       <Text 
                         numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.85}
                         style={{ fontSize: 12, fontWeight: '700', color: '#FF296D', textAlign: 'center' }}
                       >
                         New to SoulShuffle? View the Welcome Guide
