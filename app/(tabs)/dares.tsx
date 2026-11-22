@@ -100,6 +100,8 @@ const mapCardToDare = (card: any): Dare => {
   const categoryImageUrl = resolveCategoryImageUrl(card);
   const image = { uri: categoryImageUrl };
 
+  const isBundleCard = Boolean(card.bundle_id || card.bundle_name || card.is_paid || card.isPaid);
+
   return {
     id: card.deck_card_id || card.id,
     deck_card_id: card.deck_card_id || card.id,
@@ -115,7 +117,8 @@ const mapCardToDare = (card: any): Dare => {
     time,
     image,
     description,
-    isPaid: !!card.bundle_id
+    isPaid: isBundleCard,
+    isNew: isBundleCard || !!card.isNew
   };
 };
 
@@ -139,7 +142,13 @@ const getCatColor = (cat: string) => {
 
 const CarouselItemUI = ({ item, isDark, onSelectDare, isNewCard }: any) => {
   const categoryColor = getCatColor(item.category);
-  const showNew = isNewCard || item.isNew;
+  const showNew = Boolean(
+    isNewCard ||
+    item.isNew ||
+    item.bundle_id ||
+    item.bundle_name ||
+    item.isPaid
+  );
   const categoryImageUrl = resolveCategoryImageUrl(item);
   return (
     <TouchableOpacity
@@ -153,7 +162,8 @@ const CarouselItemUI = ({ item, isDark, onSelectDare, isNewCard }: any) => {
         shadowColor: showNew ? '#FF296D' : (isDark ? '#000' : '#FF296D'), 
         shadowOffset: { width: 0, height: 10 }, 
         shadowOpacity: showNew ? 0.75 : (isDark ? 0.6 : 0.1), 
-        shadowRadius: 20 
+        shadowRadius: 20,
+        elevation: showNew ? 10 : 3
       }}
     >
       <Image source={{ uri: categoryImageUrl }} style={{ width: '100%', height: '100%', position: 'absolute' }} resizeMode="cover" />
@@ -410,7 +420,17 @@ const DareCarousel = ({ data, isDark, onSelectDare, newCardIds }: any) => {
             item={item}
             isDark={isDark}
             onSelectDare={onSelectDare}
-            isNewCard={newCardIds?.has(String(item.id)) || item.isNew}
+            isNewCard={
+              Boolean(
+                item.isNew ||
+                item.bundle_id ||
+                item.bundle_name ||
+                item.isPaid ||
+                newCardIds?.has(String(item.id)) ||
+                newCardIds?.has(String(item.card_id)) ||
+                newCardIds?.has(String(item.deck_card_id))
+              )
+            }
           />
         </Animated.View>
       );
@@ -612,8 +632,20 @@ export default function Dares() {
     if (unlockedPack?.cardIds) {
       unlockedPack.cardIds.forEach((id: any) => set.add(String(id)));
     }
+    if (unlockedPack?.cards) {
+      unlockedPack.cards.forEach((c: any) => {
+        if (c.id) set.add(String(c.id));
+        if (c.card_id) set.add(String(c.card_id));
+        if (c.deck_card_id) set.add(String(c.deck_card_id));
+      });
+    }
     Object.values(unlockedPacksMap || {}).forEach((p: any) => {
       (p?.cardIds || []).forEach((id: any) => set.add(String(id)));
+      (p?.cards || []).forEach((c: any) => {
+        if (c.id) set.add(String(c.id));
+        if (c.card_id) set.add(String(c.card_id));
+        if (c.deck_card_id) set.add(String(c.deck_card_id));
+      });
     });
     return set;
   }, [unlockedPack, unlockedPacksMap]);
