@@ -1777,7 +1777,7 @@ export default function Dashboard() {
                     </View>
 
                     <Text className="text-slate-900 dark:text-white text-[26px] font-black leading-tight tracking-tight mb-2">
-                      Connect with{'\n'}Your Partner
+                      Connect with Your Partner
                     </Text>
                     <Text className="text-slate-500 dark:text-slate-400 text-[13px] font-medium leading-5 mb-6">
                       Create or join a private room to start playing together.

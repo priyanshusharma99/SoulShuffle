@@ -449,7 +449,7 @@ export default function CoinToss() {
 
       if (!eventData) return;
 
-      // Case A: Partner selected a side → Auto-assign opposite to current user
+      // Case A: Partner selected a side - Auto-assign opposite to current user
       if (eventType === 'COIN_CHOICE_SELECTED') {
         const partnerPicked: CoinFace = (eventData.choice || 'HEADS').toUpperCase() as CoinFace;
         const oppositeChoice: CoinFace = partnerPicked === 'HEADS' ? 'TAILS' : 'HEADS';

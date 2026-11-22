@@ -78,7 +78,7 @@ export default function Sidebar() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Load names & avatar from cache on open â€” instant, no API call
+  // Load names & avatar from cache on open - instant, no API call
   useEffect(() => {
     if (!isOpen) return;
     const loadNamesAndStats = async () => {

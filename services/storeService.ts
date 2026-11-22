@@ -113,7 +113,7 @@ export const getCuratedBundleCards = (bundleName: string, count: number = 10): a
       {
         id: 'spicy-card-5',
         title: 'Secret Whispers',
-        description: 'Whisper 3 naughty and teasing things you want to do tonight directly into your partner’s ear.',
+        description: "Whisper 3 naughty and teasing things you want to do tonight directly into your partner's ear.",
         category: 'SPICY',
         difficulty: 'MEDIUM',
         stars: 2,
@@ -143,7 +143,7 @@ export const getCuratedBundleCards = (bundleName: string, count: number = 10): a
       {
         id: 'spicy-card-8',
         title: 'Feather-Light Touch',
-        description: 'Using only your fingertips, trace the outline of your partner’s lips, jawline, and collarbone.',
+        description: "Using only your fingertips, trace the outline of your partner's lips, jawline, and collarbone.",
         category: 'SPICY',
         difficulty: 'LOW',
         stars: 2,

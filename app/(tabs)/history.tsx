@@ -1037,8 +1037,7 @@ export default function History() {
               letterSpacing: -0.6,
             }}
           >
-            Our <Text style={{ fontStyle: 'italic', color: '#FF3366' }}>Moments</Text>
-            {'\n'}& Dares
+            Our <Text style={{ fontStyle: 'italic', color: '#FF3366' }}>Moments</Text> & Dares
           </Text>
         </View>
 
